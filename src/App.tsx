@@ -488,20 +488,25 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
+      // Remove id from data object to avoid saving it as a field
+      const { id, ...dataWithoutId } = currentArticle;
+      
       const articleData = {
-        ...currentArticle,
+        ...dataWithoutId,
         updatedAt: serverTimestamp(),
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
       };
 
-      if (currentArticle.id) {
-        const docRef = doc(db, 'articles', currentArticle.id);
+      if (id) {
+        const docRef = doc(db, 'articles', id);
         await updateDoc(docRef, articleData);
       } else {
         await addDoc(collection(db, 'articles'), {
@@ -511,8 +516,20 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
       }
       setIsEditing(false);
       setCurrentArticle({});
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'articles');
+    } catch (err: any) {
+      let message = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.error.includes('permission-denied')) {
+          message = "คุณไม่มีสิทธิ์ในการบันทึกข้อมูล (Permission Denied)";
+        } else {
+          message = parsed.error;
+        }
+      } catch (e) {
+        message = err.message || message;
+      }
+      setError(message);
+      console.error("Save Error:", err);
     } finally {
       setLoading(false);
     }
@@ -559,6 +576,13 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
             <h2 className="text-2xl font-bold text-gold">{currentArticle.id ? 'แก้ไขบทความ' : 'สร้างบทความใหม่'}</h2>
             <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
           </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-baccarat-red/20 border border-baccarat-red rounded-xl text-white text-sm">
+              <strong>เกิดข้อผิดพลาด:</strong> {error}
+            </div>
+          )}
+
           <form onSubmit={handleSave} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">

@@ -29,21 +29,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        (request.auth.token.email == "dekdernpoy168@gmail.com" && request.auth.token.email_verified == true);
-    }
-
-    function isValidArticle(data) {
-      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
-             data.content is string && data.content.size() > 0 && data.content.size() < 100000 &&
-             data.slug is string && data.slug.size() > 0 && data.slug.size() < 100 &&
-             data.category is string && data.category.size() > 0;
+      return request.auth != null && request.auth.token.email == "dekdernpoy168@gmail.com";
     }
 
     match /articles/{articleId} {
-      allow read: if true; // Publicly readable for SEO
-      allow create, update: if isAdmin() && isValidArticle(request.resource.data);
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
