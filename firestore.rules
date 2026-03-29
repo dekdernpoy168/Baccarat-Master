@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: articles
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - excerpt: string
+    //   - content: string (required, HTML)
+    //   - category: string (required)
+    //   - date: string
+    //   - author: string
+    //   - image: string
+    //   - slug: string (required)
+    //   - metaTitle: string
+    //   - metaDescription: string
+    //   - createdAt: timestamp
+    //   - updatedAt: timestamp
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "dekdernpoy168@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidArticle(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 100000 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() < 100 &&
+             data.category is string && data.category.size() > 0;
+    }
+
+    match /articles/{articleId} {
+      allow read: if true; // Publicly readable for SEO
+      allow create, update: if isAdmin() && isValidArticle(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

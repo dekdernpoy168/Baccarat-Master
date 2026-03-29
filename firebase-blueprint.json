@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "Article": {
+      "title": "Article",
+      "description": "บทความสำหรับลงในเว็บไซต์",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "หัวข้อบทความ" },
+        "excerpt": { "type": "string", "description": "คำโปรย" },
+        "content": { "type": "string", "description": "เนื้อหาบทความ (HTML)" },
+        "category": { "type": "string", "description": "หมวดหมู่" },
+        "date": { "type": "string", "description": "วันที่ลงบทความ" },
+        "author": { "type": "string", "description": "ผู้เขียน" },
+        "image": { "type": "string", "description": "URL รูปภาพ" },
+        "slug": { "type": "string", "description": "Slug สำหรับ URL" },
+        "metaTitle": { "type": "string", "description": "SEO Title" },
+        "metaDescription": { "type": "string", "description": "SEO Meta Description" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "slug", "category"]
+    }
+  },
+  "firestore": {
+    "/articles/{articleId}": {
+      "schema": "Article",
+      "description": "คอลเลกชันบทความทั้งหมด"
+    }
+  }
+}

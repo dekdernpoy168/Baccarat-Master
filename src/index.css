@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+@import "react-quill-new/dist/quill.snow.css";
+
+@theme {
+  --color-gold: #D4AF37;
+  --color-gold-light: #F9E272;
+  --color-gold-dark: #996515;
+  --color-baccarat-red: #8B0000;
+  --color-baccarat-black: #0A0A0A;
+}
+
+body {
+  background-color: var(--color-baccarat-black);
+  color: #FFFFFF;
+  font-family: 'Inter', sans-serif;
+}
+
+.gold-gradient {
+  background: linear-gradient(to right, var(--color-gold-dark), var(--color-gold), var(--color-gold-light), var(--color-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-bg-gradient {
+  background: linear-gradient(135deg, var(--color-gold-dark) 0%, var(--color-gold) 50%, var(--color-gold-light) 100%);
+}
+
+.red-glow {
+  box-shadow: 0 0 30px rgba(139, 0, 0, 0.4);
+}
+
+.article-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.article-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(212, 175, 55, 0.2);
+}
+
+/* Article Content Styles */
+.article-content h2 {
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: var(--color-gold);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  border-left: 4px solid var(--color-baccarat-red);
+  padding-left: 1rem;
+}
+
+.article-content p {
+  margin-bottom: 1.5rem;
+  line-height: 1.8;
+}
+
+.article-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.article-content li {
+  margin-bottom: 0.5rem;
+}
+
+.article-content strong {
+  color: var(--color-gold-light);
+}
+
+/* Quill Editor Customization */
+.ql-container {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 16px !important;
+  color: #FFFFFF !important;
+  background: #1a1a1a !important;
+  border: 1px solid rgba(212, 175, 55, 0.2) !important;
+  border-bottom-left-radius: 1rem !important;
+  border-bottom-right-radius: 1rem !important;
+}
+
+.ql-toolbar {
+  background: #2a2a2a !important;
+  border: 1px solid rgba(212, 175, 55, 0.2) !important;
+  border-top-left-radius: 1rem !important;
+  border-top-right-radius: 1rem !important;
+}
+
+.ql-stroke {
+  stroke: #D4AF37 !important;
+}
+
+.ql-fill {
+  fill: #D4AF37 !important;
+}
+
+.ql-picker {
+  color: #D4AF37 !important;
+}
+
+.ql-editor {
+  min-height: 300px !important;
+}
+
+.ql-editor.ql-blank::before {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
