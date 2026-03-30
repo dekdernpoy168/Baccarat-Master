@@ -373,7 +373,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-baccarat-black via-baccarat-black/70 to-transparent z-10" />
           <img 
-            src="https://picsum.photos/seed/casino-luxury/1920/1080" 
+            src="https://img2.pic.in.th/The-Secret-Scripture-of-the-Baccarat-Master.jpg" 
             className="w-full h-full object-cover opacity-50"
             alt="Hero Background"
             referrerPolicy="no-referrer"
