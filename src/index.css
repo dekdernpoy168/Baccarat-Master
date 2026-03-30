@@ -106,3 +106,22 @@ body {
 .ql-editor.ql-blank::before {
   color: rgba(255, 255, 255, 0.3) !important;
 }
+
+/* Custom Scrollbar for Game Rounds */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-gold);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
