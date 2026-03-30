@@ -121,11 +121,14 @@ const Navbar = ({ user }: { user: User | null }) => {
     <nav className="sticky top-0 z-50 bg-baccarat-black/90 backdrop-blur-md border-b border-gold/30 py-3 lg:py-4">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 flex flex-col items-center gap-3 lg:gap-4">
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2">
-          <div className="w-8 h-8 lg:w-10 lg:h-10 bg-baccarat-red rounded-full flex items-center justify-center border border-gold shrink-0">
-            <Award className="text-gold w-5 h-5 lg:w-6 lg:h-6" />
-          </div>
-          <span className="text-lg lg:text-2xl font-bold gold-gradient tracking-tighter uppercase whitespace-nowrap">Baccarat Master</span>
+        <Link to="/" className="flex items-center space-x-2 md:space-x-3">
+          <img 
+            src="https://img2.pic.in.th/LOGO1-Baccarat-Master.png" 
+            alt="Baccarat Master Logo" 
+            className="h-10 md:h-12 lg:h-14 w-auto object-contain shrink-0"
+            referrerPolicy="no-referrer"
+          />
+          <span className="text-xl md:text-2xl lg:text-3xl font-bold gold-gradient tracking-tighter uppercase whitespace-nowrap">Baccarat Master</span>
         </Link>
 
         {/* Menu */}
@@ -830,9 +833,20 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
 
       {/* Trust / CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-baccarat-red to-red-950 rounded-[2.5rem] md:rounded-[4rem] p-8 md:p-24 relative overflow-hidden red-glow border border-white/10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gold/10 rounded-full -mr-48 -mt-48 blur-[100px]" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-baccarat-black/40 rounded-full -ml-32 -mb-32 blur-[80px]" />
+        <div className="rounded-[2.5rem] md:rounded-[4rem] p-8 md:p-24 relative overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(139,0,0,0.3)]">
+          {/* Background Image */}
+          <img 
+            src="https://img1.pic.in.th/images/Are-you-ready-to-become-a-true-baccarat-master.jpg" 
+            alt="Baccarat Master CTA Background" 
+            className="absolute inset-0 w-full h-full object-cover z-0"
+            referrerPolicy="no-referrer"
+          />
+          {/* Gradient Overlay to ensure text readability while keeping the red theme */}
+          <div className="absolute inset-0 bg-gradient-to-br from-baccarat-red/80 to-baccarat-black/90 z-0" />
+          
+          {/* Decorative glows */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gold/20 rounded-full -mr-48 -mt-48 blur-[100px] z-0" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-baccarat-red/40 rounded-full -ml-32 -mb-32 blur-[80px] z-0" />
           
           <div className="relative z-10 text-center max-w-4xl mx-auto">
             <motion.div
