@@ -578,8 +578,11 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
   const [language, setLanguage] = useState('Thai');
   const [voiceTone, setVoiceTone] = useState('Professional');
   const [writingStyle, setWritingStyle] = useState('Informative');
+  const [targetAudience, setTargetAudience] = useState('General');
+  const [anchorText, setAnchorText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [topic, setTopic] = useState('');
-  const [totalWords, setTotalWords] = useState('200');
+  const [totalWords, setTotalWords] = useState('1000');
   const [keywords, setKeywords] = useState('');
   const [promptTemplate, setPromptTemplate] = useState('');
   const [isFetchingKeywords, setIsFetchingKeywords] = useState(false);
@@ -625,9 +628,29 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
   };
 
   useEffect(() => {
-    const generatedPrompt = `Please ignore all previous instructions. You are an expert copywriter who writes detailed and thoughtful blog articles. You have a ${voiceTone} tone of voice. You have a ${writingStyle} writing style. I want you to write around ${totalWords} words on "${topic}" in the ${language} language. I will give you a list of keywords that need to be in the text that you create. Please intersperse short and long sentences. Utilize uncommon terminology to enhance the originality of the content. Please format the content in a professional format. Do not self reference. Do not explain what you are doing. Here are the keywords - "${keywords}". Please highlight these keywords in bold in the text using markdown.`;
+    let generatedPrompt = `Please ignore all previous instructions. You are an expert copywriter who writes detailed and thoughtful blog articles. 
+    Tone of voice: ${voiceTone}. 
+    Writing style: ${writingStyle}. 
+    Target audience: ${targetAudience}. 
+    Template type: ${template}.
+    
+    I want you to write around ${totalWords} words on "${topic}" in the ${language} language. 
+    
+    Keywords to include: "${keywords}". Please highlight these keywords in bold in the text using markdown.
+    
+    Instructions:
+    - Intersperse short and long sentences. 
+    - Utilize uncommon terminology to enhance the originality of the content. 
+    - Format the content in a professional format using HTML tags (h2, p, ul, li, strong). 
+    - Do not self-reference. 
+    - Do not explain what you are doing.`;
+
+    if (anchorText && linkUrl) {
+      generatedPrompt += `\n\nInternal Linking: Please find a natural place to include an internal link using the anchor text "${anchorText}" pointing to the URL "${linkUrl}". Use the HTML format: <a href="${linkUrl}">${anchorText}</a>.`;
+    }
+
     setPromptTemplate(generatedPrompt);
-  }, [voiceTone, writingStyle, totalWords, topic, language, keywords]);
+  }, [voiceTone, writingStyle, targetAudience, template, totalWords, topic, language, keywords, anchorText, linkUrl]);
 
   if (!isOpen) return null;
 
@@ -684,11 +707,13 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
                 <option>Generate Paragraph Of Text</option>
                 <option>Generate Full Article</option>
                 <option>Generate Outline</option>
+                <option>How-to Guide</option>
+                <option>Listicle (Top 10, etc.)</option>
+                <option>Product Review</option>
+                <option>Comparison Article</option>
               </select>
             </div>
           </div>
-
-          <p className="text-gray-400 text-xs italic">Description: Generate a paragraph of text for a topic with specific keywords.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
@@ -713,6 +738,10 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
                 <option>Professional</option>
                 <option>Friendly</option>
                 <option>Witty</option>
+                <option>Authoritative</option>
+                <option>Empathetic</option>
+                <option>Persuasive</option>
+                <option>Inspirational</option>
               </select>
             </div>
             <div className="space-y-1.5">
@@ -725,7 +754,43 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
                 <option>Informative</option>
                 <option>Creative</option>
                 <option>Analytical</option>
+                <option>Conversational</option>
+                <option>Descriptive</option>
+                <option>Expository</option>
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Target Audience:</label>
+              <input 
+                type="text" 
+                value={targetAudience}
+                onChange={e => setTargetAudience(e.target.value)}
+                placeholder="e.g. Beginners, Experts"
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Anchor Text (Internal Link):</label>
+              <input 
+                type="text" 
+                value={anchorText}
+                onChange={e => setAnchorText(e.target.value)}
+                placeholder="Keywords for link"
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Link URL:</label>
+              <input 
+                type="text" 
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              />
             </div>
           </div>
 
@@ -1689,18 +1754,18 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8"
               >
+                <button 
+                  onClick={() => setShowPreview(false)}
+                  className="fixed top-6 right-6 text-gray-400 hover:text-white z-[110] bg-black/50 p-2 rounded-full transition-colors border border-gold/20"
+                >
+                  <X size={24} />
+                </button>
                 <motion.div 
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
                   className="bg-baccarat-black border border-gold/30 w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl relative custom-scrollbar"
                 >
-                  <button 
-                    onClick={() => setShowPreview(false)}
-                    className="absolute top-6 right-6 text-gray-400 hover:text-white z-10 bg-black/50 p-2 rounded-full transition-colors"
-                  >
-                    <X size={24} />
-                  </button>
                   
                   <div className="p-8 md:p-16">
                     <div className="mb-8">
