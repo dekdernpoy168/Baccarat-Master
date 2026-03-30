@@ -249,6 +249,9 @@ const ArticleCard = ({ article }: { article: Article; key?: string }) => (
 // --- Pages ---
 
 const HomePage = ({ articles }: { articles: Article[] }) => {
+  const guideArticle = articles.find(a => a.title.includes('คู่มือฉบับสมบูรณ์'));
+  const guideLink = guideArticle ? `/articles/${guideArticle.slug}` : '/articles';
+
   return (
     <div className="space-y-24 pb-24">
       <section className="relative h-[80vh] flex items-center overflow-hidden">
@@ -296,22 +299,53 @@ const HomePage = ({ articles }: { articles: Article[] }) => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { icon: <BookOpen className="w-8 h-8" />, title: "คู่มือฉบับสมบูรณ์", desc: "ตั้งแต่พื้นฐานจนถึงระดับเซียน รวบรวมไว้ที่นี่ที่เดียว" },
-            { icon: <TrendingUp className="w-8 h-8" />, title: "สูตรเดินเงินแม่นยำ", desc: "จัดการทุนอย่างเป็นระบบ ลดความเสี่ยง เพิ่มโอกาสชนะ" },
-            { icon: <ShieldCheck className="w-8 h-8" />, title: "ข้อมูลที่เชื่อถือได้", desc: "คัดกรองจากประสบการณ์จริงของเหล่าเซียนในวงการ" }
+            { 
+              title: "คู่มือฉบับสมบูรณ์", 
+              desc: "ตั้งแต่พื้นฐานจนถึงระดับเซียน รวบรวมไว้ที่นี่ที่เดียว",
+              img: "https://img1.pic.in.th/images/The-Complete-Guide-to-Baccarat-for-Experts.png",
+              link: guideLink
+            },
+            { 
+              title: "สูตรเดินเงินแม่นยำ", 
+              desc: "สูตรบาคาร่า AI 2026 จัดการทุนอย่างเป็นระบบ ลดความเสี่ยง เพิ่มโอกาสชนะ",
+              img: "https://img2.pic.in.th/Accurate-money-management-formula-AI-Baccarat-formula2026.jpg",
+              link: "/formula"
+            },
+            { 
+              title: "ข้อมูลที่เชื่อถือได้", 
+              desc: "คัดกรองจากประสบการณ์จริงของเหล่าเซียนในวงการ",
+              img: "https://img1.pic.in.th/images/reliable-information.jpg",
+              link: "/articles"
+            }
           ].map((feature, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.2 }}
-              viewport={{ once: true }}
-              className="bg-gray-900/40 border border-gold/10 p-8 rounded-3xl hover:border-gold/30 transition-colors"
-            >
-              <div className="text-gold mb-6">{feature.icon}</div>
-              <h3 className="text-2xl font-bold text-white mb-4">{feature.title}</h3>
-              <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
-            </motion.div>
+            <Link to={feature.link} key={i} className="block group">
+              <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.2 }}
+                viewport={{ once: true }}
+                className="bg-gray-900/60 border border-gold/10 overflow-hidden rounded-[2.5rem] hover:border-gold/50 transition-all duration-500 h-full flex flex-col shadow-2xl hover:shadow-gold/10 hover:-translate-y-2"
+              >
+                {feature.img && (
+                  <div className="aspect-[16/9] overflow-hidden relative">
+                    <img 
+                      src={feature.img} 
+                      alt={feature.title} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-80" />
+                  </div>
+                )}
+                <div className="p-8 flex-grow flex flex-col">
+                  <h3 className="text-2xl font-black text-white mb-4 group-hover:text-gold transition-colors leading-tight">{feature.title}</h3>
+                  <p className="text-gray-400 leading-relaxed mb-8 flex-grow text-sm sm:text-base">{feature.desc}</p>
+                  <div className="flex items-center text-gold font-black text-xs uppercase tracking-[0.2em] group-hover:translate-x-2 transition-transform">
+                    อ่านรายละเอียด <ChevronRight size={16} className="ml-2" />
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
           ))}
         </div>
       </section>
