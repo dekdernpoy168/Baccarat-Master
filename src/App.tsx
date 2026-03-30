@@ -570,6 +570,330 @@ const LoginPage = ({ user }: { user: User | null }) => {
   );
 };
 
+const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, onClose: () => void, onExecute: (prompt: string) => void }) => {
+  const [category, setCategory] = useState('Copywriting');
+  const [subCategory, setSubCategory] = useState('Blog Writing');
+  const [template, setTemplate] = useState('Generate Paragraph Of Text');
+  const [language, setLanguage] = useState('Thai');
+  const [voiceTone, setVoiceTone] = useState('Professional');
+  const [writingStyle, setWritingStyle] = useState('Informative');
+  const [topic, setTopic] = useState('');
+  const [totalWords, setTotalWords] = useState('200');
+  const [keywords, setKeywords] = useState('');
+  const [promptTemplate, setPromptTemplate] = useState('');
+  const [isFetchingKeywords, setIsFetchingKeywords] = useState(false);
+
+  const fetchKeywordsData = async () => {
+    if (!topic.trim()) return;
+    setIsFetchingKeywords(true);
+    try {
+      const apiKey = process.env.KEYWORDS_EVERYWHERE_API_KEY;
+      if (!apiKey) {
+        alert('กรุณาตั้งค่า KEYWORDS_EVERYWHERE_API_KEY ในระบบก่อนใช้งาน');
+        return;
+      }
+
+      const formData = new URLSearchParams();
+      formData.append('dataSource', 'gsc');
+      formData.append('country', 'th');
+      formData.append('currency', 'THB');
+      formData.append('kw[]', topic);
+
+      const response = await fetch('https://api.keywordseverywhere.com/v1/get_keyword_data', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json'
+        },
+        body: formData
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch keywords');
+      
+      const data = await response.json();
+      if (data.data && data.data.length > 0) {
+        const kwList = data.data.map((item: any) => item.keyword).join(', ');
+        setKeywords(prev => prev ? `${prev}, ${kwList}` : kwList);
+      }
+    } catch (err) {
+      console.error('Keywords Everywhere Error:', err);
+      alert('ไม่สามารถดึงข้อมูล Keywords ได้ในขณะนี้');
+    } finally {
+      setIsFetchingKeywords(false);
+    }
+  };
+
+  useEffect(() => {
+    const generatedPrompt = `Please ignore all previous instructions. You are an expert copywriter who writes detailed and thoughtful blog articles. You have a ${voiceTone} tone of voice. You have a ${writingStyle} writing style. I want you to write around ${totalWords} words on "${topic}" in the ${language} language. I will give you a list of keywords that need to be in the text that you create. Please intersperse short and long sentences. Utilize uncommon terminology to enhance the originality of the content. Please format the content in a professional format. Do not self reference. Do not explain what you are doing. Here are the keywords - "${keywords}". Please highlight these keywords in bold in the text using markdown.`;
+    setPromptTemplate(generatedPrompt);
+  }, [voiceTone, writingStyle, totalWords, topic, language, keywords]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-[#1a1c1e] border border-white/10 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+      >
+        <div className="bg-[#2d2f31] px-4 py-3 flex items-center justify-between border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-white text-black rounded-full flex items-center justify-center text-xs font-black">K</div>
+            <h2 className="text-white font-bold text-sm">ChatGPT Prompt Templates by Keywords Everywhere</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Category:</label>
+              <select 
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              >
+                <option>Copywriting</option>
+                <option>SEO</option>
+                <option>Marketing</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Sub-category:</label>
+              <select 
+                value={subCategory}
+                onChange={e => setSubCategory(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              >
+                <option>Blog Writing</option>
+                <option>Product Description</option>
+                <option>Social Media</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Templates:</label>
+              <select 
+                value={template}
+                onChange={e => setTemplate(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              >
+                <option>Generate Paragraph Of Text</option>
+                <option>Generate Full Article</option>
+                <option>Generate Outline</option>
+              </select>
+            </div>
+          </div>
+
+          <p className="text-gray-400 text-xs italic">Description: Generate a paragraph of text for a topic with specific keywords.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Languages:</label>
+              <select 
+                value={language}
+                onChange={e => setLanguage(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              >
+                <option>Thai</option>
+                <option>English</option>
+                <option>Chinese</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Voice Tones:</label>
+              <select 
+                value={voiceTone}
+                onChange={e => setVoiceTone(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              >
+                <option>Professional</option>
+                <option>Friendly</option>
+                <option>Witty</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">Writing Styles:</label>
+              <select 
+                value={writingStyle}
+                onChange={e => setWritingStyle(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              >
+                <option>Informative</option>
+                <option>Creative</option>
+                <option>Analytical</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-3 space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">Topic <Search size={10} /></label>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={topic}
+                  onChange={e => setTopic(e.target.value)}
+                  placeholder="Topic"
+                  className="flex-1 bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+                />
+                <button 
+                  onClick={fetchKeywordsData}
+                  disabled={isFetchingKeywords || !topic.trim()}
+                  className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-2 rounded text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isFetchingKeywords ? <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin"></div> : <Search size={12} />}
+                  Get Keywords
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">Total Words <Search size={10} /></label>
+              <input 
+                type="number" 
+                value={totalWords}
+                onChange={e => setTotalWords(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">Keywords <Search size={10} /></label>
+            <textarea 
+              value={keywords}
+              onChange={e => setKeywords(e.target.value)}
+              className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold h-24"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-gray-400 text-[10px] font-bold uppercase">Prompt Template</label>
+            <textarea 
+              readOnly
+              value={promptTemplate}
+              className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-gray-400 text-xs outline-none h-32"
+            />
+          </div>
+        </div>
+
+        <div className="bg-[#2d2f31] px-6 py-4 flex justify-end">
+          <button 
+            onClick={() => onExecute(promptTemplate)}
+            className="bg-[#4a4c4e] hover:bg-[#5a5c5e] text-white px-6 py-2 rounded text-sm font-bold transition-colors"
+          >
+            Execute Template
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '' }: { isOpen: boolean, onClose: () => void, onExecute: (data: { metaTitle: string, metaDescription: string }) => void, topic?: string }) => {
+  const [keyword, setKeyword] = useState('');
+  const [topic, setTopic] = useState(initialTopic);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    if (!keyword.trim() || !topic.trim()) {
+      alert('กรุณาใส่คีย์เวิร์ดและหัวข้อ');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `คุณคือผู้เชี่ยวชาญด้าน SEO เขียน Meta Title และ Meta Description โดยอิงจากคีย์เวิร์ดหลักและหัวข้อที่กำหนดให้
+        
+        คีย์เวิร์ดหลัก: ${keyword}
+        หัวข้อ: ${topic}
+        
+        ข้อกำหนด:
+        - Meta Title: ไม่เกิน 60 ตัวอักษร ต้องมีคีย์เวิร์ดหลักอยู่ด้วย
+        - Meta Description: ไม่เกิน 160 ตัวอักษร ต้องมีคีย์เวิร์ดหลักและสรุปเนื้อหาที่น่าดึงดูด
+        
+        ให้ตอบกลับเป็น JSON เท่านั้น`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              metaTitle: { type: Type.STRING },
+              metaDescription: { type: Type.STRING }
+            },
+            required: ["metaTitle", "metaDescription"]
+          }
+        }
+      });
+      
+      const result = JSON.parse(response.text);
+      onExecute(result);
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการสร้างข้อมูล SEO');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-[#1a1c1e] border border-gold/30 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl shadow-gold/10"
+      >
+        <div className="bg-gold/10 px-6 py-4 flex items-center justify-between border-b border-gold/20">
+          <h2 className="text-gold font-bold flex items-center gap-2"><Sparkles size={18} /> Generate Meta Title & Description</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-gray-400 text-[10px] font-bold uppercase">คีย์เวิร์ดหลัก (Primary Keyword)</label>
+            <input 
+              type="text" 
+              value={keyword}
+              onChange={e => setKeyword(e.target.value)}
+              placeholder="เช่น บาคาร่าออนไลน์, วิธีเล่นบาคาร่า"
+              className="w-full bg-black border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-gold"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-gray-400 text-[10px] font-bold uppercase">หัวข้อ (Topic)</label>
+            <input 
+              type="text" 
+              value={topic}
+              onChange={e => setTopic(e.target.value)}
+              placeholder="หัวข้อบทความ"
+              className="w-full bg-black border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-gold"
+            />
+          </div>
+          <button 
+            onClick={handleGenerate}
+            disabled={isGenerating || !keyword.trim() || !topic.trim()}
+            className="w-full gold-bg-gradient text-baccarat-black py-3 rounded-xl font-bold flex items-center justify-center transition-all disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <div className="w-5 h-5 border-2 border-baccarat-black border-t-transparent rounded-full animate-spin mr-2"></div>
+            ) : (
+              <Wand2 size={18} className="mr-2" />
+            )}
+            Generate Tit&Des
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const AdminDashboard = ({ articles, categories }: { articles: Article[], categories: string[] }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
@@ -581,6 +905,52 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+
+  const [showPromptBuilder, setShowPromptBuilder] = useState(false);
+  const [showSeoModal, setShowSeoModal] = useState(false);
+  const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
+  const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false);
+
+  const generateSlugFromTitle = async () => {
+    if (!currentArticle.title?.trim()) {
+      alert('กรุณาใส่หัวข้อบทความก่อน');
+      return;
+    }
+    setIsGeneratingSlug(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Generate an SEO-friendly URL slug in English for this Thai article title: "${currentArticle.title}". Use only lowercase letters and hyphens. Return ONLY the slug string.`,
+      });
+      const slug = response.text.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      setCurrentArticle(prev => ({ ...prev, slug }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingSlug(false);
+    }
+  };
+
+  const generateExcerptFromTitle = async () => {
+    if (!currentArticle.title?.trim()) {
+      alert('กรุณาใส่หัวข้อบทความก่อน');
+      return;
+    }
+    setIsGeneratingExcerpt(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยคสำหรับบทความหัวข้อ: "${currentArticle.title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`,
+      });
+      setCurrentArticle(prev => ({ ...prev, excerpt: response.text.trim() }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingExcerpt(false);
+    }
+  };
 
   const handleAIGenerate = async () => {
     if (!aiPrompt.trim()) return;
@@ -620,19 +990,35 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       });
       
       const text = response.text;
+      console.log('AI Raw Response:', text);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? jsonMatch[0] : text;
-      const result = JSON.parse(jsonStr);
       
-      if (result) {
+      try {
+        const result = JSON.parse(jsonStr);
+        console.log('AI Parsed Result:', result);
+        
+        if (result) {
+          setCurrentArticle(prev => {
+            const updated = {
+              ...prev,
+              content: (prev.content || '') + (result.content || ''),
+              metaTitle: result.metaTitle || prev.metaTitle || '',
+              metaDescription: result.metaDescription || prev.metaDescription || '',
+              slug: result.slug || prev.slug || ''
+            };
+            console.log('Updating Article State:', updated);
+            return updated;
+          });
+          setAiPrompt('');
+        }
+      } catch (parseErr) {
+        console.error('JSON Parse Error:', parseErr);
+        // Fallback: if JSON parse fails, just use the raw text as content
         setCurrentArticle(prev => ({
           ...prev,
-          content: (prev.content || '') + (result.content || ''),
-          metaTitle: result.metaTitle || prev.metaTitle || '',
-          metaDescription: result.metaDescription || prev.metaDescription || '',
-          slug: result.slug || prev.slug || ''
+          content: (prev.content || '') + text
         }));
-        setAiPrompt('');
       }
     } catch (err: any) {
       console.error('AI Generation Error:', err);
@@ -1028,7 +1414,9 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><TypeIcon size={16} className="mr-2" /> หัวข้อบทความ (Title)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-gold text-sm font-bold flex items-center"><TypeIcon size={16} className="mr-2" /> หัวข้อบทความ (Title)</label>
+                </div>
                 <input 
                   required
                   type="text" 
@@ -1039,7 +1427,18 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><ExternalLink size={16} className="mr-2" /> Slug (URL)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-gold text-sm font-bold flex items-center"><ExternalLink size={16} className="mr-2" /> Slug (URL)</label>
+                  <button 
+                    type="button"
+                    onClick={generateSlugFromTitle}
+                    disabled={isGeneratingSlug || !currentArticle.title?.trim()}
+                    className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isGeneratingSlug ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Zap size={10} />}
+                    Generate Slug
+                  </button>
+                </div>
                 <input 
                   required
                   type="text" 
@@ -1111,7 +1510,18 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
             </div>
 
             <div className="space-y-2">
-              <label className="text-gold text-sm font-bold flex items-center"><FileText size={16} className="mr-2" /> คำโปรย (Excerpt)</label>
+              <div className="flex items-center justify-between">
+                <label className="text-gold text-sm font-bold flex items-center"><FileText size={16} className="mr-2" /> คำโปรย (Excerpt)</label>
+                <button 
+                  type="button"
+                  onClick={generateExcerptFromTitle}
+                  disabled={isGeneratingExcerpt || !currentArticle.title?.trim()}
+                  className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all disabled:opacity-50 flex items-center gap-1"
+                >
+                  {isGeneratingExcerpt ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Zap size={10} />}
+                  Generate Excerpt
+                </button>
+              </div>
               <textarea 
                 value={currentArticle.excerpt || ''} 
                 onChange={e => setCurrentArticle({...currentArticle, excerpt: e.target.value})}
@@ -1124,6 +1534,14 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               <div className="flex items-center justify-between">
                 <label className="text-gold text-sm font-bold flex items-center"><BookOpen size={16} className="mr-2" /> เนื้อหาบทความ</label>
                 <div className="flex items-center gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => setShowPromptBuilder(true)}
+                    className="bg-gray-800 hover:bg-gray-700 text-white border border-white/10 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all"
+                  >
+                    <div className="w-4 h-4 bg-white text-black rounded-full flex items-center justify-center text-[10px] font-black mr-2">K</div>
+                    Templates
+                  </button>
                   <div className="relative group">
                     <input 
                       type="text" 
@@ -1156,8 +1574,26 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               />
             </div>
 
+            <PromptBuilderModal 
+              isOpen={showPromptBuilder} 
+              onClose={() => setShowPromptBuilder(false)} 
+              onExecute={(prompt) => {
+                setAiPrompt(prompt);
+                setShowPromptBuilder(false);
+              }}
+            />
+
             <div className="bg-black/50 p-6 rounded-2xl border border-gold/10 space-y-6">
-              <h3 className="text-white font-bold flex items-center"><Search size={18} className="mr-2 text-gold" /> SEO Settings</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold flex items-center"><Search size={18} className="mr-2 text-gold" /> SEO Settings</h3>
+                <button 
+                  type="button"
+                  onClick={() => setShowSeoModal(true)}
+                  className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all"
+                >
+                  <Sparkles size={14} className="mr-2" /> Generate SEO Tags
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-gray-400 text-xs font-bold uppercase">Meta Title</label>
@@ -1189,6 +1625,20 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                 </div>
               </div>
             </div>
+
+            <SeoGeneratorModal 
+              isOpen={showSeoModal} 
+              onClose={() => setShowSeoModal(false)} 
+              topic={currentArticle.title}
+              onExecute={(data) => {
+                setCurrentArticle(prev => ({
+                  ...prev,
+                  metaTitle: data.metaTitle,
+                  metaDescription: data.metaDescription
+                }));
+                setShowSeoModal(false);
+              }}
+            />
 
             <div className="flex justify-end space-x-4">
               <button 
