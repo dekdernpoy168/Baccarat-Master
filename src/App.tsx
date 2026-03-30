@@ -1516,27 +1516,88 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><ImageIcon size={16} className="mr-2" /> URL รูปภาพหน้าปก</label>
-                <input 
-                  type="text" 
-                  value={currentArticle.image || ''} 
-                  onChange={e => setCurrentArticle({...currentArticle, image: e.target.value})}
-                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                  placeholder="https://..."
-                />
+
+            <div className="bg-black/50 p-6 rounded-2xl border border-gold/10 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold flex items-center"><Search size={18} className="mr-2 text-gold" /> SEO Settings</h3>
+                <button 
+                  type="button"
+                  onClick={() => setShowSeoModal(true)}
+                  className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all"
+                >
+                  <Sparkles size={14} className="mr-2" /> Generate SEO Tags
+                </button>
               </div>
-              <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> วันที่เผยแพร่ (Scheduling)</label>
-                <input 
-                  type="datetime-local" 
-                  value={currentArticle.publishedAt ? format(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), "yyyy-MM-dd'T'HH:mm") : ''} 
-                  onChange={e => setCurrentArticle({...currentArticle, publishedAt: e.target.value})}
-                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                />
-                <p className="text-[10px] text-gray-500">ปล่อยว่างไว้เพื่อเผยแพร่ทันที หรือเลือกเวลาในอนาคตเพื่อตั้งเวลาล่วงหน้า</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-gray-400 text-xs font-bold uppercase">Meta Title</label>
+                    <span className={clsx("text-[10px]", (currentArticle.metaTitle?.length || 0) > 60 ? "text-red-500 font-bold" : "text-gray-500")}>
+                      {currentArticle.metaTitle?.length || 0}/60
+                    </span>
+                  </div>
+                  <input 
+                    type="text" 
+                    value={currentArticle.metaTitle || ''} 
+                    onChange={e => setCurrentArticle({...currentArticle, metaTitle: e.target.value})}
+                    className={clsx(
+                      "w-full bg-black border rounded-xl px-4 py-3 text-white focus:border-gold outline-none transition-colors",
+                      (currentArticle.metaTitle?.length || 0) > 60 ? "border-red-500/50" : "border-white/10"
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-gray-400 text-xs font-bold uppercase">Meta Description</label>
+                    <span className={clsx("text-[10px]", (currentArticle.metaDescription?.length || 0) > 160 ? "text-red-500 font-bold" : "text-gray-500")}>
+                      {currentArticle.metaDescription?.length || 0}/160
+                    </span>
+                  </div>
+                  <textarea 
+                    value={currentArticle.metaDescription || ''} 
+                    onChange={e => setCurrentArticle({...currentArticle, metaDescription: e.target.value})}
+                    className={clsx(
+                      "w-full bg-black border rounded-xl px-4 py-3 text-white focus:border-gold outline-none h-24 transition-colors",
+                      (currentArticle.metaDescription?.length || 0) > 160 ? "border-red-500/50" : "border-white/10"
+                    )}
+                  />
+                </div>
               </div>
+            </div>
+
+            <SeoGeneratorModal 
+              isOpen={showSeoModal} 
+              onClose={() => setShowSeoModal(false)} 
+              topic={currentArticle.title}
+              onExecute={(data) => {
+                setCurrentArticle(prev => ({
+                  ...prev,
+                  metaTitle: data.metaTitle,
+                  metaDescription: data.metaDescription
+                }));
+                setShowSeoModal(false);
+              }}
+            />
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-gold text-sm font-bold flex items-center"><FileText size={16} className="mr-2" /> คำโปรย (Excerpt)</label>
+                <button 
+                  type="button"
+                  onClick={generateExcerptFromTitle}
+                  disabled={isGeneratingExcerpt || !currentArticle.title?.trim()}
+                  className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all disabled:opacity-50 flex items-center gap-1"
+                >
+                  {isGeneratingExcerpt ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Zap size={10} />}
+                  Generate Excerpt
+                </button>
+              </div>
+              <textarea 
+                value={currentArticle.excerpt || ''} 
+                onChange={e => setCurrentArticle({...currentArticle, excerpt: e.target.value})}
+                className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none h-24"
+                placeholder="สรุปสั้นๆ เกี่ยวกับบทความ..."
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1575,25 +1636,27 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-gold text-sm font-bold flex items-center"><FileText size={16} className="mr-2" /> คำโปรย (Excerpt)</label>
-                <button 
-                  type="button"
-                  onClick={generateExcerptFromTitle}
-                  disabled={isGeneratingExcerpt || !currentArticle.title?.trim()}
-                  className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isGeneratingExcerpt ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Zap size={10} />}
-                  Generate Excerpt
-                </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-gold text-sm font-bold flex items-center"><ImageIcon size={16} className="mr-2" /> URL รูปภาพหน้าปก</label>
+                <input 
+                  type="text" 
+                  value={currentArticle.image || ''} 
+                  onChange={e => setCurrentArticle({...currentArticle, image: e.target.value})}
+                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                  placeholder="https://..."
+                />
               </div>
-              <textarea 
-                value={currentArticle.excerpt || ''} 
-                onChange={e => setCurrentArticle({...currentArticle, excerpt: e.target.value})}
-                className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none h-24"
-                placeholder="สรุปสั้นๆ เกี่ยวกับบทความ..."
-              />
+              <div className="space-y-2">
+                <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> วันที่เผยแพร่ (Scheduling)</label>
+                <input 
+                  type="datetime-local" 
+                  value={currentArticle.publishedAt ? format(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), "yyyy-MM-dd'T'HH:mm") : ''} 
+                  onChange={e => setCurrentArticle({...currentArticle, publishedAt: e.target.value})}
+                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                />
+                <p className="text-[10px] text-gray-500">ปล่อยว่างไว้เพื่อเผยแพร่ทันที หรือเลือกเวลาในอนาคตเพื่อตั้งเวลาล่วงหน้า</p>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -1646,78 +1709,6 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               onExecute={(prompt) => {
                 setAiPrompt(prompt);
                 setShowPromptBuilder(false);
-              }}
-            />
-
-            <div className="bg-black/50 p-6 rounded-2xl border border-gold/10 space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-bold flex items-center"><Search size={18} className="mr-2 text-gold" /> SEO Settings</h3>
-                <button 
-                  type="button"
-                  onClick={() => setShowSeoModal(true)}
-                  className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all"
-                >
-                  <Sparkles size={14} className="mr-2" /> Generate SEO Tags
-                </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-gray-400 text-xs font-bold uppercase">Meta Title</label>
-                    <span className={clsx("text-[10px]", (currentArticle.metaTitle?.length || 0) > 60 ? "text-red-500 font-bold" : "text-gray-500")}>
-                      {currentArticle.metaTitle?.length || 0}/60
-                    </span>
-                  </div>
-                  <input 
-                    type="text" 
-                    value={currentArticle.metaTitle || ''} 
-                    onChange={e => setCurrentArticle({...currentArticle, metaTitle: e.target.value})}
-                    className={clsx(
-                      "w-full bg-black border rounded-xl px-4 py-3 text-white focus:border-gold outline-none transition-colors",
-                      (currentArticle.metaTitle?.length || 0) > 60 ? "border-red-500/50" : "border-white/10"
-                    )}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-gray-400 text-xs font-bold uppercase">Meta Description</label>
-                    <span className={clsx("text-[10px]", (currentArticle.metaDescription?.length || 0) > 160 ? "text-red-500 font-bold" : "text-gray-500")}>
-                      {currentArticle.metaDescription?.length || 0}/160
-                    </span>
-                  </div>
-                  <textarea 
-                    value={currentArticle.metaDescription || ''} 
-                    onChange={e => setCurrentArticle({...currentArticle, metaDescription: e.target.value})}
-                    className={clsx(
-                      "w-full bg-black border rounded-xl px-4 py-3 text-white focus:border-gold outline-none h-24 transition-colors",
-                      (currentArticle.metaDescription?.length || 0) > 160 ? "border-red-500/50" : "border-white/10"
-                    )}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-gray-400 text-xs font-bold uppercase">URL Slug</label>
-                  <input 
-                    type="text" 
-                    value={currentArticle.slug || ''} 
-                    onChange={e => setCurrentArticle({...currentArticle, slug: e.target.value})}
-                    className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                    placeholder="e.g. how-to-play-baccarat"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <SeoGeneratorModal 
-              isOpen={showSeoModal} 
-              onClose={() => setShowSeoModal(false)} 
-              topic={currentArticle.title}
-              onExecute={(data) => {
-                setCurrentArticle(prev => ({
-                  ...prev,
-                  metaTitle: data.metaTitle,
-                  metaDescription: data.metaDescription
-                }));
-                setShowSeoModal(false);
               }}
             />
 
