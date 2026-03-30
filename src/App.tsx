@@ -1406,6 +1406,86 @@ const FormulaPage = () => {
           </p>
         </div>
       </div>
+
+      <div className="mt-20 bg-gray-900/30 border border-gold/10 rounded-[2.5rem] p-8 md:p-12">
+        <h2 className="text-3xl font-black text-white mb-12 gold-gradient">
+          วิธีใช้งานสูตรบาคาร่าฟรี 2026 แบบเข้าใจง่าย สำหรับผู้เล่นทุกระดับ
+        </h2>
+        
+        <div className="space-y-16">
+          {/* Step 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div className="order-2 lg:order-1">
+              <h3 className="text-2xl font-black text-gold mb-4">1. เลือกคาสิโนที่ต้องการใช้งานสูตรบาคาร่า</h3>
+              <p className="text-gray-400 leading-relaxed text-lg">
+                ก่อนเริ่มใช้งาน ผู้เล่นสามารถเลือกค่ายคาสิโนที่ต้องการใช้ สูตรบาคาร่าฟรี 2026 ได้ 2 ค่าย คือ SA GAMING และ SEXY BACCARAT โดยแต่ละสูตรจะใช้ระบบ AI ในการคำนวณที่แตกต่างกัน เพื่อช่วยวิเคราะห์แนวทางการเล่นให้เหมาะกับแต่ละห้อง
+              </p>
+            </div>
+            <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+              <img 
+                src="https://img1.pic.in.th/images/Select-the-game-provider-you-want-to-use-the-cheat-code-with..jpg" 
+                alt="เลือกคาสิโน" 
+                className="w-full h-auto object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+              <img 
+                src="https://img1.pic.in.th/images/Select-the-desired-casino-room.jpg" 
+                alt="เลือกห้องคาสิโน" 
+                className="w-full h-auto object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-gold mb-4">2. เลือกห้องคาสิโนที่ต้องการเล่น</h3>
+              <p className="text-gray-400 leading-relaxed text-lg">
+                หลังจากเลือกค่ายคาสิโนแล้ว ระบบจะพาไปยังหน้ารวมห้องต่าง ๆ ซึ่งจะแสดงหมายเลขห้องให้เลือก ผู้ใช้สามารถเลือกได้ตามต้องการว่าอยากใช้งาน สูตรบาคาร่า AI 2026 กับห้องไหน
+              </p>
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div className="order-2 lg:order-1">
+              <h3 className="text-2xl font-black text-gold mb-4">3. ดูอัตราส่วนและเลือกห้องที่เหมาะสม</h3>
+              <p className="text-gray-400 leading-relaxed text-lg">
+                ระบบจะแสดงข้อมูลของแต่ละห้องเพื่อช่วยในการตัดสินใจ โดยแนะนำให้เลือกห้องที่มีอัตราส่วนสูตรสูงประมาณ 90-100% เพราะเป็นห้องที่มีแนวโน้มสถิติค่อนข้างดี นอกจากนี้ยังมีบางห้องที่ระบบขึ้นข้อความว่า ห้องน่าเล่น เพื่อช่วยให้ผู้ใช้เลือกห้องที่มีสถิติโดดเด่นได้ง่ายขึ้น
+              </p>
+            </div>
+            <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+              <img 
+                src="https://img1.pic.in.th/images/How-to-choose-the-right-baccarat-room.png" 
+                alt="เลือกห้องที่เหมาะสม" 
+                className="w-full h-auto object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </div>
+
+          {/* Step 4 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+              <img 
+                src="https://img2.pic.in.th/Im-coming-to-the-recipe-room.jpg" 
+                alt="วิเคราะห์ข้อมูล" 
+                className="w-full h-auto object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-gold mb-4">4. วิเคราะห์ข้อมูลภายในห้องสูตร</h3>
+              <p className="text-gray-400 leading-relaxed text-lg">
+                เมื่อเข้าสู่ห้องสูตรแล้ว ผู้ใช้จะพบรายละเอียดสำคัญต่าง ๆ เช่น ตาถัดไปควรเดิมพันฝั่งไหน, อัตราการชนะ, และสถิติย้อนหลัง ซึ่งมีทั้งแบบตัวเลขและแบบกราฟ เพื่อช่วยให้ดูข้อมูลง่ายและนำไปวิเคราะห์ต่อได้สะดวกมากขึ้น หากต้องการเปลี่ยนไปดูห้องอื่น ก็สามารถกด ออกจากห้อง ได้ทันที
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
