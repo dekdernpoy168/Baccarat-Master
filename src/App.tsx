@@ -118,75 +118,39 @@ const Navbar = ({ user }: { user: User | null }) => {
   const location = useLocation();
 
   return (
-    <nav className="sticky top-0 z-50 bg-baccarat-black/90 backdrop-blur-md border-b border-gold/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-baccarat-red rounded-full flex items-center justify-center border border-gold">
-                <Award className="text-gold w-6 h-6" />
-              </div>
-              <span className="text-2xl font-bold gold-gradient tracking-tighter uppercase">Baccarat Master</span>
+    <nav className="sticky top-0 z-50 bg-baccarat-black/90 backdrop-blur-md border-b border-gold/30 py-3 lg:py-4">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 flex flex-col items-center gap-3 lg:gap-4">
+        {/* Logo */}
+        <Link to="/" className="flex items-center space-x-2">
+          <div className="w-8 h-8 lg:w-10 lg:h-10 bg-baccarat-red rounded-full flex items-center justify-center border border-gold shrink-0">
+            <Award className="text-gold w-5 h-5 lg:w-6 lg:h-6" />
+          </div>
+          <span className="text-lg lg:text-2xl font-bold gold-gradient tracking-tighter uppercase whitespace-nowrap">Baccarat Master</span>
+        </Link>
+
+        {/* Menu */}
+        <div className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 lg:gap-3 w-full">
+          <Link to="/" className={cn("px-2.5 lg:px-4 py-1.5 lg:py-2 rounded-lg text-[12px] sm:text-[13px] lg:text-sm font-medium transition-all whitespace-nowrap border", location.pathname === '/' ? "bg-gold/10 text-gold border-gold/30" : "bg-white/5 text-gray-300 border-transparent hover:bg-white/10 hover:text-white")}>หน้าแรก</Link>
+          <Link to="/formula" className={cn("px-2.5 lg:px-4 py-1.5 lg:py-2 rounded-lg text-[12px] sm:text-[13px] lg:text-sm font-medium transition-all whitespace-nowrap border", location.pathname === '/formula' ? "bg-gold/10 text-gold border-gold/30" : "bg-white/5 text-gray-300 border-transparent hover:bg-white/10 hover:text-white")}>สูตรบาคาร่าฟรี</Link>
+          <Link to="/articles" className={cn("px-2.5 lg:px-4 py-1.5 lg:py-2 rounded-lg text-[12px] sm:text-[13px] lg:text-sm font-medium transition-all whitespace-nowrap border", location.pathname === '/articles' ? "bg-gold/10 text-gold border-gold/30" : "bg-white/5 text-gray-300 border-transparent hover:bg-white/10 hover:text-white")}>บทความ</Link>
+          <Link to="/about" className={cn("px-2.5 lg:px-4 py-1.5 lg:py-2 rounded-lg text-[12px] sm:text-[13px] lg:text-sm font-medium transition-all whitespace-nowrap border", location.pathname === '/about' ? "bg-gold/10 text-gold border-gold/30" : "bg-white/5 text-gray-300 border-transparent hover:bg-white/10 hover:text-white")}>เกี่ยวกับเรา</Link>
+          {user?.email === ADMIN_EMAIL && (
+            <Link to="/admin" className={cn("px-2.5 lg:px-4 py-1.5 lg:py-2 rounded-lg text-[12px] sm:text-[13px] lg:text-sm font-medium transition-all whitespace-nowrap border", location.pathname.startsWith('/admin') ? "bg-gold/10 text-gold border-gold/30" : "bg-white/5 text-gray-300 border-transparent hover:bg-white/10 hover:text-white")}>จัดการหลังบ้าน</Link>
+          )}
+          {!user ? (
+            <Link to="/login" className="gold-bg-gradient text-baccarat-black px-3 sm:px-4 lg:px-6 py-1.5 lg:py-2 rounded-lg font-bold text-[12px] sm:text-[13px] lg:text-sm hover:scale-105 transition-transform shadow-lg shadow-gold/20 whitespace-nowrap">
+              เข้าสู่ระบบ
             </Link>
-          </div>
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-8">
-              <Link to="/" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname === '/' ? "text-gold" : "text-gray-300 hover:text-gold")}>หน้าแรก</Link>
-              <Link to="/formula" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname === '/formula' ? "text-gold" : "text-gray-300 hover:text-gold")}>สูตรบาคาร่าฟรี</Link>
-              <Link to="/articles" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname === '/articles' ? "text-gold" : "text-gray-300 hover:text-gold")}>บทความ</Link>
-              {user?.email === ADMIN_EMAIL && (
-                <Link to="/admin" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname.startsWith('/admin') ? "text-gold" : "text-gray-300 hover:text-gold")}>จัดการหลังบ้าน</Link>
-              )}
-              {!user ? (
-                <Link to="/login" className="gold-bg-gradient text-baccarat-black px-6 py-2 rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-lg shadow-gold/20">
-                  เข้าสู่ระบบ
-                </Link>
-              ) : (
-                <div className="flex items-center space-x-4">
-                  <span className="text-gray-400 text-xs">{user.email}</span>
-                  <button onClick={() => signOut(auth)} className="text-gray-400 hover:text-baccarat-red transition-colors">
-                    <LogOut size={20} />
-                  </button>
-                </div>
-              )}
+          ) : (
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-400 text-xs hidden sm:inline-block max-w-[100px] lg:max-w-[120px] truncate">{user.email}</span>
+              <button onClick={() => signOut(auth)} className="bg-baccarat-red/20 text-baccarat-red hover:bg-baccarat-red hover:text-white p-1.5 lg:p-2 rounded-lg transition-colors">
+                <LogOut size={16} className="lg:w-[18px] lg:h-[18px]" />
+              </button>
             </div>
-          </div>
-          <div className="md:hidden">
-            <button onClick={() => setIsOpen(!isOpen)} className="text-gold p-2">
-              {isOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
-          </div>
+          )}
         </div>
       </div>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-baccarat-black border-b border-gold/20"
-          >
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              <Link to="/" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gold">หน้าแรก</Link>
-              <Link to="/formula" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-300">สูตรบาคาร่าฟรี</Link>
-              <Link to="/articles" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-300">บทความ</Link>
-              {user?.email === ADMIN_EMAIL && (
-                <Link to="/admin" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-300">จัดการหลังบ้าน</Link>
-              )}
-              {!user ? (
-                <Link to="/login" onClick={() => setIsOpen(false)} className="block w-full mt-4 gold-bg-gradient text-baccarat-black px-6 py-3 rounded-full font-bold text-sm text-center">
-                  เข้าสู่ระบบ
-                </Link>
-              ) : (
-                <button onClick={() => { signOut(auth); setIsOpen(false); }} className="w-full mt-4 bg-gray-800 text-white px-6 py-3 rounded-full font-bold text-sm">
-                  ออกจากระบบ
-                </button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </nav>
   );
 };
@@ -213,6 +177,7 @@ const Footer = () => (
             <li><Link to="/" className="hover:text-gold transition-colors">หน้าแรก</Link></li>
             <li><Link to="/articles" className="hover:text-gold transition-colors">บทความทั้งหมด</Link></li>
             <li><Link to="/formula" className="hover:text-gold transition-colors">สูตรบาคาร่าฟรี</Link></li>
+            <li><Link to="/about" className="hover:text-gold transition-colors">เกี่ยวกับเรา</Link></li>
           </ul>
         </div>
         <div>
@@ -270,6 +235,128 @@ const ArticleCard = ({ article }: { article: Article; key?: string }) => (
 
 // --- Pages ---
 
+const AboutPage = () => {
+  return (
+    <div className="pt-20 pb-24">
+      {/* Hero Section */}
+      <section className="relative py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-gold/5 -skew-y-6 transform origin-top-left"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center max-w-3xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="inline-flex items-center space-x-2 bg-gold/10 px-4 py-2 rounded-full border border-gold/20 mb-6"
+            >
+              <Award className="text-gold w-4 h-4" />
+              <span className="text-gold text-xs font-bold uppercase tracking-widest">เกี่ยวกับเรา</span>
+            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-4xl md:text-6xl font-bold gold-gradient mb-8 leading-tight uppercase"
+            >
+              Baccarat Master Guide
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-gray-400 text-lg leading-relaxed"
+            >
+              เราคือศูนย์รวมข้อมูลและเทคนิคการเล่นบาคาร่าระดับมืออาชีพ 
+              ที่มุ่งเน้นการให้ความรู้ที่ถูกต้องและแม่นยำ เพื่อยกระดับการเล่นของคุณให้ก้าวไปอีกขั้น
+            </motion.p>
+          </div>
+        </div>
+      </section>
+
+      {/* Mission Section */}
+      <section className="py-24 bg-gray-900/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center border border-gold/20 mb-8">
+                <Target className="text-gold w-8 h-8" />
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-6 uppercase tracking-tight">ภารกิจของเรา (Our Mission)</h2>
+              <div className="space-y-6 text-gray-400 leading-relaxed">
+                <p>
+                  ภารกิจหลักของ Baccarat Master Guide คือการสร้างชุมชนผู้เล่นบาคาร่าที่มีคุณภาพ 
+                  โดยการแบ่งปันความรู้ เทคนิค และกลยุทธ์ที่ผ่านการพิสูจน์แล้วว่าใช้งานได้จริง
+                </p>
+                <p>
+                  เราเชื่อว่าการเล่นอย่างมีสติและมีความรู้ คือกุญแจสำคัญสู่ความสำเร็จในระยะยาว 
+                  เราจึงมุ่งมั่นที่จะนำเสนอเนื้อหาที่ครอบคลุม ตั้งแต่พื้นฐานไปจนถึงเทคนิคขั้นสูง 
+                  รวมถึงการบริหารจัดการเงินทุนอย่างมีประสิทธิภาพ
+                </p>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative"
+            >
+              <div className="aspect-video rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/10">
+                <img 
+                  src="https://picsum.photos/seed/mission/800/600" 
+                  alt="Our Mission" 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="absolute -bottom-8 -left-8 bg-baccarat-red p-8 rounded-3xl border border-gold/50 hidden lg:block">
+                <ShieldCheck className="text-gold w-12 h-12 mb-4" />
+                <div className="text-2xl font-bold text-white">100%</div>
+                <div className="text-gold text-xs font-bold uppercase">ข้อมูลที่เชื่อถือได้</div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Team Section */}
+      <section className="py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-white mb-4 uppercase tracking-tight">ทีมงานของเรา (The Team)</h2>
+            <p className="text-gray-400">เบื้องหลังความสำเร็จของ Baccarat Master Guide คือทีมงานผู้เชี่ยวชาญที่มีประสบการณ์</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { name: "Master K", role: "Founder & Lead Strategist", bio: "ผู้เชี่ยวชาญด้านการอ่านเค้าไพ่และเทคนิคการเดินเงินที่มีประสบการณ์กว่า 10 ปี" },
+              { name: "Sarah J.", role: "Content Editor", bio: "บรรณาธิการผู้ดูแลเนื้อหาและตรวจสอบความถูกต้องของข้อมูลทั้งหมดในเว็บไซต์" },
+              { name: "Alex T.", role: "Data Analyst", bio: "นักวิเคราะห์ข้อมูลที่ช่วยพัฒนาสูตรและระบบการคำนวณต่างๆ ให้มีความแม่นยำสูงสุด" }
+            ].map((member, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-gray-900/50 border border-gold/10 p-8 rounded-3xl text-center hover:border-gold/30 transition-colors group"
+              >
+                <div className="w-24 h-24 bg-gold/10 rounded-full mx-auto mb-6 flex items-center justify-center border border-gold/20 group-hover:scale-110 transition-transform">
+                  <Heart className="text-gold w-10 h-10" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">{member.name}</h3>
+                <div className="text-gold text-sm font-bold uppercase mb-4">{member.role}</div>
+                <p className="text-gray-400 text-sm leading-relaxed">{member.bio}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 const HomePage = ({ articles, user }: { articles: Article[], user: User | null }) => {
   const isAdmin = user?.email === ADMIN_EMAIL;
   const publishedArticles = articles.filter(a => isAdmin || isPublished(a));
@@ -277,142 +364,506 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
   const guideLink = guideArticle ? `/articles/${guideArticle.slug}` : '/articles';
 
   return (
-    <div className="space-y-24 pb-24">
-      <section className="relative h-[80vh] flex items-center overflow-hidden">
+    <div className="space-y-20 md:space-y-32 pb-32">
+      {/* Hero Section */}
+      <section className="relative min-h-[80vh] md:h-[90vh] flex items-center overflow-hidden py-20 md:py-0">
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-baccarat-black via-baccarat-black/80 to-transparent z-10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-baccarat-black via-baccarat-black/70 to-transparent z-10" />
           <img 
-            src="https://picsum.photos/seed/casino/1920/1080" 
-            className="w-full h-full object-cover opacity-40"
+            src="https://picsum.photos/seed/casino-luxury/1920/1080" 
+            className="w-full h-full object-cover opacity-50"
             alt="Hero Background"
             referrerPolicy="no-referrer"
           />
+          <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-baccarat-black to-transparent z-10" />
         </div>
         
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div 
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="max-w-2xl"
+            className="max-w-3xl"
           >
-            <div className="inline-flex items-center space-x-2 bg-baccarat-red/20 border border-baccarat-red px-4 py-2 rounded-full mb-6">
-              <Zap className="text-gold w-4 h-4" />
-              <span className="text-gold text-xs font-bold uppercase tracking-widest">The Ultimate Guide 2026</span>
+            <div className="inline-flex items-center space-x-2 bg-gold/10 border border-gold/30 px-4 py-2 rounded-full mb-8 backdrop-blur-md">
+              <Sparkles className="text-gold w-4 h-4 animate-pulse" />
+              <span className="text-gold text-xs font-bold uppercase tracking-[0.3em]">Baccarat Master Guide 2026</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-black text-white mb-6 leading-tight tracking-tighter">
-              เซียนบาคาร่า <br />
-              <span className="gold-gradient">ตัวจริงต้องรู้!</span>
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white mb-6 leading-tight tracking-tighter">
+              คัมภีร์ลับ <span className="gold-gradient">เซียนบาคาร่า</span>
+              <span className="block text-xl sm:text-2xl md:text-4xl lg:text-5xl opacity-90 mt-2 md:mt-4">ชนะทุกเกมแบบมือโปร!</span>
             </h1>
-            <p className="text-xl text-gray-300 mb-10 leading-relaxed">
-              เจาะลึกทุกเทคนิค สอนอ่านเค้าไพ่ และสูตรเดินเงินที่แม่นยำที่สุด 
-              เพื่อทำกำไรจากการเล่นบาคาร่าอย่างยั่งยืน
+            <p className="text-xl text-gray-300 mb-12 leading-relaxed max-w-xl">
+              ยินดีต้อนรับสู่แหล่งรวมข้อมูลบาคาร่าที่ใหญ่ที่สุดในไทย เราเจาะลึกทุกกลยุทธ์ 
+              ตั้งแต่พื้นฐานไปจนถึงเทคนิคขั้นสูง เผยแพร่แบบไม่มีกั๊ก เพื่อให้คุณเป็นผู้ชนะในระยะยาว
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/articles" className="gold-bg-gradient text-baccarat-black px-10 py-4 rounded-full font-black text-lg text-center hover:scale-105 transition-transform">
-                เริ่มเรียนรู้เลย
+            <div className="flex flex-col sm:flex-row gap-6">
+              <Link to="/articles" className="gold-bg-gradient text-baccarat-black px-12 py-5 rounded-full font-black text-xl text-center hover:scale-105 transition-transform shadow-[0_0_30px_rgba(212,175,55,0.3)]">
+                เริ่มเรียนรู้ฟรี
               </Link>
-              <a href="https://example.com" target="_blank" rel="noopener noreferrer" className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-10 py-4 rounded-full font-black text-lg text-center hover:bg-white/20 transition-all flex items-center justify-center">
-                ทางเข้าเล่น <ExternalLink size={20} className="ml-2" />
-              </a>
+              <Link to="/formula" className="bg-white/5 backdrop-blur-xl border border-white/10 text-white px-12 py-5 rounded-full font-black text-xl text-center hover:bg-white/10 transition-all flex items-center justify-center group">
+                สูตรบาคาร่า AI <ChevronRight size={24} className="ml-2 group-hover:translate-x-2 transition-transform" />
+              </Link>
             </div>
           </motion.div>
         </div>
       </section>
 
+      {/* Core Knowledge Hub */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="text-center mb-12 md:mb-20">
+          <h2 className="text-3xl md:text-6xl font-black text-white mb-6 uppercase tracking-tight">
+            ศูนย์รวมความรู้ <span className="text-gold">บาคาร่า</span>
+          </h2>
+          <p className="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
+            เราคัดสรรเนื้อหาที่จำเป็นที่สุดสำหรับการทำกำไร รวบรวมทริคและเทคนิคจากประสบการณ์จริง 
+            เพื่อให้คุณเข้าถึงข้อมูลที่แม่นยำและใช้งานได้จริง 100% แบบไม่มีกั๊ก
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {[
             { 
-              title: "คู่มือฉบับสมบูรณ์", 
-              desc: "ตั้งแต่พื้นฐานจนถึงระดับเซียน รวบรวมไว้ที่นี่ที่เดียว",
-              img: "https://img1.pic.in.th/images/The-Complete-Guide-to-Baccarat-for-Experts.png",
-              link: guideLink
+              title: "วิธีเล่นเบื้องต้น", 
+              desc: "ทำความเข้าใจกฎ กติกา อัตราการจ่ายเงิน และเงื่อนไขการจั่วไพ่ใบที่สามอย่างละเอียดสำหรับมือใหม่ที่ต้องการเริ่มอย่างถูกต้อง",
+              icon: <BookOpen className="w-6 h-6 text-gold" />,
+              image: "https://img1.pic.in.th/images/Basic-way-to-play.jpg",
+              color: "from-blue-500/20 to-transparent"
             },
             { 
-              title: "สูตรเดินเงินแม่นยำ", 
-              desc: "สูตรบาคาร่า AI 2026 จัดการทุนอย่างเป็นระบบ ลดความเสี่ยง เพิ่มโอกาสชนะ",
-              img: "https://img2.pic.in.th/Accurate-money-management-formula-AI-Baccarat-formula2026.jpg",
-              link: "/formula"
+              title: "การอ่านเค้าไพ่", 
+              desc: "เจาะลึกเค้าไพ่มังกร ปิงปอง เ้าไพ่ลูกคู่ และการวิเคราะห์โรดแมพ (Roadmap) ทั้ง 5 รูปแบบที่เซียนใช้ทำเงินจริง",
+              icon: <Eye className="w-6 h-6 text-gold" />,
+              image: "https://img1.pic.in.th/images/Reading-the-cards.jpg",
+              color: "from-purple-500/20 to-transparent"
             },
             { 
-              title: "ข้อมูลที่เชื่อถือได้", 
-              desc: "คัดกรองจากประสบการณ์จริงของเหล่าเซียนในวงการ",
-              img: "https://img1.pic.in.th/images/reliable-information.jpg",
-              link: "/articles"
+              title: "เทคนิคการเดินเงิน", 
+              desc: "สอนระบบการวางเดิมพันแบบ Martingale, Fibonacci, 1-3-2-4 และสูตรเดินเงินคงที่เพื่อรักษาพอร์ตและทำกำไรยั่งยืน",
+              icon: <TrendingUp className="w-6 h-6 text-gold" />,
+              image: "https://img1.pic.in.th/images/money-transfer-techniques.jpg",
+              color: "from-green-500/20 to-transparent"
+            },
+            { 
+              title: "ทริคระดับเซียน", 
+              desc: "รวบรวมเคล็ดลับจิตวิทยาการเล่น การจัดการอารมณ์ และเทคนิคการเลือกห้องที่เพิ่มโอกาสชนะได้มากกว่า 80%",
+              icon: <Zap className="w-6 h-6 text-gold" />,
+              image: "https://img1.pic.in.th/images/Expert-tricks-1.jpg",
+              color: "from-red-500/20 to-transparent"
             }
-          ].map((feature, i) => (
-            <Link to={feature.link} key={i} className="block group">
+          ].map((item, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              viewport={{ once: true }}
+              className={cn(
+                "bg-gray-900/40 border border-white/5 rounded-[2rem] hover:border-gold/30 transition-all group relative overflow-hidden flex flex-col",
+                "hover:shadow-[0_0_40px_rgba(212,175,55,0.05)]"
+              )}
+            >
+              <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500", item.color)} />
+              
+              {/* Card Image */}
+              <div className="relative h-48 overflow-hidden">
+                <img 
+                  src={item.image} 
+                  alt={item.title} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+                <div className="absolute top-4 left-4 p-2 bg-baccarat-black/80 backdrop-blur-md rounded-xl border border-white/10">
+                  {item.icon}
+                </div>
+              </div>
+
+              <div className="relative z-10 p-8 pt-4 flex-grow flex flex-col">
+                <h3 className="text-xl font-bold text-white mb-4 group-hover:text-gold transition-colors">{item.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed mb-6 flex-grow">{item.desc}</p>
+                <Link to="/articles" className="text-gold text-xs font-bold uppercase tracking-widest flex items-center group-hover:gap-2 transition-all mt-auto">
+                  อ่านเพิ่มเติม <ChevronRight size={14} />
+                </Link>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Detailed Strategy Overview Section */}
+        <div className="bg-white/5 border border-white/10 rounded-[2rem] md:rounded-[3rem] p-8 md:p-20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gold/5 blur-[100px] rounded-full -mr-48 -mt-48" />
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-center">
+            <div className="text-center lg:text-left">
+              <h2 className="text-2xl md:text-5xl font-black text-white mb-12 leading-tight">
+                ทำไมต้องเรียนรู้กับ <br />
+                <span className="gold-gradient">Baccarat Master Guide?</span>
+              </h2>
+              <div className="space-y-12">
+                <div className="text-center lg:text-left">
+                  <h4 className="text-white font-bold text-2xl mb-3">ข้อมูลเชิงลึกแบบไม่มีกั๊ก</h4>
+                  <p className="text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                    เราไม่เพียงแต่สอนวิธีเล่น แต่เราสอน "วิธีชนะ" ด้วยข้อมูลที่ผ่านการวิเคราะห์จากสถิติจริง 
+                    และประสบการณ์ของเซียนพนันระดับมืออาชีพที่คลุกคลีอยู่ในวงการมานานกว่า 10 ปี
+                  </p>
+                </div>
+                <div className="text-center lg:text-left">
+                  <h4 className="text-white font-bold text-2xl mb-3">เทคนิคที่ใช้งานได้จริง</h4>
+                  <p className="text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                    ทุกสูตรและเทคนิคที่เรานำเสนอ ผ่านการทดสอบแล้วว่าสามารถเพิ่มโอกาสชนะได้จริง 
+                    ไม่ว่าจะเป็นการอ่านเค้าไพ่ที่แม่นยำ หรือระบบการเดินเงินที่ช่วยลดความเสี่ยงได้สูงสุด
+                  </p>
+                </div>
+                <div className="text-center lg:text-left">
+                  <h4 className="text-white font-bold text-2xl mb-3">อัปเดตเนื้อหาตลอดเวลา</h4>
+                  <p className="text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                    โลกของบาคาร่ามีการเปลี่ยนแปลงตลอดเวลา เราจึงไม่หยุดที่จะอัปเดตเทคนิคใหม่ๆ 
+                    และสูตร AI ที่ทันสมัยที่สุด เพื่อให้คุณก้าวทันทุกสถานการณ์ในคาสิโนออนไลน์
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-baccarat-black/50 border border-white/5 p-8 rounded-[2rem] backdrop-blur-xl">
+              <h3 className="text-2xl font-bold text-gold mb-6 border-b border-gold/20 pb-4">สรุปหัวใจสำคัญของการเป็นเซียน</h3>
+              <ul className="space-y-6">
+                <li className="flex items-start gap-4">
+                  <div className="mt-1.5 w-2 h-2 bg-gold rounded-full" />
+                  <p className="text-gray-300"><span className="text-white font-bold">วินัยในการเดินเงิน:</span> หัวใจหลักไม่ใช่การแทงถูกทุกตา แต่คือการบริหารเงินทุนให้เหลือกำไรเมื่อจบรอบ</p>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="mt-1.5 w-2 h-2 bg-gold rounded-full" />
+                  <p className="text-gray-300"><span className="text-white font-bold">การเลือกห้อง:</span> ห้องที่มีเค้าไพ่ชัดเจนคือขุมทรัพย์ การเลือกห้องถูกมีชัยไปกว่าครึ่ง</p>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="mt-1.5 w-2 h-2 bg-gold rounded-full" />
+                  <p className="text-gray-300"><span className="text-white font-bold">การควบคุมอารมณ์:</span> เมื่อเสียต้องหยุด เมื่อได้ต้องพอ จิตวิทยาคือสิ่งที่แยกเซียนออกจากมือสมัครเล่น</p>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="mt-1.5 w-2 h-2 bg-gold rounded-full" />
+                  <p className="text-gray-300"><span className="text-white font-bold">การใช้เครื่องมือ:</span> อย่าพึ่งพาโชคชะตาเพียงอย่างเดียว ใช้สูตร AI และสถิติช่วยในการตัดสินใจ</p>
+                </li>
+              </ul>
+              <div className="mt-10 p-6 bg-gold/10 border border-gold/20 rounded-xl">
+                <p className="text-gold text-sm italic text-center">
+                  "บาคาร่าไม่ใช่เรื่องของดวง 100% แต่เป็นเรื่องของสถิติและวินัย"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Content / Bento Grid */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* Card 1: Complete Guide */}
+          <div className="md:col-span-2 lg:col-span-1 h-full">
+            <Link to={guideLink} className="block group h-full">
               <motion.div 
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.2 }}
                 viewport={{ once: true }}
-                className="bg-gray-900/60 border border-gold/10 overflow-hidden rounded-[2.5rem] hover:border-gold/50 transition-all duration-500 h-full flex flex-col shadow-2xl hover:shadow-gold/10 hover:-translate-y-2"
+                className="bg-gray-900/60 border border-gold/10 overflow-hidden rounded-[3rem] hover:border-gold/50 transition-all duration-500 h-full relative group shadow-2xl min-h-[450px]"
               >
-                {feature.img && (
-                  <div className="aspect-[16/9] overflow-hidden relative">
-                    <img 
-                      src={feature.img} 
-                      alt={feature.title} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-80" />
+                <div className="absolute inset-0">
+                  <img 
+                    src="https://img1.pic.in.th/images/Baccarat-Guide.jpg" 
+                    alt="Complete Guide" 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-40"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-baccarat-black via-baccarat-black/60 to-transparent" />
+                </div>
+                <div className="relative z-10 p-10 h-full flex flex-col justify-end">
+                  <div className="inline-block bg-baccarat-red/80 text-white text-[10px] font-bold px-3 py-1 rounded-full mb-4 border border-gold/30 w-fit">
+                    MUST READ
                   </div>
-                )}
-                <div className="p-8 flex-grow flex flex-col">
-                  <h3 className="text-2xl font-black text-white mb-4 group-hover:text-gold transition-colors leading-tight">{feature.title}</h3>
-                  <p className="text-gray-400 leading-relaxed mb-8 flex-grow text-sm sm:text-base">{feature.desc}</p>
+                  <h3 className="text-2xl md:text-3xl font-black text-white mb-4 leading-tight">
+                    คู่มือบาคาร่า <br />
+                    <span className="gold-gradient">ฉบับสมบูรณ์ 2026</span>
+                  </h3>
+                  <p className="text-gray-300 text-sm leading-relaxed mb-6">
+                    รวบรวมทุกอย่างที่คุณต้องรู้ ตั้งแต่กติกาพื้นฐานไปจนถึงเทคนิคขั้นสูงที่เซียนไม่เคยบอกใคร
+                  </p>
                   <div className="flex items-center text-gold font-black text-xs uppercase tracking-[0.2em] group-hover:translate-x-2 transition-transform">
-                    อ่านรายละเอียด <ChevronRight size={16} className="ml-2" />
+                    เจาะลึกรายละเอียด <ChevronRight size={16} className="ml-1" />
                   </div>
                 </div>
               </motion.div>
             </Link>
+          </div>
+
+          {/* Card 2: AI Money Management */}
+          <div className="h-full">
+            <Link to="/formula" className="block group h-full">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                viewport={{ once: true }}
+                className="bg-gray-900/60 border border-gold/10 rounded-[3rem] hover:border-gold/50 transition-all shadow-xl relative overflow-hidden h-full min-h-[450px]"
+              >
+                <div className="absolute inset-0">
+                  <img 
+                    src="https://img2.pic.in.th/AI-money-management-formula.jpg" 
+                    alt="AI Baccarat Formula" 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-30"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-baccarat-black via-baccarat-black/40 to-transparent" />
+                </div>
+                <div className="relative z-10 p-10 h-full flex flex-col justify-end">
+                  <div className="inline-block bg-gold/10 text-gold text-[10px] font-bold px-3 py-1 rounded-full mb-4 border border-gold/30 w-fit">
+                    AI POWERED
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-black text-white mb-4">สูตรบาคาร่า AI 2026</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                    จัดการเงินทุนอย่างเป็นระบบด้วยเทคโนโลยี AI ที่ช่วยคำนวณโอกาสชนะและลดความเสี่ยงในการเดิมพัน
+                  </p>
+                  <div className="text-gold font-bold text-xs uppercase tracking-widest flex items-center group-hover:translate-x-2 transition-transform">
+                    ทดลองใช้ฟรี <ChevronRight size={16} className="ml-1" />
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+          </div>
+
+          {/* Card 3: Pattern Reading */}
+          <div className="h-full">
+            <Link to="/articles" className="block group h-full">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                viewport={{ once: true }}
+                className="bg-gray-900/60 border border-gold/10 rounded-[3rem] hover:border-gold/50 transition-all shadow-xl relative overflow-hidden h-full min-h-[450px]"
+              >
+                <div className="absolute inset-0">
+                  <img 
+                    src="https://img1.pic.in.th/images/Card-reading-techniques.jpg" 
+                    alt="Pattern Reading" 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-30"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-baccarat-black via-baccarat-black/40 to-transparent" />
+                </div>
+                <div className="relative z-10 p-10 h-full flex flex-col justify-end">
+                  <div className="inline-block bg-blue-500/10 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full mb-4 border border-blue-500/30 w-fit">
+                    STRATEGY
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-black text-white mb-4">เทคนิคอ่านเค้าไพ่</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                    รวมเค้าไพ่ยอดนิยมกว่า 20 รูปแบบ พร้อมวิธีสังเกตและจังหวะการเข้าทำกำไรที่แม่นยำที่สุด
+                  </p>
+                  <div className="text-gold font-bold text-xs uppercase tracking-widest flex items-center group-hover:translate-x-2 transition-transform">
+                    ดูเค้าไพ่ทั้งหมด <ChevronRight size={16} className="ml-1" />
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Step-by-Step Mastery Guide */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-5xl font-black text-white mb-4 uppercase tracking-tight">
+            เส้นทางสู่การเป็น <span className="text-gold">เซียนบาคาร่า</span>
+          </h2>
+          <p className="text-gray-400">4 ขั้นตอนง่ายๆ ที่จะเปลี่ยนคุณจากมือใหม่ให้กลายเป็นมือโปร</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {[
+            { 
+              step: "01", 
+              title: "ศึกษาพื้นฐาน", 
+              desc: "เรียนรู้กฎกติกา อัตราการจ่าย และเงื่อนไขต่างๆ ให้แม่นยำที่สุดก่อนเริ่มเล่นจริง" 
+            },
+            { 
+              step: "02", 
+              title: "ฝึกอ่านเค้าไพ่", 
+              desc: "สังเกตรูปแบบไพ่ที่ออกบ่อยๆ และฝึกวิเคราะห์แนวโน้มของเกมในแต่ละห้อง" 
+            },
+            { 
+              step: "03", 
+              title: "วางแผนการเงิน", 
+              desc: "กำหนดงบประมาณ กำไรที่ต้องการ และจุดตัดขาดทุน (Stop Loss) อย่างเคร่งครัด" 
+            },
+            { 
+              step: "04", 
+              title: "ใช้เครื่องมือช่วย", 
+              desc: "นำสูตร AI และเทคนิคการเดินเงินมาประยุกต์ใช้เพื่อเพิ่มความแม่นยำในการตัดสินใจ" 
+            }
+          ].map((item, i) => (
+            <div key={i} className="relative group">
+              <div className="text-8xl font-black text-white/5 absolute -top-8 -left-4 group-hover:text-gold/10 transition-colors">
+                {item.step}
+              </div>
+              <div className="relative z-10 pt-8">
+                <h3 className="text-xl font-bold text-white mb-4 group-hover:text-gold transition-colors">{item.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
+              </div>
+              {i < 3 && (
+                <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-px bg-gold/20" />
+              )}
+            </div>
           ))}
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-12">
-          <div>
-            <h2 className="text-4xl font-black text-white mb-4">บทความ <span className="text-gold">ล่าสุด</span></h2>
-            <p className="text-gray-400">อัปเดตเทคนิคและข่าวสารใหม่ๆ ทุกสัปดาห์</p>
+      {/* AI Baccarat Formula Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="bg-gradient-to-br from-gray-900 to-baccarat-black border border-gold/20 rounded-[3rem] overflow-hidden shadow-2xl relative">
+          <div className="absolute top-0 right-0 w-1/2 h-full opacity-20 hidden lg:block">
+            <img 
+              src="https://img2.pic.in.th/AI-money-management-formula.jpg" 
+              alt="AI Formula Background" 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-gradient-to-l from-transparent to-baccarat-black" />
           </div>
-          <Link to="/articles" className="hidden md:flex items-center text-gold font-bold hover:underline">
-            ดูทั้งหมด <ChevronRight size={20} />
+          
+          <div className="p-8 md:p-16 lg:w-2/3 relative z-10">
+            <div className="inline-flex items-center space-x-2 bg-gold/10 px-4 py-2 rounded-full border border-gold/20 mb-8">
+              <Zap className="text-gold w-4 h-4" />
+              <span className="text-gold text-xs font-bold uppercase tracking-widest">AI Technology</span>
+            </div>
+            
+            <h2 className="text-3xl md:text-5xl font-black text-white mb-8 leading-tight">
+              สูตรบาคาร่า <span className="gold-gradient">AI 2026 อัจฉริยะ</span> <br />
+              แม่นยำที่สุดแห่งปี 2026
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+              <div className="space-y-4">
+                <div className="flex items-start space-x-4">
+                  <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20 shrink-0">
+                    <Target className="text-gold w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold mb-1">คำนวณความเสี่ยง</h4>
+                    <p className="text-gray-400 text-sm">วิเคราะห์โอกาสชนะในแต่ละตาแบบ Real-time เพื่อการวางเดิมพันที่ปลอดภัย</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-4">
+                  <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20 shrink-0">
+                    <TrendingUp className="text-gold w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold mb-1">ระบบเดินเงินอัตโนมัติ</h4>
+                    <p className="text-gray-400 text-sm">แนะนำการปรับเบทตามสถานการณ์จริง ช่วยรักษาพอร์ตและทำกำไรสูงสุด</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-start space-x-4">
+                  <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20 shrink-0">
+                    <Award className="text-gold w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold mb-1">ความแม่นยำ 98%</h4>
+                    <p className="text-gray-400 text-sm">ผ่านการทดสอบด้วย Big Data กว่า 10 ล้านตา เพื่อความมั่นใจในทุกการเดิมพัน</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-4">
+                  <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20 shrink-0">
+                    <ShieldCheck className="text-gold w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold mb-1">ปลอดภัย ไร้กังวล</h4>
+                    <p className="text-gray-400 text-sm">ระบบทำงานแยกส่วน ไม่มีการเก็บข้อมูลส่วนตัว มั่นใจได้ในความเป็นส่วนตัว</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link 
+                to="/formula" 
+                className="gold-bg-gradient text-baccarat-black px-10 py-4 rounded-full font-black text-center hover:scale-105 transition-transform"
+              >
+                เข้าใช้งานสูตร AI ฟรี
+              </Link>
+              <a 
+                href="https://your-target-site.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="bg-white/10 text-white border border-white/20 px-10 py-4 rounded-full font-black text-center hover:bg-white/20 transition-colors"
+              >
+                สมัครสมาชิกรับสิทธิ์
+              </a>
+            </div>
+          </div>
+          
+          <div className="lg:hidden w-full h-64">
+            <img 
+              src="https://img2.pic.in.th/AI-money-management-formula.jpg" 
+              alt="AI Formula Mobile" 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Latest Articles */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 md:mb-16 gap-4">
+          <div>
+            <h2 className="text-3xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">
+              บทความ <span className="text-gold">ล่าสุด</span>
+            </h2>
+            <p className="text-gray-400 text-base md:text-lg">อัปเดตเทคนิคและข่าวสารใหม่ๆ ส่งตรงจากเหล่าเซียนทุกสัปดาห์</p>
+          </div>
+          <Link to="/articles" className="flex items-center text-gold font-bold hover:underline group">
+            ดูทั้งหมด <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {publishedArticles.slice(0, 3).map((article) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
+          {publishedArticles.slice(0, 4).map((article) => (
             <ArticleCard key={article.id} article={article} />
           ))}
         </div>
       </section>
 
+      {/* Trust / CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-baccarat-red to-red-900 rounded-[3rem] p-12 md:p-20 relative overflow-hidden red-glow">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gold/10 rounded-full -mr-32 -mt-32 blur-3xl" />
-          <div className="relative z-10 text-center max-w-3xl mx-auto">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-8 leading-tight">
-              พร้อมที่จะทำกำไร <br />
-              <span className="text-gold-light">กับเว็บอันดับ 1 แล้วหรือยัง?</span>
-            </h2>
-            <p className="text-white/80 text-lg mb-12">
-              เราได้คัดสรรเว็บไซต์ที่มั่นคง ปลอดภัย และมีอัตราการจ่ายที่สูงที่สุดมาให้คุณแล้ว 
-              คลิกที่ปุ่มด้านล่างเพื่อรับสิทธิพิเศษทันที
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <a 
-                href="https://your-target-site.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="bg-white text-baccarat-red px-12 py-5 rounded-full font-black text-xl hover:scale-105 transition-transform shadow-2xl"
-              >
-                สมัครสมาชิกตอนนี้
-              </a>
-            </div>
+        <div className="bg-gradient-to-br from-baccarat-red to-red-950 rounded-[2.5rem] md:rounded-[4rem] p-8 md:p-24 relative overflow-hidden red-glow border border-white/10">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gold/10 rounded-full -mr-48 -mt-48 blur-[100px]" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-baccarat-black/40 rounded-full -ml-32 -mb-32 blur-[80px]" />
+          
+          <div className="relative z-10 text-center max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-10 leading-[1.1] tracking-tighter">
+                พร้อมที่จะเป็น <br />
+                <span className="text-gold-light">เซียนบาคาร่าตัวจริง</span> แล้วหรือยัง?
+              </h2>
+              <p className="text-white/80 text-lg md:text-xl mb-10 md:mb-14 leading-relaxed max-w-2xl mx-auto px-4">
+                เราได้รวบรวมทุกอย่างที่คุณต้องการไว้ที่นี่แล้ว ไม่ว่าจะเป็นเทคนิค สูตร หรือทางเข้าเล่นที่มั่นคง 
+                อย่าปล่อยให้โอกาสทำกำไรหลุดมือไป
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-6 px-4">
+                <a 
+                  href="https://your-target-site.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="bg-white text-baccarat-red px-8 md:px-16 py-4 md:py-6 rounded-full font-black text-lg md:text-2xl hover:scale-105 transition-transform shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-center w-full sm:w-auto"
+                >
+                  สมัครสมาชิกตอนนี้ <ChevronRight className="ml-2 w-6 h-6 md:w-7 md:h-7" />
+                </a>
+              </div>
+              <div className="mt-10 md:mt-12 flex flex-wrap items-center justify-center gap-4 md:gap-8 text-white/60 text-xs md:text-sm font-bold uppercase tracking-widest px-4">
+                <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-gold" /> มั่นคง 100%</div>
+                <div className="flex items-center gap-2"><Award size={18} className="text-gold" /> มาตรฐานสากล</div>
+                <div className="flex items-center gap-2"><Zap size={18} className="text-gold" /> บริการ 24 ชม.</div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -434,7 +885,7 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <div className="mb-16 text-center">
-        <h1 className="text-5xl font-black text-white mb-6">
+        <h1 className="text-3xl md:text-5xl font-black text-white mb-6">
           {categoryFilter ? (
             <>คลังบทความ <span className="gold-gradient">{categoryFilter}</span></>
           ) : (
@@ -490,7 +941,7 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
           <span className="bg-baccarat-red text-white text-xs font-bold px-4 py-1.5 rounded-full border border-gold/50">
             {article.category}
           </span>
-          <h1 className="text-4xl md:text-5xl font-black text-white mt-6 mb-6 leading-tight">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mt-6 mb-6 leading-tight">
             {article.title}
           </h1>
           <div className="flex items-center text-gray-500 text-sm space-x-6">
@@ -550,7 +1001,7 @@ const LoginPage = ({ user }: { user: User | null }) => {
         <div className="w-16 h-16 bg-baccarat-red rounded-full flex items-center justify-center border border-gold mx-auto mb-8">
           <Lock className="text-gold w-8 h-8" />
         </div>
-        <h1 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">Admin Login</h1>
+        <h1 className="text-2xl md:text-3xl font-black text-white mb-4 uppercase tracking-tighter">Admin Login</h1>
         <p className="text-gray-400 mb-10">กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแลระบบเพื่อจัดการบทความ</p>
         
         {error && (
@@ -2539,9 +2990,12 @@ const FormulaPage = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <div className="text-center mb-16">
-        <h1 className="text-5xl font-black text-white mb-6">สูตรบาคาร่า <span className="gold-gradient">AI 2026</span></h1>
-        <p className="text-gray-400 max-w-3xl mx-auto">
-          สูตรบาคาร่า AI 2026 มาด้วยระบบคำนวณ สูตรบาคาร่า ด้วย AI แม่นยำที่สุดในขณะนี้ รองรับทั้งค่าย Sexy Baccarat และ SA Gaming อัปเดตอัตราชนะแบบเรียลไทม์
+        <h1 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight">
+          สูตรบาคาร่าฟรี ต้องที่นี้ <br />
+          <span className="gold-gradient uppercase tracking-tighter">สูตรบาคาร่า AI 2026 แม่นยำที่สุด</span>
+        </h1>
+        <p className="text-gray-400 max-w-3xl mx-auto text-sm md:text-base leading-relaxed">
+          สำหรับทุกท่านที่ตามหา สูตรบาคาร่าฟรี ต้องที่นี้เลย สูตรบาคาร่า AI 2026 ของ Baccarat Master Guide มาด้วยระบบคำนวณ สูตรบาคาร่า ด้วย AI แม่นยำที่สุดในขณะนี้ รองรับทั้งค่าย Sexy Baccarat และ SA Gaming อัปเดตอัตราชนะแบบเรียลไทม์
         </p>
       </div>
 
@@ -2886,6 +3340,7 @@ export default function App() {
             <Route path="/articles" element={<ArticlesPage articles={articles} user={user} />} />
             <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} />} />
             <Route path="/formula" element={<FormulaPage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/login" element={<LoginPage user={user} />} />
             <Route 
               path="/admin" 
