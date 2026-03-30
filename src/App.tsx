@@ -25,10 +25,19 @@ import {
   FileText,
   Search,
   Heart,
-  Crown
+  Crown,
+  Check,
+  Upload
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { format } from 'date-fns';
+import * as mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Initialize PDF.js worker
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+}
 import { 
   collection, 
   onSnapshot, 
@@ -38,6 +47,8 @@ import {
   doc, 
   query, 
   orderBy, 
+  where,
+  getDocs,
   serverTimestamp,
   getDocFromServer
 } from 'firebase/firestore';
@@ -472,15 +483,6 @@ const ArticleDetailPage = ({ articles }: { articles: Article[] }) => {
           </div>
         </div>
         
-        <div className="rounded-3xl overflow-hidden mb-12 border border-gold/20">
-          <img 
-            src={article.image || 'https://picsum.photos/seed/baccarat/800/400'} 
-            alt={article.title} 
-            className="w-full h-auto"
-            referrerPolicy="no-referrer"
-          />
-        </div>
-
         <div className="prose prose-invert prose-gold max-w-none">
           <div 
             className="text-gray-300 leading-loose text-lg space-y-6 article-content"
@@ -553,11 +555,174 @@ const LoginPage = ({ user }: { user: User | null }) => {
   );
 };
 
-const AdminDashboard = ({ articles }: { articles: Article[] }) => {
+const AdminDashboard = ({ articles, categories }: { articles: Article[], categories: string[] }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isManagingCategories, setIsManagingCategories] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategory, setEditingCategory] = useState<{old: string, new: string} | null>(null);
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSaveCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'categories'), where('name', '==', newCategoryName.trim()));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        await addDoc(collection(db, 'categories'), { name: newCategoryName.trim() });
+      }
+      setNewCategoryName('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory || !editingCategory.new.trim()) return;
+    setLoading(true);
+    try {
+      // 1. Update Category Name in categories collection
+      const q = query(collection(db, 'categories'), where('name', '==', editingCategory.old));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        await updateDoc(doc(db, 'categories', d.id), { name: editingCategory.new.trim() });
+      }
+
+      // 2. Update all articles using this category
+      const articlesToUpdate = articles.filter(a => a.category === editingCategory.old);
+      for (const art of articlesToUpdate) {
+        if (art.id) {
+          await updateDoc(doc(db, 'articles', art.id), { category: editingCategory.new.trim() });
+        }
+      }
+      setEditingCategory(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catName: string) => {
+    if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบหมวดหมู่ "${catName}"?`)) return;
+    setLoading(true);
+    try {
+      const q = query(collection(db, 'categories'), where('name', '==', catName));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, 'categories', d.id));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (extension === 'docx') {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const arrayBuffer = event.target?.result as ArrayBuffer;
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            const content = result.value;
+            
+            if (content.length > 1000000) {
+              setError(`เนื้อหาจากไฟล์ Word มีขนาดใหญ่เกินไป (${(content.length / 1024 / 1024).toFixed(2)} MB) กรุณาลดขนาดรูปภาพในไฟล์ Word ก่อนอัปโหลด`);
+              setLoading(false);
+              return;
+            }
+
+            setCurrentArticle({
+              ...currentArticle,
+              title: currentArticle.title || file.name.replace('.docx', ''),
+              content: content
+            });
+            setLoading(false);
+          } catch (err) {
+            console.error('Mammoth error:', err);
+            setError('ไม่สามารถอ่านไฟล์ Word ได้');
+            setLoading(false);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (extension === 'pdf') {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const arrayBuffer = event.target?.result as ArrayBuffer;
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              const pageText = textContent.items.map((item: any) => item.str).join(' ');
+              fullText += pageText + '\n\n';
+            }
+            
+            const content = fullText.replace(/\n/g, '<br>');
+            if (content.length > 1000000) {
+              setError(`เนื้อหาจากไฟล์ PDF มีขนาดใหญ่เกินไป (${(content.length / 1024 / 1024).toFixed(2)} MB) กรุณาลดจำนวนหน้าหรือเนื้อหา`);
+              setLoading(false);
+              return;
+            }
+
+            setCurrentArticle({
+              ...currentArticle,
+              title: currentArticle.title || file.name.replace('.pdf', ''),
+              content: content
+            });
+            setLoading(false);
+          } catch (err) {
+            console.error('PDF.js error:', err);
+            setError('ไม่สามารถอ่านไฟล์ PDF ได้');
+            setLoading(false);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (['txt', 'md', 'html', 'rtf'].includes(extension || '')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const text = event.target?.result as string;
+          
+          if (text.length > 1000000) {
+            setError(`เนื้อหาไฟล์มีขนาดใหญ่เกินไป (${(text.length / 1024 / 1024).toFixed(2)} MB)`);
+            setLoading(false);
+            return;
+          }
+
+          setCurrentArticle({
+            ...currentArticle,
+            title: currentArticle.title || file.name.split('.')[0],
+            content: extension === 'html' ? text : text.replace(/\n/g, '<br>')
+          });
+          setLoading(false);
+        };
+        reader.readAsText(file);
+      } else {
+        setError('รูปแบบไฟล์ไม่รองรับในขณะนี้');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      setError('เกิดข้อผิดพลาดในการอัปโหลดไฟล์');
+      setLoading(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -574,6 +739,12 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
         author: auth.currentUser?.displayName || 'Admin',
       };
 
+      // Check document size (Firestore limit is 1MB)
+      const estimatedSize = JSON.stringify(articleData).length;
+      if (estimatedSize > 1000000) {
+        throw new Error(`บทความมีขนาดใหญ่เกินไป (${(estimatedSize / 1024 / 1024).toFixed(2)} MB) ขีดจำกัดของระบบคือ 1 MB กรุณาลดขนาดเนื้อหาหรือรูปภาพที่ฝังอยู่ในบทความ`);
+      }
+
       if (id) {
         const docRef = doc(db, 'articles', id);
         await updateDoc(docRef, articleData);
@@ -583,6 +754,16 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
           createdAt: serverTimestamp(),
         });
       }
+
+      // Also ensure category exists in categories collection
+      if (articleData.category) {
+        const q = query(collection(db, 'categories'), where('name', '==', articleData.category));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+          await addDoc(collection(db, 'categories'), { name: articleData.category });
+        }
+      }
+
       setIsEditing(false);
       setCurrentArticle({});
     } catch (err: any) {
@@ -591,11 +772,17 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
         const parsed = JSON.parse(err.message);
         if (parsed.error.includes('permission-denied')) {
           message = "คุณไม่มีสิทธิ์ในการบันทึกข้อมูล (Permission Denied)";
+        } else if (parsed.error.includes('exceeds the maximum allowed size')) {
+          message = "บทความมีขนาดใหญ่เกินไป (เกิน 1MB) กรุณาลดขนาดรูปภาพหรือเนื้อหาลง";
         } else {
           message = parsed.error;
         }
       } catch (e) {
-        message = err.message || message;
+        if (err.message.includes('เกินไป')) {
+          message = err.message;
+        } else {
+          message = err.message || message;
+        }
       }
       setError(message);
       console.error("Save Error:", err);
@@ -623,16 +810,99 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
     ],
   };
 
+  if (isManagingCategories) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gray-900 border border-gold/20 p-8 rounded-3xl"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold text-gold">จัดการหมวดหมู่</h2>
+            <button onClick={() => setIsManagingCategories(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex gap-4">
+              <input 
+                type="text" 
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                placeholder="ชื่อหมวดหมู่ใหม่..."
+                className="flex-grow bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+              />
+              <button 
+                onClick={handleSaveCategory}
+                disabled={loading}
+                className="gold-bg-gradient text-baccarat-black px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+              >
+                {loading ? '...' : 'เพิ่มหมวดหมู่'}
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {categories.map(cat => (
+                <div key={cat} className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
+                  {editingCategory?.old === cat ? (
+                    <div className="flex-grow flex gap-2 mr-4">
+                      <input 
+                        type="text" 
+                        value={editingCategory.new}
+                        onChange={e => setEditingCategory({...editingCategory, new: e.target.value})}
+                        className="flex-grow bg-black border border-gold rounded-lg px-3 py-1 text-white text-sm"
+                      />
+                      <button onClick={handleUpdateCategory} className="text-green-500 hover:text-green-400"><Check size={20} /></button>
+                      <button onClick={() => setEditingCategory(null)} className="text-red-500 hover:text-red-400"><X size={20} /></button>
+                    </div>
+                  ) : (
+                    <span className="text-white font-medium">{cat}</span>
+                  )}
+                  
+                  <div className="flex items-center space-x-4">
+                    <button 
+                      onClick={() => setEditingCategory({old: cat, new: cat})}
+                      className="text-gray-400 hover:text-gold transition-colors"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteCategory(cat)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="flex items-center justify-between mb-12">
-        <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
-        <button 
-          onClick={() => { setIsEditing(true); setCurrentArticle({}); }}
-          className="gold-bg-gradient text-baccarat-black px-6 py-3 rounded-full font-bold flex items-center"
-        >
-          <Plus size={20} className="mr-2" /> เพิ่มบทความใหม่
-        </button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12">
+        <div>
+          <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
+          <p className="text-gray-400">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsManagingCategories(true)}
+            className="bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center"
+          >
+            <Target size={20} className="mr-2 text-gold" /> จัดการหมวดหมู่
+          </button>
+          <button 
+            onClick={() => { setIsEditing(true); setCurrentArticle({}); }}
+            className="gold-bg-gradient text-baccarat-black px-8 py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center"
+          >
+            <Plus size={20} className="mr-2" /> เพิ่มบทความใหม่
+          </button>
+        </div>
       </div>
 
       {isEditing ? (
@@ -653,6 +923,30 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
           )}
 
           <form onSubmit={handleSave} className="space-y-6">
+            <div className="flex items-center gap-4 p-4 bg-gold/5 border border-gold/20 rounded-2xl mb-6">
+              <div className="flex-grow">
+                <p className="text-gold font-bold text-sm mb-1 flex items-center">
+                  <Upload size={16} className="mr-2" /> นำเข้าเนื้อหาจากไฟล์
+                </p>
+                <p className="text-gray-400 text-xs">รองรับ .docx, .pdf, .txt, .md, .html, .rtf</p>
+              </div>
+              <label className="bg-gold text-baccarat-black px-4 py-2 rounded-xl font-bold text-sm cursor-pointer hover:scale-105 transition-transform flex items-center">
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-baccarat-black border-t-transparent rounded-full animate-spin mr-2"></div>
+                ) : (
+                  <Plus size={16} className="mr-2" />
+                )}
+                เลือกไฟล์
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept=".docx,.pdf,.txt,.md,.html,.rtf" 
+                  onChange={handleFileUpload}
+                  disabled={loading}
+                />
+              </label>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-gold text-sm font-bold flex items-center"><Type size={16} className="mr-2" /> หัวข้อบทความ (Title)</label>
@@ -691,18 +985,36 @@ const AdminDashboard = ({ articles }: { articles: Article[] }) => {
               </div>
               <div className="space-y-2">
                 <label className="text-gold text-sm font-bold flex items-center"><Target size={16} className="mr-2" /> หมวดหมู่</label>
-                <select 
-                  required
-                  value={currentArticle.category || ''} 
-                  onChange={e => setCurrentArticle({...currentArticle, category: e.target.value})}
-                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                >
-                  <option value="">เลือกหมวดหมู่</option>
-                  <option value="วิธีเล่น">วิธีเล่น</option>
-                  <option value="เทคนิคการเดิมพัน">เทคนิคการเดิมพัน</option>
-                  <option value="การอ่านเค้าไพ่">การอ่านเค้าไพ่</option>
-                  <option value="รีวิวคาสิโน">รีวิวคาสิโน</option>
-                </select>
+                <div className="flex flex-col space-y-2">
+                  <select 
+                    value={categories.includes(currentArticle.category || '') ? currentArticle.category : 'custom'} 
+                    onChange={e => {
+                      if (e.target.value === 'custom') {
+                        setCurrentArticle({...currentArticle, category: ''});
+                      } else {
+                        setCurrentArticle({...currentArticle, category: e.target.value});
+                      }
+                    }}
+                    className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                  >
+                    <option value="">เลือกหมวดหมู่</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    <option value="custom">+ เพิ่มหมวดหมู่ใหม่ / ระบุเอง</option>
+                  </select>
+                  
+                  {(!categories.includes(currentArticle.category || '') || currentArticle.category === '') && (
+                    <input 
+                      required
+                      type="text" 
+                      value={currentArticle.category || ''} 
+                      onChange={e => setCurrentArticle({...currentArticle, category: e.target.value})}
+                      className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                      placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ที่นี่..."
+                    />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1600,6 +1912,7 @@ const FormulaPage = () => {
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
@@ -1609,27 +1922,37 @@ export default function App() {
       setAuthReady(true);
     });
 
-    const q = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
-    const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
+    // Listen to Articles
+    const qArticles = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
+    const unsubscribeArticles = onSnapshot(qArticles, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Article[];
       
-      // If Firestore is empty, use static articles as fallback
       if (docs.length === 0) {
         setArticles(STATIC_ARTICLES);
       } else {
         setArticles(docs);
       }
     }, (error) => {
-      console.error("Firestore Error:", error);
-      setArticles(STATIC_ARTICLES); // Fallback on error
+      console.error("Firestore Error (Articles):", error);
+      setArticles(STATIC_ARTICLES);
+    });
+
+    // Listen to Categories
+    const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
+    const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
+      const cats = snapshot.docs.map(doc => doc.data().name as string);
+      setCategories(cats);
+    }, (error) => {
+      console.error("Firestore Error (Categories):", error);
     });
 
     return () => {
       unsubscribeAuth();
-      unsubscribeFirestore();
+      unsubscribeArticles();
+      unsubscribeCategories();
     };
   }, []);
 
@@ -1650,7 +1973,7 @@ export default function App() {
               path="/admin" 
               element={
                 user?.email === ADMIN_EMAIL ? (
-                  <AdminDashboard articles={articles} />
+                  <AdminDashboard articles={articles} categories={categories} />
                 ) : (
                   <Navigate to="/login" />
                 )

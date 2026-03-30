@@ -85,6 +85,9 @@ body {
   border: 1px solid rgba(212, 175, 55, 0.2) !important;
   border-top-left-radius: 1rem !important;
   border-top-right-radius: 1rem !important;
+  position: sticky !important;
+  top: 80px;
+  z-index: 40;
 }
 
 .ql-stroke {
