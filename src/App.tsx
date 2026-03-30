@@ -110,8 +110,8 @@ const Navbar = ({ user }: { user: User | null }) => {
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-8">
               <Link to="/" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname === '/' ? "text-gold" : "text-gray-300 hover:text-gold")}>หน้าแรก</Link>
-              <Link to="/articles" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname === '/articles' ? "text-gold" : "text-gray-300 hover:text-gold")}>บทความ</Link>
               <Link to="/formula" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname === '/formula' ? "text-gold" : "text-gray-300 hover:text-gold")}>สูตรบาคาร่าฟรี</Link>
+              <Link to="/articles" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname === '/articles' ? "text-gold" : "text-gray-300 hover:text-gold")}>บทความ</Link>
               {user?.email === ADMIN_EMAIL && (
                 <Link to="/admin" className={cn("px-3 py-2 rounded-md text-sm font-medium transition-colors", location.pathname.startsWith('/admin') ? "text-gold" : "text-gray-300 hover:text-gold")}>จัดการหลังบ้าน</Link>
               )}
@@ -147,8 +147,8 @@ const Navbar = ({ user }: { user: User | null }) => {
           >
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               <Link to="/" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gold">หน้าแรก</Link>
-              <Link to="/articles" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-300">บทความ</Link>
               <Link to="/formula" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-300">สูตรบาคาร่าฟรี</Link>
+              <Link to="/articles" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-300">บทความ</Link>
               {user?.email === ADMIN_EMAIL && (
                 <Link to="/admin" onClick={() => setIsOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-300">จัดการหลังบ้าน</Link>
               )}
@@ -1394,93 +1394,155 @@ const FormulaPage = () => {
       </motion.div>
 
       <div className="mt-20 bg-gray-900/30 border border-gold/10 rounded-[2.5rem] p-8 md:p-12">
-        <h2 className="text-3xl font-black text-white mb-8 gold-gradient">
-          สูตรบาคาร่า AI 2026 ฟรี ใช้ได้จริง รองรับค่าย SEXY และ SA
-        </h2>
-        <div className="space-y-6 text-gray-400 leading-relaxed text-lg">
-          <p>
-            เปิดให้ใช้ฟรี สูตรบาคาร่า AI 2026 ที่ออกแบบมาเพื่อช่วยวิเคราะห์เกมด้วยระบบ AI ซึ่งคำนวณข้อมูลอย่างเป็นระบบ ทำให้ใช้งานได้แม่นยำกว่าสูตรบาคาร่าฟรีทั่วไป โดยทางเว็บมีให้เลือกใช้งานถึง 2 สูตร ครอบคลุมทั้งค่าย SEXY และ SA เหมาะสำหรับผู้เล่นที่ต้องการตัวช่วยในการวางแผนเดิมพันแบบใช้งานได้จริง
-          </p>
-          <p>
-            ระบบนี้ถูกพัฒนาโดยทีมงานมืออาชีพที่มีประสบการณ์ด้านคาสิโนโดยตรง จึงช่วยเพิ่มความมั่นใจให้กับผู้ใช้งานได้มากยิ่งขึ้น สำหรับใครที่กำลังมองหา สูตรบาคาร่า AI 2026 ใช้ได้จริง และต้องการตัวช่วยเพิ่มโอกาสทำกำไร สูตรนี้ถือเป็นอีกหนึ่งทางเลือกที่ไม่ควรมองข้าม พร้อมตอบโจทย์สายมองหา สูตรบาคาร่าแม่นๆ ที่ใช้งานฟรีและเข้าถึงได้ง่าย
-          </p>
+        <div className="mb-16">
+          <h2 className="text-3xl font-black text-white mb-8 gold-gradient">
+            สูตรบาคาร่า AI 2026 ฟรี ใช้ได้จริง รองรับค่าย SEXY และ SA
+          </h2>
+          <div className="space-y-6 text-gray-400 leading-relaxed text-lg">
+            <p>
+              เปิดให้ใช้ฟรี สูตรบาคาร่า AI 2026 ที่ออกแบบมาเพื่อช่วยวิเคราะห์เกมด้วยระบบ AI ซึ่งคำนวณข้อมูลอย่างเป็นระบบ ทำให้ใช้งานได้แม่นยำกว่าสูตรบาคาร่าฟรีทั่วไป โดยทางเว็บมีให้เลือกใช้งานถึง 2 สูตร ครอบคลุมทั้งค่าย SEXY และ SA เหมาะสำหรับผู้เล่นที่ต้องการตัวช่วยในการวางแผนเดิมพันแบบใช้งานได้จริง
+            </p>
+            <p>
+              ระบบนี้ถูกพัฒนาโดยทีมงานมืออาชีพที่มีประสบการณ์ด้านคาสิโนโดยตรง จึงช่วยเพิ่มความมั่นใจให้กับผู้ใช้งานได้มากยิ่งขึ้น สำหรับใครที่กำลังมองหา สูตรบาคาร่า AI 2026 ใช้ได้จริง และต้องการตัวช่วยเพิ่มโอกาสทำกำไร สูตรนี้ถือเป็นอีกหนึ่งทางเลือกที่ไม่ควรมองข้าม พร้อมตอบโจทย์สายมองหา สูตรบาคาร่าแม่นๆ ที่ใช้งานฟรีและเข้าถึงได้ง่าย
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-20 bg-gray-900/30 border border-gold/10 rounded-[2.5rem] p-8 md:p-12">
-        <h2 className="text-3xl font-black text-white mb-12 gold-gradient">
-          วิธีใช้งานสูตรบาคาร่าฟรี 2026 แบบเข้าใจง่าย สำหรับผู้เล่นทุกระดับ
-        </h2>
-        
-        <div className="space-y-16">
-          {/* Step 1 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="order-2 lg:order-1">
-              <h3 className="text-2xl font-black text-gold mb-4">1. เลือกคาสิโนที่ต้องการใช้งานสูตรบาคาร่า</h3>
-              <p className="text-gray-400 leading-relaxed text-lg">
-                ก่อนเริ่มใช้งาน ผู้เล่นสามารถเลือกค่ายคาสิโนที่ต้องการใช้ สูตรบาคาร่าฟรี 2026 ได้ 2 ค่าย คือ SA GAMING และ SEXY BACCARAT โดยแต่ละสูตรจะใช้ระบบ AI ในการคำนวณที่แตกต่างกัน เพื่อช่วยวิเคราะห์แนวทางการเล่นให้เหมาะกับแต่ละห้อง
-              </p>
+        <div className="pt-16 border-t border-gold/10">
+          <h2 className="text-3xl font-black text-white mb-12 gold-gradient">
+            วิธีใช้งานสูตรบาคาร่าฟรี 2026 แบบเข้าใจง่าย สำหรับผู้เล่นทุกระดับ
+          </h2>
+          
+          <div className="space-y-16">
+            {/* Step 1 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="order-2 lg:order-1">
+                <h3 className="text-2xl font-black text-gold mb-4">1. เลือกคาสิโนที่ต้องการใช้งานสูตรบาคาร่า</h3>
+                <p className="text-gray-400 leading-relaxed text-lg">
+                  ก่อนเริ่มใช้งาน ผู้เล่นสามารถเลือกค่ายคาสิโนที่ต้องการใช้ สูตรบาคาร่าฟรี 2026 ได้ 2 ค่าย คือ SA GAMING และ SEXY BACCARAT โดยแต่ละสูตรจะใช้ระบบ AI ในการคำนวณที่แตกต่างกัน เพื่อช่วยวิเคราะห์แนวทางการเล่นให้เหมาะกับแต่ละห้อง
+                </p>
+              </div>
+              <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+                <img 
+                  src="https://img1.pic.in.th/images/Select-the-game-provider-you-want-to-use-the-cheat-code-with..jpg" 
+                  alt="เลือกคาสิโน" 
+                  className="w-full h-auto object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
             </div>
-            <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
-              <img 
-                src="https://img1.pic.in.th/images/Select-the-game-provider-you-want-to-use-the-cheat-code-with..jpg" 
-                alt="เลือกคาสิโน" 
-                className="w-full h-auto object-cover"
-                referrerPolicy="no-referrer"
-              />
+
+            {/* Step 2 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+                <img 
+                  src="https://img1.pic.in.th/images/Select-the-desired-casino-room.jpg" 
+                  alt="เลือกห้องคาสิโน" 
+                  className="w-full h-auto object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-gold mb-4">2. เลือกห้องคาสิโนที่ต้องการเล่น</h3>
+                <p className="text-gray-400 leading-relaxed text-lg">
+                  หลังจากเลือกค่ายคาสิโนแล้ว ระบบจะพาไปยังหน้ารวมห้องต่าง ๆ ซึ่งจะแสดงหมายเลขห้องให้เลือก ผู้ใช้สามารถเลือกได้ตามต้องการว่าอยากใช้งาน สูตรบาคาร่า AI 2026 กับห้องไหน
+                </p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="order-2 lg:order-1">
+                <h3 className="text-2xl font-black text-gold mb-4">3. ดูอัตราส่วนและเลือกห้องที่เหมาะสม</h3>
+                <p className="text-gray-400 leading-relaxed text-lg">
+                  ระบบจะแสดงข้อมูลของแต่ละห้องเพื่อช่วยในการตัดสินใจ โดยแนะนำให้เลือกห้องที่มีอัตราส่วนสูตรสูงประมาณ 90-100% เพราะเป็นห้องที่มีแนวโน้มสถิติค่อนข้างดี นอกจากนี้ยังมีบางห้องที่ระบบขึ้นข้อความว่า ห้องน่าเล่น เพื่อช่วยให้ผู้ใช้เลือกห้องที่มีสถิติโดดเด่นได้ง่ายขึ้น
+                </p>
+              </div>
+              <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+                <img 
+                  src="https://img1.pic.in.th/images/How-to-choose-the-right-baccarat-room.png" 
+                  alt="เลือกห้องที่เหมาะสม" 
+                  className="w-full h-auto object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+
+            {/* Step 4 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
+                <img 
+                  src="https://img2.pic.in.th/Im-coming-to-the-recipe-room.jpg" 
+                  alt="วิเคราะห์ข้อมูล" 
+                  className="w-full h-auto object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-gold mb-4">4. วิเคราะห์ข้อมูลภายในห้องสูตร</h3>
+                <p className="text-gray-400 leading-relaxed text-lg">
+                  เมื่อเข้าสู่ห้องสูตรแล้ว ผู้ใช้จะพบรายละเอียดสำคัญต่าง ๆ เช่น ตาถัดไปควรเดิมพันฝั่งไหน, อัตราการชนะ, และสถิติย้อนหลัง ซึ่งมีทั้งแบบตัวเลขและแบบกราฟ เพื่อช่วยให้ดูข้อมูลง่ายและนำไปวิเคราะห์ต่อได้สะดวกมากขึ้น หากต้องการเปลี่ยนไปดูห้องอื่น ก็สามารถกด ออกจากห้อง ได้ทันที
+                </p>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Step 2 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
-              <img 
-                src="https://img1.pic.in.th/images/Select-the-desired-casino-room.jpg" 
-                alt="เลือกห้องคาสิโน" 
-                className="w-full h-auto object-cover"
-                referrerPolicy="no-referrer"
-              />
-            </div>
+        <div className="pt-16 border-t border-gold/10">
+          <h2 className="text-3xl font-black text-white mb-12 gold-gradient">
+            รวมสูตรบาคาร่าฟรี แม่นๆ ที่ยังนิยมใช้ในปี 2026
+          </h2>
+          
+          <div className="space-y-10 text-gray-400 leading-relaxed text-lg">
             <div>
-              <h3 className="text-2xl font-black text-gold mb-4">2. เลือกห้องคาสิโนที่ต้องการเล่น</h3>
-              <p className="text-gray-400 leading-relaxed text-lg">
-                หลังจากเลือกค่ายคาสิโนแล้ว ระบบจะพาไปยังหน้ารวมห้องต่าง ๆ ซึ่งจะแสดงหมายเลขห้องให้เลือก ผู้ใช้สามารถเลือกได้ตามต้องการว่าอยากใช้งาน สูตรบาคาร่า AI 2026 กับห้องไหน
+              <h3 className="text-xl font-black text-gold mb-3">1. สูตรบาคาร่าไพ่มังกร SA และ SEXY</h3>
+              <p>
+                สูตรนี้เป็นหนึ่งในสูตรบาคาร่าที่ได้รับความนิยมมาอย่างต่อเนื่อง ผู้เล่นหลายคนคุ้นเคยกับรูปแบบนี้เป็นอย่างดี โดยหลักการคือ หากผลออก BANKER หรือ PLAYER ติดต่อกันประมาณ 4-5 ตา ให้สังเกตแนวโน้มของเกมไว้ เพราะหลายคนมักเลือกแทงตามฝั่งเดิมที่ออกต่อเนื่อง เนื่องจากมองว่าเกมยังอยู่ในจังหวะเดิม
               </p>
             </div>
-          </div>
 
-          {/* Step 3 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="order-2 lg:order-1">
-              <h3 className="text-2xl font-black text-gold mb-4">3. ดูอัตราส่วนและเลือกห้องที่เหมาะสม</h3>
-              <p className="text-gray-400 leading-relaxed text-lg">
-                ระบบจะแสดงข้อมูลของแต่ละห้องเพื่อช่วยในการตัดสินใจ โดยแนะนำให้เลือกห้องที่มีอัตราส่วนสูตรสูงประมาณ 90-100% เพราะเป็นห้องที่มีแนวโน้มสถิติค่อนข้างดี นอกจากนี้ยังมีบางห้องที่ระบบขึ้นข้อความว่า ห้องน่าเล่น เพื่อช่วยให้ผู้ใช้เลือกห้องที่มีสถิติโดดเด่นได้ง่ายขึ้น
-              </p>
-            </div>
-            <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
-              <img 
-                src="https://img1.pic.in.th/images/How-to-choose-the-right-baccarat-room.png" 
-                alt="เลือกห้องที่เหมาะสม" 
-                className="w-full h-auto object-cover"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          </div>
-
-          {/* Step 4 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
-              <img 
-                src="https://img2.pic.in.th/Im-coming-to-the-recipe-room.jpg" 
-                alt="วิเคราะห์ข้อมูล" 
-                className="w-full h-auto object-cover"
-                referrerPolicy="no-referrer"
-              />
-            </div>
             <div>
-              <h3 className="text-2xl font-black text-gold mb-4">4. วิเคราะห์ข้อมูลภายในห้องสูตร</h3>
-              <p className="text-gray-400 leading-relaxed text-lg">
-                เมื่อเข้าสู่ห้องสูตรแล้ว ผู้ใช้จะพบรายละเอียดสำคัญต่าง ๆ เช่น ตาถัดไปควรเดิมพันฝั่งไหน, อัตราการชนะ, และสถิติย้อนหลัง ซึ่งมีทั้งแบบตัวเลขและแบบกราฟ เพื่อช่วยให้ดูข้อมูลง่ายและนำไปวิเคราะห์ต่อได้สะดวกมากขึ้น หากต้องการเปลี่ยนไปดูห้องอื่น ก็สามารถกด ออกจากห้อง ได้ทันที
+              <h3 className="text-xl font-black text-gold mb-3">2. สูตรบาคาร่าสวนไพ่มังกร</h3>
+              <p>
+                หลังจากมีการแทงตามไพ่มังกรแล้ว อีกหนึ่งสูตรที่นิยมไม่แพ้กันก็คือการแทงสวน โดยหากผลออกฝั่งเดิมติดต่อกันยาว เช่น BANKER หรือ PLAYER ออกต่อกัน 7-8 ตา ผู้เล่นบางส่วนจะเลือกแทงสวนในตาถัดไป เพราะมองว่าเกมอาจมีโอกาสเปลี่ยนจังหวะได้ สูตรนี้จึงเป็นอีกแนวทางที่หลายคนนำมาใช้วางแผน
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-gold mb-3">3. สูตรบาคาร่าไพ่ปิงปอง</h3>
+              <p>
+                สูตรนี้สามารถเจอได้บ่อยในบาคาร่าออนไลน์ ลักษณะของผลจะออกสลับกันไปมา เช่น<br/>
+                รอบที่ 1 ออก BANKER<br/>
+                รอบที่ 2 ออก PLAYER<br/>
+                รอบที่ 3 ออก BANKER<br/>
+                รอบที่ 4 ออก PLAYER<br/>
+                หากเห็นรูปแบบแบบนี้ต่อเนื่อง ผู้เล่นจำนวนมากจะใช้วิธีวิเคราะห์ตามจังหวะของเกม และเลือกแทงสลับตามรูปแบบที่เกิดขึ้น
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-gold mb-3">4. สูตรบาคาร่าไพ่ลูกคู่</h3>
+              <p>
+                สูตรนี้มีลักษณะคล้ายกับสูตรไพ่ปิงปอง แต่จะแตกต่างตรงที่ผลจะออกซ้ำฝั่งละ 2 ครั้ง เช่น<br/>
+                รอบที่ 1 ออก PLAYER<br/>
+                รอบที่ 2 ออก PLAYER<br/>
+                รอบที่ 3 ออก BANKER<br/>
+                รอบที่ 4 ออก BANKER<br/>
+                เมื่อเจอรูปแบบนี้ ผู้เล่นหลายคนมักใช้เป็นอีกหนึ่งสัญญาณในการวิเคราะห์ตาถัดไป เพราะถือเป็นสูตรที่นิยมใช้งานกันมาอย่างยาวนาน และยังถูกพูดถึงอยู่ในปี 2026
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-gold mb-3">5. สูตรบาคาร่าไพ่ 3 ตัด</h3>
+              <p>
+                อีกหนึ่งสูตรที่พบเห็นได้ค่อนข้างบ่อย คือเมื่อผลออกฝั่งเดิมติดต่อกัน 3 ครั้ง ผู้เล่นบางคนจะรอจังหวะในตาถัดไปเพื่อดูแนวโน้มว่ารูปเกมจะเปลี่ยนหรือไม่ สูตรนี้จึงเป็นเทคนิคที่หลายคนเลือกใช้ เพราะเข้าใจง่าย และนำไปประยุกต์ดูแนวโน้มของเกมได้ไม่ยาก
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-gold mb-3">6. สูตรบาคาร่า AI 2026</h3>
+              <p>
+                สำหรับผู้ที่ต้องการความสะดวกและตัวช่วยในการวิเคราะห์มากขึ้น ปัจจุบันมี สูตรบาคาร่า AI 2026 ที่พัฒนาด้วยระบบ ML (Machine Learning) ซึ่งช่วยให้ระบบสามารถเรียนรู้จากข้อมูลและประมวลผลแนวโน้มของเกมได้อย่างเป็นระบบมากขึ้น ทำให้ผู้ใช้งานสามารถนำข้อมูลที่ได้ไปใช้ประกอบการตัดสินใจได้ง่ายกว่าเดิม และเป็นอีกหนึ่งตัวเลือกที่ได้รับความสนใจมากในปี 2026
               </p>
             </div>
           </div>
