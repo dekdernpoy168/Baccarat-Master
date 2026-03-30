@@ -161,39 +161,84 @@ const Navbar = ({ user }: { user: User | null }) => {
 const Footer = () => (
   <footer className="bg-baccarat-black border-t border-gold/20 pt-16 pb-8">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-        <div className="col-span-1 md:col-span-2">
-          <Link to="/" className="flex items-center space-x-2 mb-6">
-            <div className="w-8 h-8 bg-baccarat-red rounded-full flex items-center justify-center border border-gold">
-              <Award className="text-gold w-5 h-5" />
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+        {/* Brand & Info */}
+        <div className="col-span-1 lg:col-span-1">
+          <Link to="/" className="flex items-center space-x-3 mb-6">
+            <img 
+              src="https://img2.pic.in.th/LOGO1-Baccarat-Master.png" 
+              alt="Baccarat Master Logo" 
+              className="h-10 w-auto object-contain shrink-0"
+              referrerPolicy="no-referrer"
+            />
             <span className="text-xl font-bold gold-gradient tracking-tighter uppercase">Baccarat Master</span>
           </Link>
-          <p className="text-gray-400 max-w-md leading-relaxed">
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">
             ศูนย์รวมความรู้และเทคนิคการเล่นบาคาร่าออนไลน์ที่ครบถ้วนที่สุด 
             เรามุ่งเน้นการให้ข้อมูลที่ถูกต้อง แม่นยำ และเป็นประโยชน์ต่อผู้เล่นทุกระดับ
           </p>
+          <div className="flex space-x-4">
+            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-gold/20 hover:text-gold transition-colors">
+              <Facebook size={18} />
+            </a>
+            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-gold/20 hover:text-gold transition-colors">
+              <Twitter size={18} />
+            </a>
+          </div>
         </div>
+
+        {/* Quick Links */}
         <div>
           <h3 className="text-gold font-bold mb-6 uppercase tracking-wider">ลิงก์ด่วน</h3>
-          <ul className="space-y-4 text-gray-400">
-            <li><Link to="/" className="hover:text-gold transition-colors">หน้าแรก</Link></li>
-            <li><Link to="/articles" className="hover:text-gold transition-colors">บทความทั้งหมด</Link></li>
-            <li><Link to="/formula" className="hover:text-gold transition-colors">สูตรบาคาร่าฟรี</Link></li>
-            <li><Link to="/about" className="hover:text-gold transition-colors">เกี่ยวกับเรา</Link></li>
+          <ul className="space-y-4 text-gray-400 text-sm">
+            <li><Link to="/" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> หน้าแรก</Link></li>
+            <li><Link to="/articles" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> บทความทั้งหมด</Link></li>
+            <li><Link to="/formula" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> สูตรบาคาร่าฟรี</Link></li>
+            <li><Link to="/about" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> เกี่ยวกับเรา</Link></li>
           </ul>
         </div>
+
+        {/* Categories */}
         <div>
           <h3 className="text-gold font-bold mb-6 uppercase tracking-wider">หมวดหมู่</h3>
-          <ul className="space-y-4 text-gray-400">
-            <li><a href="#" className="hover:text-gold transition-colors">วิธีเล่นเบื้องต้น</a></li>
-            <li><a href="#" className="hover:text-gold transition-colors">เทคนิคการเดินเงิน</a></li>
-            <li><a href="#" className="hover:text-gold transition-colors">การอ่านเค้าไพ่</a></li>
+          <ul className="space-y-4 text-gray-400 text-sm">
+            <li><Link to="/articles?category=วิธีเล่นเบื้องต้น" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> วิธีเล่นเบื้องต้น</Link></li>
+            <li><Link to="/articles?category=เทคนิคการเดินเงิน" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> เทคนิคการเดินเงิน</Link></li>
+            <li><Link to="/articles?category=การอ่านเค้าไพ่" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> การอ่านเค้าไพ่</Link></li>
+            <li><Link to="/articles?category=ทริคระดับเซียน" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> ทริคระดับเซียน</Link></li>
           </ul>
         </div>
+
+        {/* Contact & Warning */}
+        <div>
+          <h3 className="text-gold font-bold mb-6 uppercase tracking-wider">ติดต่อเรา</h3>
+          <ul className="space-y-4 text-gray-400 text-sm mb-6">
+            <li className="flex items-center gap-2">
+              <span className="text-gold font-bold">Line:</span> @baccaratmaster
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-gold font-bold">Email:</span> contact@baccaratmaster.com
+            </li>
+          </ul>
+          <div className="p-4 bg-baccarat-red/10 border border-baccarat-red/20 rounded-xl">
+            <div className="flex items-center gap-2 mb-2 text-baccarat-red font-bold text-sm">
+              <ShieldCheck size={16} />
+              <span>คำเตือน 18+</span>
+            </div>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              การพนันมีความเสี่ยง ผู้เล่นควรมีอายุ 18 ปีขึ้นไป โปรดเล่นอย่างมีสติและใช้เพื่อความบันเทิงเท่านั้น
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="mt-16 pt-8 border-t border-gray-800 text-center text-gray-500 text-sm">
-        <p>© 2026 Baccarat Master Guide. All rights reserved. เนื้อหาเพื่อความรู้และการศึกษาเท่านั้น</p>
+
+      <div className="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-500 text-sm">
+        <p>© 2026 Baccarat Master Guide. All rights reserved.</p>
+        <div className="flex gap-4">
+          <Link to="/privacy-policy" className="hover:text-gold transition-colors">นโยบายความเป็นส่วนตัว</Link>
+          <span className="text-gray-700">|</span>
+          <Link to="/terms" className="hover:text-gold transition-colors">ข้อตกลงและเงื่อนไข</Link>
+        </div>
       </div>
     </div>
   </footer>
@@ -234,6 +279,105 @@ const ArticleCard = ({ article }: { article: Article; key?: string }) => (
       </div>
     </Link>
   </motion.div>
+);
+
+const PrivacyPolicyPage = () => (
+  <div className="pt-20 pb-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="bg-gray-900/50 border border-gold/20 rounded-[2rem] p-8 md:p-12">
+      <h1 className="text-3xl md:text-4xl font-black text-white mb-8 gold-gradient uppercase tracking-tight text-center">
+        นโยบายความเป็นส่วนตัว (Privacy Policy)
+      </h1>
+      <div className="space-y-6 text-gray-300 leading-relaxed">
+        <p>
+          เว็บไซต์ Baccarat Master Guide (ต่อไปนี้จะเรียกว่า "เรา" หรือ "เว็บไซต์") ให้ความสำคัญกับความเป็นส่วนตัวของผู้ใช้งานทุกท่าน นโยบายความเป็นส่วนตัวนี้จัดทำขึ้นเพื่ออธิบายถึงวิธีการที่เรารวบรวม ใช้ และปกป้องข้อมูลส่วนบุคคลของท่านเมื่อท่านเข้าใช้งานเว็บไซต์ของเรา
+        </p>
+        
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">1. ข้อมูลที่เรารวบรวม</h2>
+        <p>เราอาจรวบรวมข้อมูลต่อไปนี้เมื่อท่านเข้าใช้งานเว็บไซต์:</p>
+        <ul className="list-disc pl-6 space-y-2">
+          <li>ข้อมูลที่ท่านให้ไว้โดยตรง เช่น ชื่อ อีเมล เมื่อท่านสมัครสมาชิกหรือติดต่อเรา</li>
+          <li>ข้อมูลการใช้งาน เช่น หน้าที่ท่านเข้าชม ระยะเวลาที่ใช้งาน และพฤติกรรมการคลิก</li>
+          <li>ข้อมูลทางเทคนิค เช่น หมายเลข IP, ประเภทของเบราว์เซอร์, และอุปกรณ์ที่ท่านใช้งาน</li>
+        </ul>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">2. การใช้ข้อมูล</h2>
+        <p>เราใช้ข้อมูลที่รวบรวมเพื่อวัตถุประสงค์ดังต่อไปนี้:</p>
+        <ul className="list-disc pl-6 space-y-2">
+          <li>เพื่อให้บริการและปรับปรุงเนื้อหาบนเว็บไซต์ให้ตรงกับความสนใจของท่าน</li>
+          <li>เพื่อวิเคราะห์สถิติการเข้าชมและนำไปพัฒนาเว็บไซต์ให้ดียิ่งขึ้น</li>
+          <li>เพื่อติดต่อสื่อสาร ตอบข้อซักถาม หรือส่งข้อมูลข่าวสารที่อาจเป็นประโยชน์ (หากท่านยินยอม)</li>
+        </ul>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">3. การเปิดเผยข้อมูล</h2>
+        <p>
+          เราจะไม่ขาย แลกเปลี่ยน หรือเปิดเผยข้อมูลส่วนบุคคลของท่านแก่บุคคลภายนอกโดยไม่ได้รับความยินยอม ยกเว้นในกรณีที่กฎหมายกำหนด หรือเพื่อปกป้องสิทธิและทรัพย์สินของเรา
+        </p>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">4. การรักษาความปลอดภัยของข้อมูล</h2>
+        <p>
+          เราใช้มาตรการรักษาความปลอดภัยที่เหมาะสมเพื่อปกป้องข้อมูลของท่านจากการเข้าถึง การใช้ หรือการเปิดเผยที่ไม่ได้รับอนุญาต อย่างไรก็ตาม ไม่มีการส่งข้อมูลผ่านอินเทอร์เน็ตใดที่ปลอดภัย 100% เราจึงไม่สามารถรับประกันความปลอดภัยได้อย่างสมบูรณ์
+        </p>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">5. การใช้คุกกี้ (Cookies)</h2>
+        <p>
+          เว็บไซต์ของเราอาจใช้คุกกี้เพื่อจดจำการตั้งค่าของท่านและปรับปรุงประสบการณ์การใช้งาน ท่านสามารถตั้งค่าเบราว์เซอร์เพื่อปฏิเสธคุกกี้ได้ แต่บางส่วนของเว็บไซต์อาจทำงานได้ไม่สมบูรณ์
+        </p>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">6. การเปลี่ยนแปลงนโยบาย</h2>
+        <p>
+          เราอาจปรับปรุงนโยบายความเป็นส่วนตัวนี้เป็นระยะ การเปลี่ยนแปลงใดๆ จะถูกประกาศในหน้านี้ เราขอแนะนำให้ท่านตรวจสอบหน้านี้อย่างสม่ำเสมอ
+        </p>
+
+        <div className="mt-12 pt-8 border-t border-gray-800 text-sm text-gray-500 text-center">
+          อัปเดตล่าสุด: มีนาคม 2026
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const TermsPage = () => (
+  <div className="pt-20 pb-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="bg-gray-900/50 border border-gold/20 rounded-[2rem] p-8 md:p-12">
+      <h1 className="text-3xl md:text-4xl font-black text-white mb-8 gold-gradient uppercase tracking-tight text-center">
+        ข้อตกลงและเงื่อนไข (Terms and Conditions)
+      </h1>
+      <div className="space-y-6 text-gray-300 leading-relaxed">
+        <p>
+          ยินดีต้อนรับสู่ Baccarat Master Guide การเข้าใช้งานเว็บไซต์นี้ถือว่าท่านได้อ่าน ทำความเข้าใจ และยอมรับข้อตกลงและเงื่อนไขเหล่านี้อย่างครบถ้วน หากท่านไม่เห็นด้วยกับข้อตกลงใดๆ โปรดงดการใช้งานเว็บไซต์นี้
+        </p>
+        
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">1. วัตถุประสงค์ของเว็บไซต์</h2>
+        <p>
+          เว็บไซต์นี้จัดทำขึ้นเพื่อวัตถุประสงค์ในการให้ข้อมูล ความรู้ เทคนิค และสถิติที่เกี่ยวข้องกับเกมบาคาร่าเพื่อการศึกษาและความบันเทิงเท่านั้น <span className="text-baccarat-red font-bold">เราไม่ใช่เว็บไซต์การพนันออนไลน์ และไม่สนับสนุนให้มีการเล่นการพนันที่ผิดกฎหมาย</span>
+        </p>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">2. ข้อจำกัดความรับผิดชอบ (Disclaimer)</h2>
+        <ul className="list-disc pl-6 space-y-2">
+          <li>ข้อมูล สูตร และเทคนิคที่นำเสนอในเว็บไซต์นี้ เป็นเพียงการวิเคราะห์เชิงสถิติและความน่าจะเป็น ไม่มีการรับประกันผลลัพธ์หรือความสำเร็จใดๆ</li>
+          <li>ผู้ใช้งานต้องรับผิดชอบต่อการตัดสินใจและการกระทำของตนเองทั้งหมด เราจะไม่รับผิดชอบต่อความสูญเสียหรือความเสียหายใดๆ ที่เกิดขึ้นจากการนำข้อมูลจากเว็บไซต์ไปใช้</li>
+          <li>การพนันมีความเสี่ยง ผู้เล่นควรมีอายุ 18 ปีขึ้นไป และควรเล่นอย่างมีสติ ภายใต้ขอบเขตที่ตนเองรับได้</li>
+        </ul>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">3. ทรัพย์สินทางปัญญา</h2>
+        <p>
+          เนื้อหาทั้งหมดบนเว็บไซต์นี้ รวมถึงข้อความ รูปภาพ กราฟิก โลโก้ และซอฟต์แวร์ เป็นทรัพย์สินทางปัญญาของ Baccarat Master Guide ห้ามมิให้ผู้ใดทำซ้ำ ดัดแปลง เผยแพร่ หรือนำไปใช้ในเชิงพาณิชย์โดยไม่ได้รับอนุญาตเป็นลายลักษณ์อักษร
+        </p>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">4. การใช้งานที่เหมาะสม</h2>
+        <p>ผู้ใช้งานตกลงที่จะไม่ใช้เว็บไซต์นี้ในทางที่ผิดกฎหมาย หรือกระทำการใดๆ ที่อาจก่อให้เกิดความเสียหายต่อเว็บไซต์หรือผู้ใช้งานท่านอื่น</p>
+
+        <h2 className="text-xl font-bold text-gold mt-8 mb-4">5. การปรับปรุงข้อตกลง</h2>
+        <p>
+          เราขอสงวนสิทธิ์ในการแก้ไขหรือเปลี่ยนแปลงข้อตกลงและเงื่อนไขนี้ได้ตลอดเวลาโดยไม่ต้องแจ้งให้ทราบล่วงหน้า การที่ท่านยังคงใช้งานเว็บไซต์ต่อไปหลังจากการเปลี่ยนแปลง ถือว่าท่านยอมรับข้อตกลงที่แก้ไขแล้ว
+        </p>
+
+        <div className="mt-12 pt-8 border-t border-gray-800 text-sm text-gray-500 text-center">
+          อัปเดตล่าสุด: มีนาคม 2026
+        </div>
+      </div>
+    </div>
+  </div>
 );
 
 // --- Pages ---
@@ -3355,6 +3499,8 @@ export default function App() {
             <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="/login" element={<LoginPage user={user} />} />
             <Route 
               path="/admin" 
