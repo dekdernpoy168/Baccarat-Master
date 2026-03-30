@@ -507,6 +507,7 @@ const ArticleDetailPage = ({ articles }: { articles: Article[] }) => {
 
 const LoginPage = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.email === ADMIN_EMAIL) {
@@ -515,11 +516,13 @@ const LoginPage = ({ user }: { user: User | null }) => {
   }, [user, navigate]);
 
   const handleLogin = async () => {
+    setError(null);
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed", error);
+    } catch (err: any) {
+      console.error("Login failed", err);
+      setError(err.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
     }
   };
 
@@ -531,6 +534,13 @@ const LoginPage = ({ user }: { user: User | null }) => {
         </div>
         <h1 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">Admin Login</h1>
         <p className="text-gray-400 mb-10">กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแลระบบเพื่อจัดการบทความ</p>
+        
+        {error && (
+          <div className="bg-red-900/40 border border-red-500 text-red-200 px-4 py-3 rounded-xl mb-6 text-sm">
+            {error}
+          </div>
+        )}
+
         <button 
           onClick={handleLogin}
           className="w-full flex items-center justify-center space-x-3 bg-white text-black font-bold py-4 rounded-full hover:bg-gray-200 transition-colors"
