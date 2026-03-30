@@ -21,18 +21,23 @@ import {
   LogOut,
   Lock,
   Image as ImageIcon,
-  Type,
   FileText,
   Search,
   Heart,
   Crown,
   Check,
-  Upload
+  Upload,
+  Sparkles,
+  Wand2,
+  Type as TypeIcon,
+  Eye,
+  Calendar
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
+import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
@@ -84,6 +89,11 @@ interface FirestoreErrorInfo {
 const ADMIN_EMAIL = "dekdernpoy168@gmail.com";
 
 // --- Helpers ---
+const isPublished = (article: Article) => {
+  if (!article.publishedAt) return true;
+  const pubDate = new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt);
+  return pubDate <= new Date();
+};
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
@@ -259,8 +269,10 @@ const ArticleCard = ({ article }: { article: Article; key?: string }) => (
 
 // --- Pages ---
 
-const HomePage = ({ articles }: { articles: Article[] }) => {
-  const guideArticle = articles.find(a => a.title.includes('คู่มือฉบับสมบูรณ์'));
+const HomePage = ({ articles, user }: { articles: Article[], user: User | null }) => {
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  const publishedArticles = articles.filter(a => isAdmin || isPublished(a));
+  const guideArticle = publishedArticles.find(a => a.title.includes('คู่มือฉบับสมบูรณ์'));
   const guideLink = guideArticle ? `/articles/${guideArticle.slug}` : '/articles';
 
   return (
@@ -372,7 +384,7 @@ const HomePage = ({ articles }: { articles: Article[] }) => {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {articles.slice(0, 3).map((article) => (
+          {publishedArticles.slice(0, 3).map((article) => (
             <ArticleCard key={article.id} article={article} />
           ))}
         </div>
@@ -407,14 +419,16 @@ const HomePage = ({ articles }: { articles: Article[] }) => {
   );
 };
 
-const ArticlesPage = ({ articles }: { articles: Article[] }) => {
+const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | null }) => {
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  const publishedArticles = articles.filter(a => isAdmin || isPublished(a));
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const categoryFilter = searchParams.get('category');
 
   const filteredArticles = categoryFilter 
-    ? articles.filter(a => a.category === categoryFilter)
-    : articles;
+    ? publishedArticles.filter(a => a.category === categoryFilter)
+    : publishedArticles;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -447,8 +461,9 @@ const ArticlesPage = ({ articles }: { articles: Article[] }) => {
   );
 };
 
-const ArticleDetailPage = ({ articles }: { articles: Article[] }) => {
+const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User | null }) => {
   const { slug } = useParams();
+  const isAdmin = user?.email === ADMIN_EMAIL;
   const article = articles.find(a => a.slug === slug);
 
   useEffect(() => {
@@ -459,7 +474,7 @@ const ArticleDetailPage = ({ articles }: { articles: Article[] }) => {
     }
   }, [article]);
 
-  if (!article) return <div className="text-center py-20 text-white">ไม่พบเนื้อหาที่ต้องการ</div>;
+  if (!article || (!isAdmin && !isPublished(article))) return <div className="text-center py-20 text-white">ไม่พบเนื้อหาที่ต้องการ หรือบทความยังไม่ถึงเวลาเผยแพร่</div>;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -563,6 +578,69 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const handleAIGenerate = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsGeneratingAI(true);
+    setError(null);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `คุณคือผู้เชี่ยวชาญด้านการเขียนบทความ SEO และการพนันออนไลน์ (บาคาร่า) ที่มีประสบการณ์จริง เขียนด้วยภาษาที่อ่านง่าย สื่อสารได้ใจความ ไม่ซับซ้อน มีความเป็นมนุษย์ มีมุมมองเฉพาะตัวเหมือนคนเขียนจริงๆ ไม่ใช่หุ่นยนต์
+
+โจทย์/คีย์เวิร์ด: ${aiPrompt}
+
+ข้อกำหนด:
+- เขียนเนื้อหาบทความในรูปแบบ HTML (ใช้ <h2>, <p>, <ul>, <li>, <strong>)
+- **ความยาวของเนื้อหาบทความต้องอยู่ระหว่าง 1000 - 1500 คำ** (เน้นเนื้อหาที่เจาะลึกและมีประโยชน์)
+- นำคีย์เวิร์ดที่เกี่ยวข้องมาแทรกในเนื้อหาและติดตัวหนา (<strong>) ไว้ด้วย
+- เน้นความแม่นยำของข้อมูล
+- **ต้องเขียน Meta Title (ไม่เกิน 60 ตัวอักษร) มาให้ด้วย**
+- **ต้องเขียน Meta Description (ไม่เกิน 160 ตัวอักษร) มาให้ด้วย**
+- **ต้องเขียน URL Slug (ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง) มาให้ด้วย**
+
+สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              content: { type: Type.STRING, description: "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ" },
+              metaTitle: { type: Type.STRING, description: "Meta Title สำหรับ SEO" },
+              metaDescription: { type: Type.STRING, description: "Meta Description สำหรับ SEO" },
+              slug: { type: Type.STRING, description: "URL Slug ภาษาอังกฤษ" }
+            },
+            required: ["content", "metaTitle", "metaDescription", "slug"]
+          }
+        }
+      });
+      
+      const text = response.text;
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+      const result = JSON.parse(jsonStr);
+      
+      if (result) {
+        setCurrentArticle(prev => ({
+          ...prev,
+          content: (prev.content || '') + (result.content || ''),
+          metaTitle: result.metaTitle || prev.metaTitle || '',
+          metaDescription: result.metaDescription || prev.metaDescription || '',
+          slug: result.slug || prev.slug || ''
+        }));
+        setAiPrompt('');
+      }
+    } catch (err: any) {
+      console.error('AI Generation Error:', err);
+      setError('ไม่สามารถเชื่อมต่อกับ AI ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
 
   const handleSaveCategory = async () => {
     if (!newCategoryName.trim()) return;
@@ -737,6 +815,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
         updatedAt: serverTimestamp(),
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
+        publishedAt: currentArticle.publishedAt ? new Date(currentArticle.publishedAt) : serverTimestamp(),
       };
 
       // Check document size (Firestore limit is 1MB)
@@ -949,7 +1028,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><Type size={16} className="mr-2" /> หัวข้อบทความ (Title)</label>
+                <label className="text-gold text-sm font-bold flex items-center"><TypeIcon size={16} className="mr-2" /> หัวข้อบทความ (Title)</label>
                 <input 
                   required
                   type="text" 
@@ -983,6 +1062,19 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                   placeholder="https://..."
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> วันที่เผยแพร่ (Scheduling)</label>
+                <input 
+                  type="datetime-local" 
+                  value={currentArticle.publishedAt ? format(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), "yyyy-MM-dd'T'HH:mm") : ''} 
+                  onChange={e => setCurrentArticle({...currentArticle, publishedAt: e.target.value})}
+                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                />
+                <p className="text-[10px] text-gray-500">ปล่อยว่างไว้เพื่อเผยแพร่ทันที หรือเลือกเวลาในอนาคตเพื่อตั้งเวลาล่วงหน้า</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-gold text-sm font-bold flex items-center"><Target size={16} className="mr-2" /> หมวดหมู่</label>
                 <div className="flex flex-col space-y-2">
@@ -1029,7 +1121,33 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
             </div>
 
             <div className="space-y-2">
-              <label className="text-gold text-sm font-bold flex items-center"><BookOpen size={16} className="mr-2" /> เนื้อหาบทความ</label>
+              <div className="flex items-center justify-between">
+                <label className="text-gold text-sm font-bold flex items-center"><BookOpen size={16} className="mr-2" /> เนื้อหาบทความ</label>
+                <div className="flex items-center gap-2">
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      value={aiPrompt}
+                      onChange={e => setAiPrompt(e.target.value)}
+                      placeholder="บอก AI ว่าอยากให้เขียนอะไร..."
+                      className="bg-black border border-gold/20 rounded-full px-4 py-1.5 text-xs text-white focus:border-gold outline-none w-48 md:w-64 transition-all"
+                    />
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={handleAIGenerate}
+                    disabled={isGeneratingAI || !aiPrompt.trim()}
+                    className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all disabled:opacity-50"
+                  >
+                    {isGeneratingAI ? (
+                      <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
+                    ) : (
+                      <Wand2 size={14} className="mr-2" />
+                    )}
+                    AI ช่วยเขียน
+                  </button>
+                </div>
+              </div>
               <ReactQuill 
                 theme="snow" 
                 value={currentArticle.content || ''} 
@@ -1059,10 +1177,27 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                     className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-gray-400 text-xs font-bold uppercase">URL Slug</label>
+                  <input 
+                    type="text" 
+                    value={currentArticle.slug || ''} 
+                    onChange={e => setCurrentArticle({...currentArticle, slug: e.target.value})}
+                    className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                    placeholder="e.g. how-to-play-baccarat"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="flex justify-end space-x-4">
+              <button 
+                type="button"
+                onClick={() => setShowPreview(true)}
+                className="px-8 py-3 rounded-full text-gold font-bold hover:bg-gold/10 transition-colors flex items-center"
+              >
+                <Eye size={20} className="mr-2" /> ดูตัวอย่าง
+              </button>
               <button 
                 type="button"
                 onClick={() => setIsEditing(false)}
@@ -1079,6 +1214,61 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               </button>
             </div>
           </form>
+
+          <AnimatePresence>
+            {showPreview && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8"
+              >
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-baccarat-black border border-gold/30 w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl relative custom-scrollbar"
+                >
+                  <button 
+                    onClick={() => setShowPreview(false)}
+                    className="absolute top-6 right-6 text-gray-400 hover:text-white z-10 bg-black/50 p-2 rounded-full transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                  
+                  <div className="p-8 md:p-16">
+                    <div className="mb-8">
+                      <span className="bg-baccarat-red text-white text-xs font-bold px-4 py-1.5 rounded-full border border-gold/50">
+                        {currentArticle.category || 'หมวดหมู่'}
+                      </span>
+                      <h1 className="text-4xl md:text-5xl font-black text-white mt-6 mb-6 leading-tight">
+                        {currentArticle.title || 'หัวข้อบทความ'}
+                      </h1>
+                      <div className="flex items-center text-gray-500 text-sm space-x-6">
+                        <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {currentArticle.author || 'Baccarat Master'}</span>
+                        <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || format(new Date(), 'yyyy-MM-dd')}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="prose prose-invert prose-gold max-w-none">
+                      <div 
+                        className="text-gray-300 leading-loose text-lg space-y-6 article-content"
+                        dangerouslySetInnerHTML={{ __html: currentArticle.content || '' }}
+                      />
+                    </div>
+
+                    <div className="mt-20 p-8 bg-gray-900 border border-gold/30 rounded-3xl text-center">
+                      <h3 className="text-2xl font-bold text-white mb-4">สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
+                      <p className="text-gray-400 mb-8">เราขอแนะนำเว็บไซต์ที่ได้มาตรฐานสากล มั่นคง และปลอดภัยที่สุดในขณะนี้</p>
+                      <button className="bg-white text-baccarat-red px-12 py-5 rounded-full font-black text-xl shadow-2xl">
+                        สมัครสมาชิกตอนนี้
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       ) : (
         <div className="bg-gray-900 border border-gold/20 rounded-3xl overflow-hidden">
@@ -1087,7 +1277,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               <tr className="bg-black/50 border-b border-gold/20">
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">บทความ</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">หมวดหมู่</th>
-                <th className="px-6 py-4 text-gold font-bold uppercase text-xs">วันที่</th>
+                <th className="px-6 py-4 text-gold font-bold uppercase text-xs">สถานะ / วันที่เผยแพร่</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">จัดการ</th>
               </tr>
             </thead>
@@ -1121,7 +1311,21 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-gray-500 text-xs font-medium">{article.date}</span>
+                    <div className="text-xs text-gray-400">
+                      {article.publishedAt ? (
+                        new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt) > new Date() ? (
+                          <span className="text-blue-400 flex items-center">
+                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                          </span>
+                        ) : (
+                          <span className="text-green-400 flex items-center">
+                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-gray-500">{article.date}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-3">
@@ -1964,9 +2168,9 @@ export default function App() {
         <Navbar user={user} />
         <main className="flex-grow">
           <Routes>
-            <Route path="/" element={<HomePage articles={articles} />} />
-            <Route path="/articles" element={<ArticlesPage articles={articles} />} />
-            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} />} />
+            <Route path="/" element={<HomePage articles={articles} user={user} />} />
+            <Route path="/articles" element={<ArticlesPage articles={articles} user={user} />} />
+            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/login" element={<LoginPage user={user} />} />
             <Route 

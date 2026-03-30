@@ -8,6 +8,9 @@ export interface Article {
   author: string;
   image: string;
   slug: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  publishedAt?: any;
 }
 
 export const ARTICLES: Article[] = [
