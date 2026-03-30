@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { clsx } from 'clsx';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -812,9 +813,9 @@ const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '
         คีย์เวิร์ดหลัก: ${keyword}
         หัวข้อ: ${topic}
         
-        ข้อกำหนด:
-        - Meta Title: ไม่เกิน 60 ตัวอักษร ต้องมีคีย์เวิร์ดหลักอยู่ด้วย
-        - Meta Description: ไม่เกิน 160 ตัวอักษร ต้องมีคีย์เวิร์ดหลักและสรุปเนื้อหาที่น่าดึงดูด
+        ข้อกำหนดที่สำคัญมาก:
+        - Meta Title: **ห้ามเกิน 60 ตัวอักษร** ต้องมีคีย์เวิร์ดหลักอยู่ด้วย
+        - Meta Description: **ห้ามเกิน 160 ตัวอักษร** ต้องมีคีย์เวิร์ดหลักและสรุปเนื้อหาที่น่าดึงดูด
         
         ให้ตอบกลับเป็น JSON เท่านั้น`,
         config: {
@@ -969,9 +970,9 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
 - **ความยาวของเนื้อหาบทความต้องอยู่ระหว่าง 1000 - 1500 คำ** (เน้นเนื้อหาที่เจาะลึกและมีประโยชน์)
 - นำคีย์เวิร์ดที่เกี่ยวข้องมาแทรกในเนื้อหาและติดตัวหนา (<strong>) ไว้ด้วย
 - เน้นความแม่นยำของข้อมูล
-- **ต้องเขียน Meta Title (ไม่เกิน 60 ตัวอักษร) มาให้ด้วย**
-- **ต้องเขียน Meta Description (ไม่เกิน 160 ตัวอักษร) มาให้ด้วย**
-- **ต้องเขียน URL Slug (ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง) มาให้ด้วย**
+- **Meta Title: ห้ามเกิน 60 ตัวอักษร**
+- **Meta Description: ห้ามเกิน 160 ตัวอักษร**
+- **URL Slug: ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง**
 
 สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON`,
         config: {
@@ -1596,21 +1597,36 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-gray-400 text-xs font-bold uppercase">Meta Title</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-gray-400 text-xs font-bold uppercase">Meta Title</label>
+                    <span className={clsx("text-[10px]", (currentArticle.metaTitle?.length || 0) > 60 ? "text-red-500 font-bold" : "text-gray-500")}>
+                      {currentArticle.metaTitle?.length || 0}/60
+                    </span>
+                  </div>
                   <input 
                     type="text" 
                     value={currentArticle.metaTitle || ''} 
                     onChange={e => setCurrentArticle({...currentArticle, metaTitle: e.target.value})}
-                    className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                    className={clsx(
+                      "w-full bg-black border rounded-xl px-4 py-3 text-white focus:border-gold outline-none transition-colors",
+                      (currentArticle.metaTitle?.length || 0) > 60 ? "border-red-500/50" : "border-white/10"
+                    )}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-gray-400 text-xs font-bold uppercase">Meta Description</label>
-                  <input 
-                    type="text" 
+                  <div className="flex justify-between items-center">
+                    <label className="text-gray-400 text-xs font-bold uppercase">Meta Description</label>
+                    <span className={clsx("text-[10px]", (currentArticle.metaDescription?.length || 0) > 160 ? "text-red-500 font-bold" : "text-gray-500")}>
+                      {currentArticle.metaDescription?.length || 0}/160
+                    </span>
+                  </div>
+                  <textarea 
                     value={currentArticle.metaDescription || ''} 
                     onChange={e => setCurrentArticle({...currentArticle, metaDescription: e.target.value})}
-                    className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                    className={clsx(
+                      "w-full bg-black border rounded-xl px-4 py-3 text-white focus:border-gold outline-none h-24 transition-colors",
+                      (currentArticle.metaDescription?.length || 0) > 160 ? "border-red-500/50" : "border-white/10"
+                    )}
                   />
                 </div>
                 <div className="space-y-2">
