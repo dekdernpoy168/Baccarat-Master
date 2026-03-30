@@ -584,6 +584,9 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
   const [topic, setTopic] = useState('');
   const [totalWords, setTotalWords] = useState('1000');
   const [keywords, setKeywords] = useState('');
+  const [primaryKeyword, setPrimaryKeyword] = useState('');
+  const [secondaryKeywordCount, setSecondaryKeywordCount] = useState('10');
+  const [isGeneratingSecondaryKeywords, setIsGeneratingSecondaryKeywords] = useState(false);
   const [promptTemplate, setPromptTemplate] = useState('');
   const [isFetchingKeywords, setIsFetchingKeywords] = useState(false);
 
@@ -624,6 +627,30 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
       alert('ไม่สามารถดึงข้อมูล Keywords ได้ในขณะนี้');
     } finally {
       setIsFetchingKeywords(false);
+    }
+  };
+
+  const generateSecondaryKeywords = async () => {
+    if (!primaryKeyword.trim()) {
+      alert('กรุณาใส่คีย์เวิร์ดหลักก่อน');
+      return;
+    }
+    setIsGeneratingSecondaryKeywords(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Generate ${secondaryKeywordCount} secondary keywords (คีย์รอง) related to the primary keyword: "${primaryKeyword}". 
+        Return ONLY the keywords as a comma-separated list. No other text.`,
+      });
+      
+      const generatedKeywords = response.text.trim().replace(/\s*,\s*/g, ',');
+      setKeywords(prev => prev ? `${prev},${generatedKeywords}` : generatedKeywords);
+    } catch (err) {
+      console.error('AI Keyword Generation Error:', err);
+      alert('ไม่สามารถสร้างคีย์เวิร์ดได้ในขณะนี้');
+    } finally {
+      setIsGeneratingSecondaryKeywords(false);
     }
   };
 
@@ -796,7 +823,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-3 space-y-1.5">
-              <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">Topic <Search size={10} /></label>
+              <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">หัวข้อบทความ (Topic) <Search size={10} /></label>
               <div className="flex gap-2">
                 <input 
                   type="text" 
@@ -826,11 +853,48 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-3 space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">คีย์เวิร์ดหลัก (Primary Keyword) <Search size={10} /></label>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={primaryKeyword}
+                  onChange={e => setPrimaryKeyword(e.target.value)}
+                  placeholder="เช่น บาคาร่า"
+                  className="flex-1 bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+                />
+                <button 
+                  onClick={generateSecondaryKeywords}
+                  disabled={isGeneratingSecondaryKeywords || !primaryKeyword.trim()}
+                  className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-2 rounded text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isGeneratingSecondaryKeywords ? (
+                    <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Wand2 size={12} />
+                  )}
+                  Generate Keywords
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-gray-400 text-[10px] font-bold uppercase">จำนวนคีย์รอง:</label>
+              <input 
+                type="number" 
+                value={secondaryKeywordCount}
+                onChange={e => setSecondaryKeywordCount(e.target.value)}
+                className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold"
+              />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
-            <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">Keywords <Search size={10} /></label>
+            <label className="text-gray-400 text-[10px] font-bold uppercase flex items-center gap-1">คีย์เวิร์ดรอง (Secondary Keywords) <Search size={10} /></label>
             <textarea 
               value={keywords}
               onChange={e => setKeywords(e.target.value)}
+              placeholder="คีย์รองจะแสดงที่นี่ แยกด้วยเครื่องหมายจุลภาค (,)"
               className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold h-24"
             />
           </div>
