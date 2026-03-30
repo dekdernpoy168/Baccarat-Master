@@ -858,6 +858,75 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
   );
 };
 
+
+const SelectionModal = ({ 
+  isOpen, 
+  onClose, 
+  title, 
+  options, 
+  onSelect 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  title: string, 
+  options: string[], 
+  onSelect: (value: string) => void 
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-zinc-900 border border-gold/20 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl"
+      >
+        <div className="p-6 border-b border-gold/10 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Sparkles className="text-gold" size={20} />
+            {title}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-4">
+          <p className="text-gray-400 text-sm">เลือกตัวเลือกที่คุณต้องการใช้:</p>
+          <div className="space-y-3">
+            {options.map((option, index) => (
+              <div 
+                key={index}
+                className="group relative bg-black/40 border border-gold/10 rounded-2xl p-4 hover:border-gold/40 transition-all cursor-pointer"
+                onClick={() => onSelect(option)}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-white text-sm leading-relaxed">{option}</p>
+                  <button 
+                    className="shrink-0 bg-gold/10 group-hover:bg-gold text-gold group-hover:text-black px-3 py-1 rounded-full text-xs font-bold transition-all"
+                  >
+                    เลือก
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="p-6 border-t border-gold/10 flex justify-end">
+          <button 
+            onClick={onClose}
+            className="px-6 py-2 text-gray-400 hover:text-white transition-colors font-bold"
+          >
+            ยกเลิก
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '' }: { isOpen: boolean, onClose: () => void, onExecute: (data: { metaTitle: string, metaDescription: string }) => void, topic?: string }) => {
   const [keyword, setKeyword] = useState('');
   const [topic, setTopic] = useState(initialTopic);
@@ -976,6 +1045,10 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   const [showSeoModal, setShowSeoModal] = useState(false);
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
   const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false);
+  const [slugOptions, setSlugOptions] = useState<string[]>([]);
+  const [excerptOptions, setExcerptOptions] = useState<string[]>([]);
+  const [showSlugSelection, setShowSlugSelection] = useState(false);
+  const [showExcerptSelection, setShowExcerptSelection] = useState(false);
 
   const generateSlugFromTitle = async () => {
     if (!currentArticle.title?.trim()) {
@@ -987,10 +1060,27 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Generate an SEO-friendly URL slug in English for this Thai article title: "${currentArticle.title}". Use only lowercase letters and hyphens. Return ONLY the slug string.`,
+        contents: `Generate 3 SEO-friendly URL slug options in English for this Thai article title: "${currentArticle.title}". Use only lowercase letters and hyphens.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              options: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["options"]
+          }
+        }
       });
-      const slug = response.text.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      setCurrentArticle(prev => ({ ...prev, slug }));
+      const data = JSON.parse(response.text);
+      const cleanedOptions = data.options.map((s: string) => 
+        s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      );
+      setSlugOptions(cleanedOptions);
+      setShowSlugSelection(true);
     } catch (err) {
       console.error(err);
     } finally {
@@ -1008,9 +1098,24 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยคสำหรับบทความหัวข้อ: "${currentArticle.title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`,
+        contents: `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยค จำนวน 3 ตัวเลือก สำหรับบทความหัวข้อ: "${currentArticle.title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              options: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["options"]
+          }
+        }
       });
-      setCurrentArticle(prev => ({ ...prev, excerpt: response.text.trim() }));
+      const data = JSON.parse(response.text);
+      setExcerptOptions(data.options);
+      setShowExcerptSelection(true);
     } catch (err) {
       console.error(err);
     } finally {
@@ -1565,6 +1670,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               </div>
             </div>
 
+
             <SeoGeneratorModal 
               isOpen={showSeoModal} 
               onClose={() => setShowSeoModal(false)} 
@@ -1576,6 +1682,28 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                   metaDescription: data.metaDescription
                 }));
                 setShowSeoModal(false);
+              }}
+            />
+
+            <SelectionModal 
+              isOpen={showSlugSelection}
+              onClose={() => setShowSlugSelection(false)}
+              title="เลือก Slug (URL)"
+              options={slugOptions}
+              onSelect={(value) => {
+                setCurrentArticle(prev => ({ ...prev, slug: value }));
+                setShowSlugSelection(false);
+              }}
+            />
+
+            <SelectionModal 
+              isOpen={showExcerptSelection}
+              onClose={() => setShowExcerptSelection(false)}
+              title="เลือกคำโปรย (Excerpt)"
+              options={excerptOptions}
+              onSelect={(value) => {
+                setCurrentArticle(prev => ({ ...prev, excerpt: value }));
+                setShowExcerptSelection(false);
               }}
             />
 
