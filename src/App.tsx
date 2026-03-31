@@ -28,6 +28,7 @@ import {
   Crown,
   Check,
   Upload,
+  Download,
   Sparkles,
   Wand2,
   Type as TypeIcon,
@@ -95,7 +96,8 @@ const ADMIN_EMAIL = "dekdernpoy168@gmail.com";
 const SEO = ({ title, description, keywords, canonicalUrl, type = "website", image, schema }: { title: string, description: string, keywords?: string, canonicalUrl?: string, type?: string, image?: string, schema?: any }) => {
   const siteName = "Baccarat Master Guide";
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
-  const defaultImage = "https://img2.pic.in.th/LOGO1-Baccarat-Master.png";
+  const defaultImage = localStorage.getItem('baccarat_master_logo') || "https://img2.pic.in.th/LOGO1-Baccarat-Master.png";
+  const ogImage = image || defaultImage;
   
   return (
     <Helmet>
@@ -303,7 +305,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string }) => (
     <Link to={`/articles/${article.slug}`}>
       <div className="relative h-56 overflow-hidden">
         <img 
-          src={article.image || 'https://picsum.photos/seed/baccarat/800/400'} 
+          src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`} 
           alt={article.title} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           referrerPolicy="no-referrer"
@@ -1831,6 +1833,8 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
   const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false);
   const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
+  const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
+  const [generatedLogo, setGeneratedLogo] = useState<string | null>(localStorage.getItem('baccarat_master_logo'));
   const [slugOptions, setSlugOptions] = useState<string[]>([]);
   const [excerptOptions, setExcerptOptions] = useState<string[]>([]);
   const [showSlugSelection, setShowSlugSelection] = useState(false);
@@ -1871,6 +1875,41 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       console.error(err);
     } finally {
       setIsGeneratingSlug(false);
+    }
+  };
+
+  const generateLogo = async () => {
+    setIsGeneratingLogo(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: {
+          parts: [
+            {
+              text: "A professional and luxurious logo for a website named 'Baccarat Master Guide'. The design should feature a combination of playing cards, a golden crown, and elegant typography. The color palette should be gold, black, and deep red. High-end, minimalist but authoritative. Square aspect ratio.",
+            },
+          ],
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "1:1",
+          },
+        },
+      });
+
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          const base64 = `data:image/png;base64,${part.inlineData.data}`;
+          setGeneratedLogo(base64);
+          localStorage.setItem('baccarat_master_logo', base64);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการสร้างโลโก้');
+    } finally {
+      setIsGeneratingLogo(false);
     }
   };
 
@@ -2765,8 +2804,58 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
           </AnimatePresence>
         </motion.div>
       ) : (
-        <div className="bg-gray-900 border border-gold/20 rounded-3xl overflow-hidden">
-          <table className="w-full text-left">
+        <div className="space-y-8">
+          {/* Logo & Assets Section */}
+          <div className="bg-gray-900 border border-gold/20 rounded-3xl p-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2 flex items-center">
+                  <ImageIcon size={24} className="mr-2 text-gold" /> จัดการโลโก้และรูปภาพ
+                </h3>
+                <p className="text-gray-400 text-sm">สร้างโลโก้ระดับมืออาชีพด้วย AI สำหรับเว็บไซต์ Baccarat Master Guide</p>
+              </div>
+              <div className="flex items-center gap-4">
+                {generatedLogo && (
+                  <div className="relative group">
+                    <img 
+                      src={generatedLogo} 
+                      alt="Generated Logo" 
+                      className="w-20 h-20 rounded-xl border border-gold/30 object-contain bg-black p-2"
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                      <a 
+                        href={generatedLogo} 
+                        download="baccarat-master-logo.png"
+                        className="text-white hover:text-gold"
+                      >
+                        <Download size={20} />
+                      </a>
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={() => generateLogo()}
+                  disabled={isGeneratingLogo}
+                  className="gold-bg-gradient text-baccarat-black px-6 py-3 rounded-full font-bold flex items-center disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                >
+                  {isGeneratingLogo ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-baccarat-black border-t-transparent rounded-full animate-spin mr-2"></div>
+                      กำลังสร้างโลโก้...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 size={20} className="mr-2" />
+                      {generatedLogo ? 'สร้างโลโก้ใหม่' : 'สร้างโลโก้ด้วย AI'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-900 border border-gold/20 rounded-3xl overflow-hidden">
+            <table className="w-full text-left">
             <thead>
               <tr className="bg-black/50 border-b border-gold/20">
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">บทความ</th>
@@ -2789,7 +2878,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                     <div className="flex items-center">
                       <div className="relative w-12 h-12 mr-4 flex-shrink-0">
                         <img 
-                          src={article.image || 'https://picsum.photos/seed/baccarat/100/100'} 
+                          src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/100/100`} 
                           className="w-full h-full rounded-lg object-cover border border-white/10" 
                           alt="" 
                           referrerPolicy="no-referrer"
@@ -2847,8 +2936,9 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
             <div className="py-20 text-center text-gray-500">ยังไม่มีบทความในระบบ</div>
           )}
         </div>
-      )}
-    </div>
+      </div>
+    )}
+  </div>
   );
 };
 
