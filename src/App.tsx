@@ -32,7 +32,8 @@ import {
   Wand2,
   Type as TypeIcon,
   Eye,
-  Calendar
+  Calendar,
+  Tag
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { format } from 'date-fns';
@@ -44,6 +45,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 }
+import { Helmet } from 'react-helmet-async';
 import { 
   collection, 
   onSnapshot, 
@@ -88,6 +90,36 @@ interface FirestoreErrorInfo {
 }
 
 const ADMIN_EMAIL = "dekdernpoy168@gmail.com";
+
+// --- SEO Component ---
+const SEO = ({ title, description, keywords, canonicalUrl, type = "website", image }: { title: string, description: string, keywords?: string, canonicalUrl?: string, type?: string, image?: string }) => {
+  const siteName = "Baccarat Master Guide";
+  const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
+  const defaultImage = "https://img2.pic.in.th/LOGO1-Baccarat-Master.png";
+  
+  return (
+    <Helmet>
+      <title>{fullTitle}</title>
+      <meta name="description" content={description} />
+      {keywords && <meta name="keywords" content={keywords} />}
+      
+      {/* Open Graph / Facebook */}
+      <meta property="og:type" content={type} />
+      <meta property="og:title" content={fullTitle} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image" content={image || defaultImage} />
+      {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+      
+      {/* Twitter */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={fullTitle} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={image || defaultImage} />
+      
+      {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    </Helmet>
+  );
+};
 
 // --- Helpers ---
 const isPublished = (article: Article) => {
@@ -283,6 +315,10 @@ const ArticleCard = ({ article }: { article: Article; key?: string }) => (
 
 const PrivacyPolicyPage = () => (
   <div className="pt-20 pb-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <SEO 
+      title="นโยบายความเป็นส่วนตัว" 
+      description="นโยบายความเป็นส่วนตัวของเว็บไซต์ Baccarat Master Guide" 
+    />
     <div className="bg-gray-900/50 border border-gold/20 rounded-[2rem] p-8 md:p-12">
       <h1 className="text-3xl md:text-4xl font-black text-white mb-8 gold-gradient uppercase tracking-tight text-center">
         นโยบายความเป็นส่วนตัว (Privacy Policy)
@@ -338,6 +374,10 @@ const PrivacyPolicyPage = () => (
 
 const TermsPage = () => (
   <div className="pt-20 pb-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <SEO 
+      title="ข้อตกลงและเงื่อนไข" 
+      description="ข้อตกลงและเงื่อนไขการใช้งานเว็บไซต์ Baccarat Master Guide" 
+    />
     <div className="bg-gray-900/50 border border-gold/20 rounded-[2rem] p-8 md:p-12">
       <h1 className="text-3xl md:text-4xl font-black text-white mb-8 gold-gradient uppercase tracking-tight text-center">
         ข้อตกลงและเงื่อนไข (Terms and Conditions)
@@ -385,6 +425,10 @@ const TermsPage = () => (
 const AboutPage = () => {
   return (
     <div className="pt-20 pb-24">
+      <SEO 
+        title="เกี่ยวกับเรา" 
+        description="Baccarat Master Guide ศูนย์รวมความรู้ เทคนิค และสูตรบาคาร่าที่ครบถ้วนที่สุด" 
+      />
       {/* Hero Section */}
       <section className="relative py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gold/5 -skew-y-6 transform origin-top-left"></div>
@@ -512,6 +556,11 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
 
   return (
     <div className="space-y-20 md:space-y-32 pb-32">
+      <SEO 
+        title="คู่มือการเล่น บาคาร่า ฉบับสมบูรณ์ ปี 2026 เจาะลึกทุกกลยุทธ์" 
+        description="คู่มือการเล่น บาคาร่า ปี 2026 เจาะลึกสอนทุกขั้นตอนตั้งแต่พื้นฐานถึงสูตรทำเงินระดับเซียน พร้อมกลยุทธ์เด็ดที่ช่วยเพิ่มโอกาสชนะให้คุณแบบมืออาชีพ" 
+        canonicalUrl="https://baccaratmasterguide.com/" 
+      />
       {/* Hero Section */}
       <section className="relative min-h-[80vh] md:h-[90vh] flex items-center overflow-hidden py-20 md:py-0">
         <div className="absolute inset-0 z-0">
@@ -1042,6 +1091,10 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <SEO 
+        title={categoryFilter ? `บทความหมวดหมู่: ${categoryFilter}` : "บทความบาคาร่าทั้งหมด"} 
+        description="รวมบทความ เทคนิค และสูตรบาคาร่าที่อัพเดทล่าสุด เพื่อช่วยให้คุณเป็นเซียนบาคาร่า" 
+      />
       <div className="mb-16 text-center">
         <h1 className="text-3xl md:text-5xl font-black text-white mb-6">
           {categoryFilter ? (
@@ -1076,18 +1129,17 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
   const isAdmin = user?.email === ADMIN_EMAIL;
   const article = articles.find(a => a.slug === slug);
 
-  useEffect(() => {
-    if (article) {
-      document.title = article.title + " | Baccarat Master";
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) metaDesc.setAttribute('content', article.excerpt);
-    }
-  }, [article]);
-
   if (!article || (!isAdmin && !isPublished(article))) return <div className="text-center py-20 text-white">ไม่พบเนื้อหาที่ต้องการ หรือบทความยังไม่ถึงเวลาเผยแพร่</div>;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <SEO 
+        title={article.metaTitle || article.title} 
+        description={article.metaDescription || article.excerpt} 
+        keywords={article.metaKeywords}
+        image={article.image}
+        type="article"
+      />
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1155,6 +1207,10 @@ const LoginPage = ({ user }: { user: User | null }) => {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
+      <SEO 
+        title="เข้าสู่ระบบ" 
+        description="เข้าสู่ระบบเพื่อจัดการบทความและข้อมูลเว็บไซต์ Baccarat Master Guide" 
+      />
       <div className="max-w-md w-full bg-gray-900 border border-gold/20 p-10 rounded-[2rem] text-center">
         <div className="w-16 h-16 bg-baccarat-red rounded-full flex items-center justify-center border border-gold mx-auto mb-8">
           <Lock className="text-gold w-8 h-8" />
@@ -1718,6 +1774,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   const [showSeoModal, setShowSeoModal] = useState(false);
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
   const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false);
+  const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const [slugOptions, setSlugOptions] = useState<string[]>([]);
   const [excerptOptions, setExcerptOptions] = useState<string[]>([]);
   const [showSlugSelection, setShowSlugSelection] = useState(false);
@@ -1758,6 +1815,37 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       console.error(err);
     } finally {
       setIsGeneratingSlug(false);
+    }
+  };
+
+  const generateKeywords = async () => {
+    if (!currentArticle.title?.trim() && !currentArticle.metaTitle?.trim() && !currentArticle.metaDescription?.trim()) {
+      alert('กรุณาใส่หัวข้อบทความ, Meta Title หรือ Meta Description ก่อน');
+      return;
+    }
+    setIsGeneratingKeywords(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `คุณคือผู้เชี่ยวชาญด้าน SEO วิเคราะห์ข้อมูลบทความต่อไปนี้ แล้วสร้าง Keywords Meta Tag ที่เหมาะสมที่สุด 5-8 คำ (คั่นด้วยลูกน้ำ) โดยอิงจากคำที่ใช้และเนื้อหาที่ควรจะเป็น
+        
+        หัวข้อบทความ (Title): ${currentArticle.title || '-'}
+        Meta Title: ${currentArticle.metaTitle || '-'}
+        Meta Description: ${currentArticle.metaDescription || '-'}
+        
+        ตอบกลับมาเฉพาะคำคีย์เวิร์ดที่คั่นด้วยลูกน้ำ (,) เท่านั้น ห้ามมีข้อความอื่น`,
+      });
+      
+      const keywords = response.text?.trim();
+      if (keywords) {
+        setCurrentArticle(prev => ({ ...prev, metaKeywords: keywords }));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการสร้าง Keywords');
+    } finally {
+      setIsGeneratingKeywords(false);
     }
   };
 
@@ -2122,6 +2210,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   if (isManagingCategories) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <SEO title="จัดการหมวดหมู่ | Admin" description="จัดการหมวดหมู่บทความ" />
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -2193,6 +2282,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SEO title="Admin Dashboard" description="จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์" />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12">
         <div>
           <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
@@ -2434,6 +2524,31 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                     />
                   )}
                 </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-gold text-sm font-bold flex items-center"><Tag size={16} className="mr-2" /> Keywords Meta Tag</label>
+                  <button 
+                    type="button"
+                    onClick={generateKeywords}
+                    disabled={isGeneratingKeywords}
+                    className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all disabled:opacity-50"
+                  >
+                    {isGeneratingKeywords ? (
+                      <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
+                    ) : (
+                      <Sparkles size={14} className="mr-2" />
+                    )}
+                    Generate
+                  </button>
+                </div>
+                <input 
+                  type="text" 
+                  value={currentArticle.metaKeywords || ''} 
+                  onChange={e => setCurrentArticle({...currentArticle, metaKeywords: e.target.value})}
+                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                  placeholder="เช่น บาคาร่า, สูตรบาคาร่า, เล่นบาคาร่า (คั่นด้วยลูกน้ำ)"
+                />
               </div>
             </div>
 
@@ -2806,6 +2921,10 @@ const FormulaPage = () => {
 
     return (
       <div className="max-w-6xl mx-auto px-4 py-10">
+        <SEO 
+          title="สูตรบาคาร่า AI 2026 แม่นยำที่สุด ฟรี" 
+          description="สูตรบาคาร่าฟรี ระบบคำนวณด้วย AI แม่นยำที่สุด รองรับ Sexy Baccarat และ SA Gaming อัปเดตอัตราชนะแบบเรียลไทม์" 
+        />
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -3147,6 +3266,10 @@ const FormulaPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <SEO 
+        title="สูตรบาคาร่า AI 2026 แม่นยำที่สุด ฟรี" 
+        description="สูตรบาคาร่าฟรี ระบบคำนวณด้วย AI แม่นยำที่สุด รองรับ Sexy Baccarat และ SA Gaming อัปเดตอัตราชนะแบบเรียลไทม์" 
+      />
       <div className="text-center mb-16">
         <h1 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight">
           สูตรบาคาร่าฟรี ต้องที่นี้ <br />

@@ -10,6 +10,7 @@ export interface Article {
   slug: string;
   metaTitle?: string;
   metaDescription?: string;
+  metaKeywords?: string;
   publishedAt?: any;
 }
 
