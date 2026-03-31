@@ -132,6 +132,7 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
 
 // --- Helpers ---
 const isPublished = (article: Article) => {
+  if (article.status === 'draft') return false;
   if (!article.publishedAt) return true;
   const pubDate = new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt);
   return pubDate <= new Date();
@@ -297,42 +298,51 @@ const Footer = () => (
   </footer>
 );
 
-const ArticleCard = ({ article }: { article: Article; key?: string }) => (
-  <motion.div 
-    whileHover={{ y: -10 }}
-    className="bg-gray-900/50 border border-gold/10 rounded-2xl overflow-hidden article-card group"
-  >
-    <Link to={`/articles/${article.slug}`}>
-      <div className="relative h-56 overflow-hidden">
-        <img 
-          src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`} 
-          alt={article.title} 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute top-4 left-4">
-          <span className="bg-baccarat-red text-white text-xs font-bold px-3 py-1 rounded-full border border-gold/50">
-            {article.category}
-          </span>
+const ArticleCard = ({ article }: { article: Article; key?: string }) => {
+  const isDraft = article.status === 'draft';
+  
+  return (
+    <motion.div 
+      whileHover={{ y: -10 }}
+      className="bg-gray-900/50 border border-gold/10 rounded-2xl overflow-hidden article-card group"
+    >
+      <Link to={`/articles/${article.slug}`}>
+        <div className="relative h-56 overflow-hidden">
+          <img 
+            src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`} 
+            alt={article.title} 
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute top-4 left-4 flex flex-col gap-2">
+            <span className="bg-baccarat-red text-white text-xs font-bold px-3 py-1 rounded-full border border-gold/50">
+              {article.category}
+            </span>
+            {isDraft && (
+              <span className="bg-yellow-500/90 text-black text-[10px] font-black px-3 py-1 rounded-full border border-black/20 flex items-center shadow-lg">
+                <FileText size={10} className="mr-1" /> ฉบับร่าง
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="p-6">
-        <h3 className="text-xl font-bold text-white mb-3 group-hover:text-gold transition-colors line-clamp-2">
-          {article.title}
-        </h3>
-        <p className="text-gray-400 text-sm mb-6 line-clamp-3 leading-relaxed">
-          {article.excerpt}
-        </p>
-        <div className="flex items-center justify-between">
-          <span className="text-gray-500 text-xs">{article.date}</span>
-          <span className="text-gold text-sm font-bold flex items-center">
-            อ่านต่อ <ChevronRight size={16} className="ml-1" />
-          </span>
+        <div className="p-6">
+          <h3 className="text-xl font-bold text-white mb-3 group-hover:text-gold transition-colors line-clamp-2">
+            {article.title}
+          </h3>
+          <p className="text-gray-400 text-sm mb-6 line-clamp-3 leading-relaxed">
+            {article.excerpt}
+          </p>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-xs">{article.date}</span>
+            <span className="text-gold text-sm font-bold flex items-center">
+              อ่านต่อ <ChevronRight size={16} className="ml-1" />
+            </span>
+          </div>
         </div>
-      </div>
-    </Link>
-  </motion.div>
-);
+      </Link>
+    </motion.div>
+  );
+};
 
 const PrivacyPolicyPage = () => (
   <div className="pt-20 pb-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1172,8 +1182,8 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
     "headline": article.metaTitle || article.title,
     "description": article.metaDescription || article.excerpt,
     "image": article.image || "https://img2.pic.in.th/LOGO1-Baccarat-Master.png",
-    "datePublished": article.publishedAt ? new Date(article.publishedAt).toISOString() : new Date(article.createdAt).toISOString(),
-    "dateModified": new Date(article.updatedAt).toISOString(),
+    "datePublished": article.publishedAt ? new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt).toISOString() : new Date(article.createdAt.seconds ? article.createdAt.seconds * 1000 : article.createdAt).toISOString(),
+    "dateModified": new Date(article.updatedAt.seconds ? article.updatedAt.seconds * 1000 : article.updatedAt).toISOString(),
     "author": {
       "@type": "Person",
       "name": "Baccarat Master"
@@ -1840,6 +1850,16 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   const [showSlugSelection, setShowSlugSelection] = useState(false);
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
 
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
+
+  const filteredArticles = articles.filter(a => {
+    if (filterStatus === 'all') return true;
+    if (filterStatus === 'draft') return a.status === 'draft';
+    if (filterStatus === 'published') return a.status !== 'draft' && (!a.publishedAt || new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) <= new Date());
+    if (filterStatus === 'scheduled') return a.status !== 'draft' && a.publishedAt && new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) > new Date();
+    return true;
+  });
+
   const generateSlugFromTitle = async () => {
     if (!currentArticle.title?.trim()) {
       alert('กรุณาใส่หัวข้อบทความก่อน');
@@ -2215,7 +2235,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent, status: 'published' | 'draft' = 'published') => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -2223,12 +2243,22 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       // Remove id from data object to avoid saving it as a field
       const { id, ...dataWithoutId } = currentArticle;
       
+      const getPublishedAt = () => {
+        if (status === 'draft') return null;
+        if (!currentArticle.publishedAt) return serverTimestamp();
+        // If it's a string from the datetime-local input
+        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt);
+        // If it's already a Firestore Timestamp or Date object
+        return currentArticle.publishedAt;
+      };
+
       const articleData = {
         ...dataWithoutId,
+        status,
         updatedAt: serverTimestamp(),
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
-        publishedAt: currentArticle.publishedAt ? new Date(currentArticle.publishedAt) : serverTimestamp(),
+        publishedAt: getPublishedAt(),
       };
 
       // Check document size (Firestore limit is 1MB)
@@ -2405,9 +2435,32 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
           animate={{ opacity: 1, y: 0 }}
           className="bg-gray-900 border border-gold/20 p-8 rounded-3xl"
         >
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-gold">{currentArticle.id ? 'แก้ไขบทความ' : 'สร้างบทความใหม่'}</h2>
-            <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-gold/10 pb-6">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-2xl font-bold text-gold uppercase tracking-tight">
+                {currentArticle.id ? 'แก้ไขบทความ' : 'สร้างบทความใหม่'}
+              </h2>
+              <p className="text-gray-500 text-xs">จัดการเนื้อหาและสถานะการเผยแพร่</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button 
+                disabled={loading}
+                type="button"
+                onClick={(e) => handleSave(e, 'draft')}
+                className="bg-gray-800 text-white px-6 py-2.5 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center disabled:opacity-50 text-sm border border-white/5"
+              >
+                {loading ? '...' : <><FileText size={18} className="mr-2 text-gold" /> บันทึกฉบับร่าง</>}
+              </button>
+              <button 
+                disabled={loading}
+                type="button"
+                onClick={(e) => handleSave(e, 'published')}
+                className="gold-bg-gradient text-baccarat-black px-8 py-2.5 rounded-full font-black hover:scale-105 transition-all flex items-center disabled:opacity-50 text-sm shadow-lg shadow-gold/10"
+              >
+                {loading ? '...' : <><Save size={18} className="mr-2" /> เผยแพร่บทความ</>}
+              </button>
+              <button onClick={() => setIsEditing(false)} className="ml-2 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-all"><X size={24} /></button>
+            </div>
           </div>
 
           {error && (
@@ -2740,10 +2793,19 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               </button>
               <button 
                 disabled={loading}
-                type="submit"
+                type="button"
+                onClick={(e) => handleSave(e, 'draft')}
+                className="bg-gray-800 text-white px-8 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center disabled:opacity-50"
+              >
+                {loading ? 'กำลังบันทึก...' : <><FileText size={20} className="mr-2" /> บันทึกฉบับร่าง</>}
+              </button>
+              <button 
+                disabled={loading}
+                type="button"
+                onClick={(e) => handleSave(e, 'published')}
                 className="gold-bg-gradient text-baccarat-black px-12 py-3 rounded-full font-black text-lg flex items-center disabled:opacity-50"
               >
-                {loading ? 'กำลังบันทึก...' : <><Save size={20} className="mr-2" /> บันทึกบทความ</>}
+                {loading ? 'กำลังบันทึก...' : <><Save size={20} className="mr-2" /> เผยแพร่บทความ</>}
               </button>
             </div>
           </form>
@@ -2854,6 +2916,33 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <button 
+              onClick={() => setFilterStatus('all')}
+              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'all' ? "bg-gold text-baccarat-black border-gold" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+            >
+              ทั้งหมด ({articles.length})
+            </button>
+            <button 
+              onClick={() => setFilterStatus('published')}
+              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'published' ? "bg-green-500 text-white border-green-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+            >
+              เผยแพร่แล้ว ({articles.filter(a => a.status !== 'draft' && (!a.publishedAt || new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) <= new Date())).length})
+            </button>
+            <button 
+              onClick={() => setFilterStatus('draft')}
+              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'draft' ? "bg-yellow-500 text-black border-yellow-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+            >
+              ฉบับร่าง ({articles.filter(a => a.status === 'draft').length})
+            </button>
+            <button 
+              onClick={() => setFilterStatus('scheduled')}
+              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'scheduled' ? "bg-blue-500 text-white border-blue-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+            >
+              ตั้งเวลา ({articles.filter(a => a.status !== 'draft' && a.publishedAt && new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) > new Date()).length})
+            </button>
+          </div>
+
           <div className="bg-gray-900 border border-gold/20 rounded-3xl overflow-hidden">
             <table className="w-full text-left">
             <thead>
@@ -2865,7 +2954,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {articles.map((article, index) => (
+              {filteredArticles.map((article, index) => (
                 <tr 
                   key={article.id} 
                   className={cn(
@@ -2895,7 +2984,11 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-xs text-gray-400">
-                      {article.publishedAt ? (
+                      {article.status === 'draft' ? (
+                        <span className="text-yellow-500 flex items-center">
+                          <FileText size={12} className="mr-1" /> ฉบับร่าง
+                        </span>
+                      ) : article.publishedAt ? (
                         new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt) > new Date() ? (
                           <span className="text-blue-400 flex items-center">
                             <Calendar size={12} className="mr-1" /> ตั้งเวลา: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}

@@ -51,12 +51,14 @@ async function startServer() {
       const now = new Date();
       articles.forEach(article => {
         let isPublished = true;
-        if (article.publishedAt) {
+        if (article.status === 'draft') {
+          isPublished = false;
+        } else if (article.publishedAt) {
           const pubDate = new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt);
           isPublished = pubDate <= now;
         }
         
-        if (isPublished) {
+        if (isPublished && article.slug) {
           const updatedAt = article.updatedAt ? new Date(article.updatedAt.seconds ? article.updatedAt.seconds * 1000 : article.updatedAt) : new Date();
           xml += '  <url>\n';
           xml += `    <loc>${baseUrl}/articles/${article.slug}</loc>\n`;
