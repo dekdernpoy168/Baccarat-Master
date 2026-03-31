@@ -92,7 +92,7 @@ interface FirestoreErrorInfo {
 const ADMIN_EMAIL = "dekdernpoy168@gmail.com";
 
 // --- SEO Component ---
-const SEO = ({ title, description, keywords, canonicalUrl, type = "website", image }: { title: string, description: string, keywords?: string, canonicalUrl?: string, type?: string, image?: string }) => {
+const SEO = ({ title, description, keywords, canonicalUrl, type = "website", image, schema }: { title: string, description: string, keywords?: string, canonicalUrl?: string, type?: string, image?: string, schema?: any }) => {
   const siteName = "Baccarat Master Guide";
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
   const defaultImage = "https://img2.pic.in.th/LOGO1-Baccarat-Master.png";
@@ -117,6 +117,13 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
       <meta name="twitter:image" content={image || defaultImage} />
       
       {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+
+      {/* Schema.org */}
+      {schema && (
+        <script type="application/ld+json">
+          {JSON.stringify(schema)}
+        </script>
+      )}
     </Helmet>
   );
 };
@@ -264,7 +271,19 @@ const Footer = () => (
         </div>
       </div>
 
-      <div className="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-500 text-sm">
+      {/* SEO Keywords */}
+      <div className="mt-12 pt-8 border-t border-gray-800">
+        <h4 className="text-gray-500 text-xs font-bold mb-3 uppercase tracking-wider">คำค้นหายอดนิยม</h4>
+        <div className="flex flex-wrap gap-2">
+          {["บาคาร่า", "สูตรบาคาร่า", "เล่นบาคาร่า", "บาคาร่าออนไลน์", "เทคนิคบาคาร่า", "บาคาร่ามือถือ", "เว็บบาคาร่า", "เซียนบาคาร่า", "วิธีเล่นบาคาร่า", "สูตรเดินเงินบาคาร่า"].map((keyword, index) => (
+            <span key={index} className="text-xs text-gray-600 hover:text-gold transition-colors cursor-default">
+              {keyword}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-8 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-500 text-sm">
         <p>© 2026 Baccarat Master Guide. All rights reserved.</p>
         <div className="flex gap-4">
           <Link to="/privacy-policy" className="hover:text-gold transition-colors">นโยบายความเป็นส่วนตัว</Link>
@@ -554,12 +573,26 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
   const guideArticle = publishedArticles.find(a => a.title.includes('คู่มือฉบับสมบูรณ์'));
   const guideLink = guideArticle ? `/articles/${guideArticle.slug}` : '/articles';
 
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Baccarat Master Guide",
+    "url": "https://baccaratmasterguide.com/",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://baccaratmasterguide.com/articles?category={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <div className="space-y-20 md:space-y-32 pb-32">
       <SEO 
         title="คู่มือการเล่น บาคาร่า ฉบับสมบูรณ์ ปี 2026 เจาะลึกทุกกลยุทธ์" 
         description="คู่มือการเล่น บาคาร่า ปี 2026 เจาะลึกสอนทุกขั้นตอนตั้งแต่พื้นฐานถึงสูตรทำเงินระดับเซียน พร้อมกลยุทธ์เด็ดที่ช่วยเพิ่มโอกาสชนะให้คุณแบบมืออาชีพ" 
+        keywords="บาคาร่า, สูตรบาคาร่า, เล่นบาคาร่า, บาคาร่าออนไลน์, เทคนิคบาคาร่า, บาคาร่ามือถือ, เว็บบาคาร่า, เซียนบาคาร่า"
         canonicalUrl="https://baccaratmasterguide.com/" 
+        schema={schema}
       />
       {/* Hero Section */}
       <section className="relative min-h-[80vh] md:h-[90vh] flex items-center overflow-hidden py-20 md:py-0">
@@ -1131,6 +1164,28 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
 
   if (!article || (!isAdmin && !isPublished(article))) return <div className="text-center py-20 text-white">ไม่พบเนื้อหาที่ต้องการ หรือบทความยังไม่ถึงเวลาเผยแพร่</div>;
 
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": article.metaTitle || article.title,
+    "description": article.metaDescription || article.excerpt,
+    "image": article.image || "https://img2.pic.in.th/LOGO1-Baccarat-Master.png",
+    "datePublished": article.publishedAt ? new Date(article.publishedAt).toISOString() : new Date(article.createdAt).toISOString(),
+    "dateModified": new Date(article.updatedAt).toISOString(),
+    "author": {
+      "@type": "Person",
+      "name": "Baccarat Master"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Baccarat Master Guide",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://img2.pic.in.th/LOGO1-Baccarat-Master.png"
+      }
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <SEO 
@@ -1139,6 +1194,7 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
         keywords={article.metaKeywords}
         image={article.image}
         type="article"
+        schema={schema}
       />
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

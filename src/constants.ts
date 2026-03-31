@@ -12,6 +12,9 @@ export interface Article {
   metaDescription?: string;
   metaKeywords?: string;
   publishedAt?: any;
+  createdAt?: any;
+  updatedAt?: any;
+  status?: string;
 }
 
 export const ARTICLES: Article[] = [
