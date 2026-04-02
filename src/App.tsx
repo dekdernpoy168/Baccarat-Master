@@ -3814,37 +3814,44 @@ export default function App() {
       setAuthReady(true);
     });
 
-    // Listen to Articles
-    const qArticles = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
-    const unsubscribeArticles = onSnapshot(qArticles, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Article[];
-      
-      if (docs.length === 0) {
+    // Fetch Articles once
+    const fetchArticles = async () => {
+      try {
+        const qArticles = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(qArticles);
+        const docs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Article[];
+        
+        if (docs.length === 0) {
+          setArticles(STATIC_ARTICLES);
+        } else {
+          setArticles(docs);
+        }
+      } catch (error) {
+        console.error("Firestore Error (Articles):", error);
         setArticles(STATIC_ARTICLES);
-      } else {
-        setArticles(docs);
       }
-    }, (error) => {
-      console.error("Firestore Error (Articles):", error);
-      setArticles(STATIC_ARTICLES);
-    });
+    };
 
-    // Listen to Categories
-    const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
-    const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
-      const cats = snapshot.docs.map(doc => doc.data().name as string);
-      setCategories(cats);
-    }, (error) => {
-      console.error("Firestore Error (Categories):", error);
-    });
+    // Fetch Categories once
+    const fetchCategories = async () => {
+      try {
+        const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
+        const snapshot = await getDocs(qCategories);
+        const cats = snapshot.docs.map(doc => doc.data().name as string);
+        setCategories(cats);
+      } catch (error) {
+        console.error("Firestore Error (Categories):", error);
+      }
+    };
+
+    fetchArticles();
+    fetchCategories();
 
     return () => {
       unsubscribeAuth();
-      unsubscribeArticles();
-      unsubscribeCategories();
     };
   }, []);
 
