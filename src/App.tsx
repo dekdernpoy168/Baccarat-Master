@@ -1377,8 +1377,11 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
         Return ONLY the keywords as a comma-separated list. No other text.`,
       });
       
-      const generatedKeywords = response.text.trim().replace(/\s*,\s*/g, ',');
-      setKeywords(prev => prev ? `${prev},${generatedKeywords}` : generatedKeywords);
+      const text = response.text || '';
+      const generatedKeywords = text.trim().replace(/\s*,\s*/g, ',');
+      if (generatedKeywords) {
+        setKeywords(prev => prev ? `${prev},${generatedKeywords}` : generatedKeywords);
+      }
     } catch (err) {
       console.error('AI Keyword Generation Error:', err);
       alert('ไม่สามารถสร้างคีย์เวิร์ดได้ในขณะนี้');
@@ -1762,7 +1765,10 @@ const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '
         }
       });
       
-      const result = JSON.parse(response.text);
+      const text = response.text || '{}';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+      const result = JSON.parse(jsonStr);
       onExecute(result);
     } catch (err) {
       console.error(err);
@@ -1885,12 +1891,17 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
           }
         }
       });
-      const data = JSON.parse(response.text);
-      const cleanedOptions = data.options.map((s: string) => 
+      const text = response.text || '{}';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+      const data = JSON.parse(jsonStr);
+      const cleanedOptions = (data.options || []).map((s: string) => 
         s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       );
-      setSlugOptions(cleanedOptions);
-      setShowSlugSelection(true);
+      if (cleanedOptions.length > 0) {
+        setSlugOptions(cleanedOptions);
+        setShowSlugSelection(true);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -1918,7 +1929,8 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
         },
       });
 
-      for (const part of response.candidates[0].content.parts) {
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      for (const part of parts) {
         if (part.inlineData) {
           const base64 = `data:image/png;base64,${part.inlineData.data}`;
           setGeneratedLogo(base64);
@@ -1989,9 +2001,14 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
           }
         }
       });
-      const data = JSON.parse(response.text);
-      setExcerptOptions(data.options);
-      setShowExcerptSelection(true);
+      const text = response.text || '{}';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+      const data = JSON.parse(jsonStr);
+      if (data.options && data.options.length > 0) {
+        setExcerptOptions(data.options);
+        setShowExcerptSelection(true);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -2036,13 +2053,13 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
         }
       });
       
-      const text = response.text;
+      const text = response.text || '';
       console.log('AI Raw Response:', text);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? jsonMatch[0] : text;
       
       try {
-        const result = JSON.parse(jsonStr);
+        const result = JSON.parse(jsonStr || '{}');
         console.log('AI Parsed Result:', result);
         
         if (result) {
