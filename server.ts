@@ -33,7 +33,7 @@ async function startServer() {
       const snapshot = await getDocs(articlesRef);
       const articles = snapshot.docs.map(doc => doc.data());
 
-      const baseUrl = "https://baccaratmasterguide.com";
+      const baseUrl = "https://huisache.com";
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
       xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       
@@ -85,7 +85,7 @@ async function startServer() {
 Allow: /
 Disallow: /login
 Disallow: /admin
-Sitemap: https://baccaratmasterguide.com/sitemap.xml`;
+Sitemap: https://huisache.com/sitemap.xml`;
     res.header("Content-Type", "text/plain");
     res.send(robots);
   });

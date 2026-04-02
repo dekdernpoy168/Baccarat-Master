@@ -707,7 +707,7 @@ const AdminDashboard = () => {
 
   // Fetch data on mount
   useEffect(() => {
-    const fetchArticles = async () => {
+    const fetchArticles = () => {
       try {
         const qArticles = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
         const unsubscribe = onSnapshot(qArticles, (snapshot) => {
@@ -727,7 +727,7 @@ const AdminDashboard = () => {
       }
     };
 
-    const fetchCategories = async () => {
+    const fetchCategories = () => {
       try {
         const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
         const unsubscribe = onSnapshot(qCategories, (snapshot) => {

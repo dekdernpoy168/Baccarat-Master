@@ -589,10 +589,10 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "Baccarat Master Guide",
-    "url": "https://baccaratmasterguide.com/",
+    "url": "https://huisache.com/",
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://baccaratmasterguide.com/articles?category={search_term_string}",
+      "target": "https://huisache.com/articles?category={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   };
@@ -603,7 +603,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
         title="คู่มือการเล่น บาคาร่า ฉบับสมบูรณ์ ปี 2026 เจาะลึกทุกกลยุทธ์" 
         description="คู่มือการเล่น บาคาร่า ปี 2026 เจาะลึกสอนทุกขั้นตอนตั้งแต่พื้นฐานถึงสูตรทำเงินระดับเซียน พร้อมกลยุทธ์เด็ดที่ช่วยเพิ่มโอกาสชนะให้คุณแบบมืออาชีพ" 
         keywords="บาคาร่า, สูตรบาคาร่า, เล่นบาคาร่า, บาคาร่าออนไลน์, เทคนิคบาคาร่า, บาคาร่ามือถือ, เว็บบาคาร่า, เซียนบาคาร่า"
-        canonicalUrl="https://baccaratmasterguide.com/" 
+        canonicalUrl="https://huisache.com/" 
         schema={schema}
       />
       {/* Hero Section */}
