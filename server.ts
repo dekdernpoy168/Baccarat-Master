@@ -19,8 +19,27 @@ async function startServer() {
   server.use(express.json({ limit: '50mb' }));
   const PORT = 3000;
 
-  const connectionString = process.env.SQLITE_CLOUD_URL || "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/auth.sqlitecloud?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
+  const connectionString = process.env.SQLITE_CLOUD_URL || "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/bgm-database?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
+  const encryptionKey = process.env.SQLITE_CLOUD_ENCRYPTION_KEY || ""; // Temporarily empty to test
+  
   const sqliteDb = new Database(connectionString);
+  
+  // Apply encryption key if provided
+  if (encryptionKey) {
+    try {
+      console.log("Attempting to apply encryption key...");
+      // For 64-character hex keys, SQLite often requires the x'...' prefix
+      if (encryptionKey.length === 64 && /^[0-9a-fA-F]+$/.test(encryptionKey)) {
+        await sqliteDb.sql(`PRAGMA key = x'${encryptionKey}';`);
+        console.log("SQLiteCloud encryption key applied with hex prefix.");
+      } else {
+        await sqliteDb.sql(`PRAGMA key = '${encryptionKey}';`);
+        console.log("SQLiteCloud encryption key applied as regular string.");
+      }
+    } catch (err) {
+      console.error("Error applying encryption key:", err);
+    }
+  }
 
   // Socket.io connection
   io.on("connection", (socket) => {
@@ -31,8 +50,14 @@ async function startServer() {
   });
 
   // Helper to broadcast updates
-  const broadcastArticlesUpdate = () => io.emit("articles_updated");
-  const broadcastCategoriesUpdate = () => io.emit("categories_updated");
+  const broadcastArticlesUpdate = () => {
+    console.log("Broadcasting articles_updated event");
+    io.emit("articles_updated");
+  };
+  const broadcastCategoriesUpdate = () => {
+    console.log("Broadcasting categories_updated event");
+    io.emit("categories_updated");
+  };
 
   // Initialize SQLiteCloud tables
   try {
@@ -73,6 +98,11 @@ async function startServer() {
   // API routes
   server.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  server.get("/api/socket-status", (req, res) => {
+    const clients = io.sockets.sockets.size;
+    res.json({ connectedClients: clients });
   });
 
   // --- Articles ---
@@ -181,15 +211,24 @@ async function startServer() {
   server.post("/api/categories", async (req, res) => {
     try {
       const cat = req.body;
+      const name = cat.name || '';
+      
+      // Check if category already exists
+      const existing = await sqliteDb.sql`SELECT * FROM categories WHERE name = ${name} LIMIT 1;`;
+      if (existing && existing.length > 0) {
+        return res.json(existing[0]);
+      }
+
       const id = cat.id || Math.random().toString(36).substring(2, 15);
       const now = new Date().toISOString();
+      const slug = cat.slug || name.toLowerCase().replace(/\s+/g, '-');
       
       await sqliteDb.sql`
         INSERT INTO categories (id, name, slug, description, createdAt)
-        VALUES (${id}, ${cat.name || ''}, ${cat.slug || ''}, ${cat.description || ''}, ${now});
+        VALUES (${id}, ${name}, ${slug}, ${cat.description || ''}, ${now});
       `;
       broadcastCategoriesUpdate();
-      res.json({ id, ...cat, createdAt: now });
+      res.json({ id, name, slug, description: cat.description || '', createdAt: now });
     } catch (error: any) {
       console.error("Error creating category:", error);
       res.status(500).json({ error: error.message });
@@ -262,6 +301,26 @@ async function startServer() {
       res.json({ success: true, message: "Categories reset and seeded successfully." });
     } catch (error: any) {
       console.error("Error resetting categories:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Clean duplicate categories
+  server.post("/api/categories/clean-duplicates", async (req, res) => {
+    try {
+      // Find duplicates keeping the first one (by createdAt or id)
+      await sqliteDb.sql`
+        DELETE FROM categories 
+        WHERE id NOT IN (
+          SELECT MIN(id) 
+          FROM categories 
+          GROUP BY name
+        );
+      `;
+      broadcastCategoriesUpdate();
+      res.json({ success: true, message: "Duplicate categories cleaned successfully." });
+    } catch (error: any) {
+      console.error("Error cleaning duplicates:", error);
       res.status(500).json({ error: error.message });
     }
   });

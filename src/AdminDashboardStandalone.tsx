@@ -1050,6 +1050,23 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleCleanDuplicateCategories = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/categories/clean-duplicates', {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Failed to clean duplicate categories');
+      loadData();
+      alert('ล้างหมวดหมู่ที่ซ้ำกันเรียบร้อยแล้ว');
+    } catch (err) {
+      console.error('Clean duplicates error:', err);
+      alert('เกิดข้อผิดพลาดในการล้างหมวดหมู่ที่ซ้ำกัน');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1209,7 +1226,7 @@ const AdminDashboard = () => {
       }
 
       // Also ensure category exists in categories collection
-      if (articleData.category) {
+      if (articleData.category && !categories.includes(articleData.category)) {
         const catRes = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1288,6 +1305,12 @@ const AdminDashboard = () => {
                 className="px-4 py-2 bg-red-500/10 border border-red-500/50 text-red-500 rounded-xl text-sm font-bold hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
               >
                 <Trash2 size={16} /> รีเซ็ตหมวดหมู่เริ่มต้น
+              </button>
+              <button 
+                onClick={handleCleanDuplicateCategories}
+                className="px-4 py-2 bg-blue-500/10 border border-blue-500/50 text-blue-500 rounded-xl text-sm font-bold hover:bg-blue-500 hover:text-white transition-all flex items-center gap-2"
+              >
+                <Sparkles size={16} /> ล้างหมวดหมู่ที่ซ้ำ
               </button>
             </div>
             <button onClick={() => setIsManagingCategories(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>

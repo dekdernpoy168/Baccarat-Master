@@ -3875,6 +3875,14 @@ export default function App() {
   const [categories, setCategories] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' } | null>(null);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
@@ -3884,12 +3892,15 @@ export default function App() {
 
     // Fetch Articles
     const fetchArticles = async () => {
+      console.log('Fetching articles from API...');
       try {
         const response = await fetch('/api/articles');
         if (!response.ok) throw new Error('Failed to fetch articles');
         const docs = await response.json();
+        console.log(`Fetched ${docs.length} articles from API`);
         
         if (docs.length === 0) {
+          console.log('No articles in DB, using static articles');
           setArticles(STATIC_ARTICLES);
         } else {
           setArticles(docs);
@@ -3917,14 +3928,26 @@ export default function App() {
     fetchCategories();
 
     // Socket.io for real-time updates
+    console.log('Initializing socket.io client...');
     const socket = io();
+    
+    socket.on('connect', () => {
+      console.log('Socket.io connected with ID:', socket.id);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket.io connection error:', error);
+    });
+
     socket.on('articles_updated', () => {
-      console.log('Articles updated via socket');
+      console.log('Articles updated via socket - fetching new data...');
       fetchArticles();
+      setNotification({ message: 'อัพเดตบทความเรียบร้อยแล้ว', type: 'info' });
     });
     socket.on('categories_updated', () => {
-      console.log('Categories updated via socket');
+      console.log('Categories updated via socket - fetching new data...');
       fetchCategories();
+      setNotification({ message: 'อัพเดตหมวดหมู่เรียบร้อยแล้ว', type: 'info' });
     });
 
     return () => {
@@ -3939,6 +3962,22 @@ export default function App() {
     <Router>
       <div className="min-h-screen flex flex-col bg-baccarat-black">
         <Navbar user={user} />
+        
+        {/* Real-time Notification Toast */}
+        <AnimatePresence>
+          {notification && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: 50, x: '-50%' }}
+              className="fixed bottom-10 left-1/2 z-[200] px-6 py-3 bg-gold text-baccarat-black font-bold rounded-full shadow-[0_0_30px_rgba(212,175,55,0.4)] flex items-center gap-2"
+            >
+              <Zap size={18} className="animate-pulse" />
+              {notification.message}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<HomePage articles={articles} user={user} />} />
