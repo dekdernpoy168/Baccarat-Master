@@ -41,12 +41,22 @@ import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
+import { io } from 'socket.io-client';
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 }
 import { Helmet } from 'react-helmet-async';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  signOut,
+  User
+} from 'firebase/auth';
+import { auth } from './firebase';
+import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
 import { cn } from './lib/utils';
 
 // --- Types & Constants ---
@@ -3863,9 +3873,16 @@ const FormulaPage = () => {
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    // Fetch Articles once
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthReady(true);
+    });
+
+    // Fetch Articles
     const fetchArticles = async () => {
       try {
         const response = await fetch('/api/articles');
@@ -3883,7 +3900,7 @@ export default function App() {
       }
     };
 
-    // Fetch Categories once
+    // Fetch Categories
     const fetchCategories = async () => {
       try {
         const response = await fetch('/api/categories');
@@ -3898,19 +3915,35 @@ export default function App() {
 
     fetchArticles();
     fetchCategories();
+
+    // Socket.io for real-time updates
+    const socket = io();
+    socket.on('articles_updated', () => {
+      console.log('Articles updated via socket');
+      fetchArticles();
+    });
+    socket.on('categories_updated', () => {
+      console.log('Categories updated via socket');
+      fetchCategories();
+    });
+
+    return () => {
+      unsubscribeAuth();
+      socket.disconnect();
+    };
   }, []);
 
-  if (!categories.length && !articles.length) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
+  if (!authReady) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
 
   return (
     <Router>
       <div className="min-h-screen flex flex-col bg-baccarat-black">
-        <Navbar />
+        <Navbar user={user} />
         <main className="flex-grow">
           <Routes>
-            <Route path="/" element={<HomePage articles={articles} />} />
-            <Route path="/articles" element={<ArticlesPage articles={articles} />} />
-            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} />} />
+            <Route path="/" element={<HomePage articles={articles} user={user} />} />
+            <Route path="/articles" element={<ArticlesPage articles={articles} user={user} />} />
+            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

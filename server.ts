@@ -3,14 +3,36 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
 import { Database } from "@sqlitecloud/drivers";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 async function startServer() {
   const server = express();
+  const httpServer = createServer(server);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+
   server.use(express.json({ limit: '50mb' }));
   const PORT = 3000;
 
   const connectionString = process.env.SQLITE_CLOUD_URL || "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/auth.sqlitecloud?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
   const sqliteDb = new Database(connectionString);
+
+  // Socket.io connection
+  io.on("connection", (socket) => {
+    console.log("Client connected:", socket.id);
+    socket.on("disconnect", () => {
+      console.log("Client disconnected:", socket.id);
+    });
+  });
+
+  // Helper to broadcast updates
+  const broadcastArticlesUpdate = () => io.emit("articles_updated");
+  const broadcastCategoriesUpdate = () => io.emit("categories_updated");
 
   // Initialize SQLiteCloud tables
   try {
@@ -81,6 +103,7 @@ async function startServer() {
           ${article.metaKeywords || ''}, ${article.publishedAt || null}, ${now}, ${now}, ${article.status || 'draft'}
         );
       `;
+      broadcastArticlesUpdate();
       res.json({ id, ...article, createdAt: now, updatedAt: now });
     } catch (error: any) {
       console.error("Error creating article:", error);
@@ -112,6 +135,7 @@ async function startServer() {
           status = ${article.status || 'draft'}
         WHERE id = ${id};
       `;
+      broadcastArticlesUpdate();
       res.json({ id, ...article, updatedAt: now });
     } catch (error: any) {
       console.error("Error updating article:", error);
@@ -123,6 +147,7 @@ async function startServer() {
     try {
       const { id } = req.params;
       await sqliteDb.sql`DELETE FROM articles WHERE id = ${id};`;
+      broadcastArticlesUpdate();
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting article:", error);
@@ -134,6 +159,7 @@ async function startServer() {
   server.post("/api/articles/reset", async (req, res) => {
     try {
       await sqliteDb.sql`DELETE FROM articles;`;
+      broadcastArticlesUpdate();
       res.json({ success: true, message: "Articles table reset successfully." });
     } catch (error: any) {
       console.error("Error resetting articles:", error);
@@ -162,6 +188,7 @@ async function startServer() {
         INSERT INTO categories (id, name, slug, description, createdAt)
         VALUES (${id}, ${cat.name || ''}, ${cat.slug || ''}, ${cat.description || ''}, ${now});
       `;
+      broadcastCategoriesUpdate();
       res.json({ id, ...cat, createdAt: now });
     } catch (error: any) {
       console.error("Error creating category:", error);
@@ -173,6 +200,7 @@ async function startServer() {
     try {
       const { id } = req.params;
       await sqliteDb.sql`DELETE FROM categories WHERE id = ${id};`;
+      broadcastCategoriesUpdate();
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting category:", error);
@@ -186,6 +214,8 @@ async function startServer() {
       const { newName } = req.body;
       await sqliteDb.sql`UPDATE categories SET name = ${newName} WHERE name = ${name};`;
       await sqliteDb.sql`UPDATE articles SET category = ${newName} WHERE category = ${name};`;
+      broadcastCategoriesUpdate();
+      broadcastArticlesUpdate();
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error updating category:", error);
@@ -197,6 +227,7 @@ async function startServer() {
     try {
       const { name } = req.params;
       await sqliteDb.sql`DELETE FROM categories WHERE name = ${name};`;
+      broadcastCategoriesUpdate();
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting category:", error);
@@ -227,6 +258,7 @@ async function startServer() {
         `;
       }
 
+      broadcastCategoriesUpdate();
       res.json({ success: true, message: "Categories reset and seeded successfully." });
     } catch (error: any) {
       console.error("Error resetting categories:", error);
@@ -311,7 +343,7 @@ Sitemap: https://huisache.com/sitemap.xml`;
     });
   }
 
-  server.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

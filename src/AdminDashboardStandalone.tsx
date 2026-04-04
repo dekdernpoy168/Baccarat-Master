@@ -41,6 +41,7 @@ import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
+import { io } from 'socket.io-client';
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
@@ -725,6 +726,21 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadData();
+
+    // Socket.io for real-time updates
+    const socket = io();
+    socket.on('articles_updated', () => {
+      console.log('Articles updated via socket (Admin)');
+      loadData();
+    });
+    socket.on('categories_updated', () => {
+      console.log('Categories updated via socket (Admin)');
+      loadData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const filteredArticles = articles.filter(a => {
