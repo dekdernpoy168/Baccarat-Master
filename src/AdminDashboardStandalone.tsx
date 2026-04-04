@@ -1016,6 +1016,24 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleResetCategories = async () => {
+    if (!window.confirm('คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตหมวดหมู่ทั้งหมด? ข้อมูลเดิมจะถูกลบและแทนที่ด้วยหมวดหมู่เริ่มต้น')) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/categories/reset', {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Failed to reset categories');
+      loadData();
+      alert('รีเซ็ตหมวดหมู่เรียบร้อยแล้ว');
+    } catch (err) {
+      console.error('Reset error:', err);
+      alert('เกิดข้อผิดพลาดในการรีเซ็ตหมวดหมู่');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1247,7 +1265,15 @@ const AdminDashboard = () => {
           className="bg-gray-900 border border-gold/20 p-8 rounded-3xl"
         >
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-gold">จัดการหมวดหมู่</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold text-gold">จัดการหมวดหมู่</h2>
+              <button 
+                onClick={handleResetCategories}
+                className="px-4 py-2 bg-red-500/10 border border-red-500/50 text-red-500 rounded-xl text-sm font-bold hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
+              >
+                <Trash2 size={16} /> รีเซ็ตหมวดหมู่เริ่มต้น
+              </button>
+            </div>
             <button onClick={() => setIsManagingCategories(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
           </div>
 
