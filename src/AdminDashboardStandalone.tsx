@@ -48,27 +48,13 @@ if (typeof window !== 'undefined') {
 }
 import { Helmet } from 'react-helmet-async';
 import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  orderBy, 
-  where,
-  getDocs,
-  serverTimestamp,
-  getDocFromServer
-} from 'firebase/firestore';
-import { 
   signInWithPopup, 
   GoogleAuthProvider, 
   onAuthStateChanged, 
   signOut,
   User
 } from 'firebase/auth';
-import { db, auth } from './firebase';
+import { auth } from './firebase';
 import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
 import { cn } from './lib/utils';
 
@@ -712,49 +698,33 @@ const AdminDashboard = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
 
   // Fetch data on mount
+  const loadData = async () => {
+    try {
+      const [articlesRes, categoriesRes] = await Promise.all([
+        fetch('/api/articles'),
+        fetch('/api/categories')
+      ]);
+      
+      if (articlesRes.ok) {
+        const docs = await articlesRes.json();
+        setArticles(docs);
+      } else {
+        setError("ไม่สามารถดึงข้อมูลบทความได้");
+      }
+
+      if (categoriesRes.ok) {
+        const catsData = await categoriesRes.json();
+        const cats = catsData.map((cat: any) => cat.name);
+        setCategories(cats);
+      }
+    } catch (err: any) {
+      console.error("Fetch Error:", err);
+      setError(err.message);
+    }
+  };
+
   useEffect(() => {
-    const fetchArticles = () => {
-      try {
-        const qArticles = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
-        const unsubscribe = onSnapshot(qArticles, (snapshot) => {
-          const docs = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as Article[];
-          setArticles(docs);
-        }, (err) => {
-          console.error("Firestore Error (Articles):", err);
-          setError("ไม่สามารถดึงข้อมูลบทความได้: " + err.message);
-        });
-        return unsubscribe;
-      } catch (err: any) {
-        console.error("Fetch Articles Error:", err);
-        setError(err.message);
-      }
-    };
-
-    const fetchCategories = () => {
-      try {
-        const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
-        const unsubscribe = onSnapshot(qCategories, (snapshot) => {
-          const cats = snapshot.docs.map(doc => doc.data().name as string);
-          setCategories(cats);
-        }, (err) => {
-          console.error("Firestore Error (Categories):", err);
-        });
-        return unsubscribe;
-      } catch (err: any) {
-        console.error("Fetch Categories Error:", err);
-      }
-    };
-
-    const unsubArticles = fetchArticles();
-    const unsubCategories = fetchCategories();
-
-    return () => {
-      if (unsubArticles && typeof unsubArticles === 'function') unsubArticles();
-      if (unsubCategories && typeof unsubCategories === 'function') unsubCategories();
-    };
+    loadData();
   }, []);
 
   const filteredArticles = articles.filter(a => {
@@ -995,12 +965,14 @@ const AdminDashboard = () => {
     if (!newCategoryName.trim()) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'categories'), where('name', '==', newCategoryName.trim()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        await addDoc(collection(db, 'categories'), { name: newCategoryName.trim() });
-      }
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCategoryName.trim() })
+      });
+      if (!res.ok) throw new Error('Failed to save category');
       setNewCategoryName('');
+      loadData();
     } catch (err) {
       console.error(err);
     } finally {
@@ -1012,21 +984,14 @@ const AdminDashboard = () => {
     if (!editingCategory || !editingCategory.new.trim()) return;
     setLoading(true);
     try {
-      // 1. Update Category Name in categories collection
-      const q = query(collection(db, 'categories'), where('name', '==', editingCategory.old));
-      const snap = await getDocs(q);
-      for (const d of snap.docs) {
-        await updateDoc(doc(db, 'categories', d.id), { name: editingCategory.new.trim() });
-      }
-
-      // 2. Update all articles using this category
-      const articlesToUpdate = articles.filter(a => a.category === editingCategory.old);
-      for (const art of articlesToUpdate) {
-        if (art.id) {
-          await updateDoc(doc(db, 'articles', art.id), { category: editingCategory.new.trim() });
-        }
-      }
+      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newName: editingCategory.new.trim() })
+      });
+      if (!res.ok) throw new Error('Failed to update category');
       setEditingCategory(null);
+      loadData();
     } catch (err) {
       console.error(err);
     } finally {
@@ -1038,11 +1003,11 @@ const AdminDashboard = () => {
     if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบหมวดหมู่ "${catName}"?`)) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'categories'), where('name', '==', catName));
-      const snap = await getDocs(q);
-      for (const d of snap.docs) {
-        await deleteDoc(doc(db, 'categories', d.id));
-      }
+      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete category');
+      loadData();
     } catch (err) {
       console.error(err);
     } finally {
@@ -1161,59 +1126,78 @@ const AdminDashboard = () => {
       
       const getPublishedAt = () => {
         if (status === 'draft') return null;
-        if (!currentArticle.publishedAt) return serverTimestamp();
+        if (!currentArticle.publishedAt) return new Date().toISOString();
         // If it's a string from the datetime-local input
-        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt);
+        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt).toISOString();
         // If it's already a Firestore Timestamp or Date object
-        return currentArticle.publishedAt;
+        if (currentArticle.publishedAt.seconds) return new Date(currentArticle.publishedAt.seconds * 1000).toISOString();
+        return new Date(currentArticle.publishedAt).toISOString();
       };
 
       const articleData = {
         ...dataWithoutId,
         status,
-        updatedAt: serverTimestamp(),
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
       };
 
-      // Check document size (Firestore limit is 1MB)
+      // Check document size (SQLite limit is higher, but keep reasonable)
       const estimatedSize = JSON.stringify(articleData).length;
-      if (estimatedSize > 1000000) {
-        throw new Error(`บทความมีขนาดใหญ่เกินไป (${(estimatedSize / 1024 / 1024).toFixed(2)} MB) ขีดจำกัดของระบบคือ 1 MB กรุณาลดขนาดเนื้อหาหรือรูปภาพที่ฝังอยู่ในบทความ`);
+      if (estimatedSize > 5000000) {
+        throw new Error(`บทความมีขนาดใหญ่เกินไป (${(estimatedSize / 1024 / 1024).toFixed(2)} MB) กรุณาลดขนาดเนื้อหาหรือรูปภาพที่ฝังอยู่ในบทความ`);
       }
 
+      let res;
       if (id) {
-        const docRef = doc(db, 'articles', id);
-        await updateDoc(docRef, articleData);
-      } else {
-        await addDoc(collection(db, 'articles'), {
-          ...articleData,
-          createdAt: serverTimestamp(),
+        res = await fetch(`/api/articles/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(articleData)
         });
+      } else {
+        res = await fetch('/api/articles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(articleData)
+        });
+      }
+
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to save article');
+        } else {
+          throw new Error(`Failed to save article: ${res.status} ${res.statusText}`);
+        }
       }
 
       // Also ensure category exists in categories collection
       if (articleData.category) {
-        const q = query(collection(db, 'categories'), where('name', '==', articleData.category));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          await addDoc(collection(db, 'categories'), { name: articleData.category });
+        const catRes = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: articleData.category })
+        });
+        if (!catRes.ok) {
+          console.error('Failed to save category');
         }
       }
 
       setIsEditing(false);
       setCurrentArticle({});
+      loadData(); // Reload data
     } catch (err: any) {
       let message = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
       try {
         const parsed = JSON.parse(err.message);
-        if (parsed.error.includes('permission-denied')) {
+        if (parsed.error && parsed.error.includes('permission-denied')) {
           message = "คุณไม่มีสิทธิ์ในการบันทึกข้อมูล (Permission Denied)";
-        } else if (parsed.error.includes('exceeds the maximum allowed size')) {
+        } else if (parsed.error && parsed.error.includes('exceeds the maximum allowed size')) {
           message = "บทความมีขนาดใหญ่เกินไป (เกิน 1MB) กรุณาลดขนาดรูปภาพหรือเนื้อหาลง";
         } else {
-          message = parsed.error;
+          message = parsed.error || err.message;
         }
       } catch (e) {
         if (err.message.includes('เกินไป')) {
@@ -1232,9 +1216,12 @@ const AdminDashboard = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm("ยืนยันการลบตัวเลือกนี้?")) return;
     try {
-      await deleteDoc(doc(db, 'articles', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'articles');
+      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete article');
+      loadData();
+    } catch (error: any) {
+      console.error("Delete Error:", error);
+      setError("ไม่สามารถลบบทความได้: " + error.message);
     }
   };
 
@@ -1242,6 +1229,7 @@ const AdminDashboard = () => {
     toolbar: [
       [{ 'header': [1, 2, 3, false] }],
       ['bold', 'italic', 'underline', 'strike'],
+      [{ 'color': [] }, { 'background': [] }],
       [{ 'list': 'ordered' }, { 'list': 'bullet' }],
       ['link', 'image'],
       ['clean']

@@ -48,27 +48,13 @@ if (typeof window !== 'undefined') {
 }
 import { Helmet } from 'react-helmet-async';
 import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  orderBy, 
-  where,
-  getDocs,
-  serverTimestamp,
-  getDocFromServer
-} from 'firebase/firestore';
-import { 
   signInWithPopup, 
   GoogleAuthProvider, 
   onAuthStateChanged, 
   signOut,
   User
 } from 'firebase/auth';
-import { db, auth } from './firebase';
+import { auth } from './firebase';
 import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
 import { cn } from './lib/utils';
 
@@ -183,9 +169,14 @@ const Navbar = ({ user }: { user: User | null }) => {
             <Link to="/admin" className={cn("px-2.5 lg:px-4 py-1.5 lg:py-2 rounded-lg text-[12px] sm:text-[13px] lg:text-sm font-medium transition-all whitespace-nowrap border", location.pathname.startsWith('/admin') ? "bg-gold/10 text-gold border-gold/30" : "bg-white/5 text-gray-300 border-transparent hover:bg-white/10 hover:text-white")}>จัดการหลังบ้าน</Link>
           )}
           {!user ? (
-            <Link to="/login" className="gold-bg-gradient text-baccarat-black px-3 sm:px-4 lg:px-6 py-1.5 lg:py-2 rounded-lg font-bold text-[12px] sm:text-[13px] lg:text-sm hover:scale-105 transition-transform shadow-lg shadow-gold/20 whitespace-nowrap">
-              เข้าสู่ระบบ
-            </Link>
+            <>
+              <Link to="/login" className="gold-bg-gradient text-baccarat-black px-3 sm:px-4 lg:px-6 py-1.5 lg:py-2 rounded-lg font-bold text-[12px] sm:text-[13px] lg:text-sm hover:scale-105 transition-transform shadow-lg shadow-gold/20 whitespace-nowrap">
+                เข้าสู่ระบบ
+              </Link>
+              <a href="https://inlnk.co/registerbocker168" target="_blank" rel="noopener noreferrer" className="bg-baccarat-red text-white px-3 sm:px-4 lg:px-6 py-1.5 lg:py-2 rounded-lg font-bold text-[12px] sm:text-[13px] lg:text-sm hover:scale-105 transition-transform shadow-lg shadow-baccarat-red/20 whitespace-nowrap">
+                สมัครสมาชิก
+              </a>
+            </>
           ) : (
             <div className="flex items-center space-x-2">
               <span className="text-gray-400 text-xs hidden sm:inline-block max-w-[100px] lg:max-w-[120px] truncate">{user.email}</span>
@@ -256,7 +247,7 @@ const Footer = () => (
           <h3 className="text-gold font-bold mb-6 uppercase tracking-wider">ติดต่อเรา</h3>
           <ul className="space-y-4 text-gray-400 text-sm mb-6">
             <li className="flex items-center gap-2">
-              <span className="text-gold font-bold">Line:</span> @baccaratmaster
+              <span className="text-gold font-bold">Line:</span> @so168
             </li>
             <li className="flex items-center gap-2">
               <span className="text-gold font-bold">Email:</span> contact@baccaratmaster.com
@@ -638,11 +629,14 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               ยินดีต้อนรับสู่แหล่งรวมข้อมูลบาคาร่าที่ใหญ่ที่สุดในไทย เราเจาะลึกทุกกลยุทธ์ 
               ตั้งแต่พื้นฐานไปจนถึงเทคนิคขั้นสูง เผยแพร่แบบไม่มีกั๊ก เพื่อให้คุณเป็นผู้ชนะในระยะยาว
             </p>
-            <div className="flex flex-col sm:flex-row gap-6">
-              <Link to="/articles" className="gold-bg-gradient text-baccarat-black px-12 py-5 rounded-full font-black text-xl text-center hover:scale-105 transition-transform shadow-[0_0_30px_rgba(212,175,55,0.3)]">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6">
+              <a href="https://inlnk.co/registerbocker168" target="_blank" rel="noopener noreferrer" className="bg-baccarat-red text-white px-8 md:px-12 py-4 md:py-5 rounded-full font-black text-lg md:text-xl text-center hover:scale-105 transition-transform shadow-[0_0_30px_rgba(220,38,38,0.3)]">
+                สมัครสมาชิก
+              </a>
+              <Link to="/articles" className="gold-bg-gradient text-baccarat-black px-8 md:px-12 py-4 md:py-5 rounded-full font-black text-lg md:text-xl text-center hover:scale-105 transition-transform shadow-[0_0_30px_rgba(212,175,55,0.3)]">
                 เริ่มเรียนรู้ฟรี
               </Link>
-              <Link to="/formula" className="bg-white/5 backdrop-blur-xl border border-white/10 text-white px-12 py-5 rounded-full font-black text-xl text-center hover:bg-white/10 transition-all flex items-center justify-center group">
+              <Link to="/formula" className="bg-white/5 backdrop-blur-xl border border-white/10 text-white px-8 md:px-12 py-4 md:py-5 rounded-full font-black text-lg md:text-xl text-center hover:bg-white/10 transition-all flex items-center justify-center group">
                 สูตรบาคาร่า AI <ChevronRight size={24} className="ml-2 group-hover:translate-x-2 transition-transform" />
               </Link>
             </div>
@@ -2096,12 +2090,15 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
     if (!newCategoryName.trim()) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'categories'), where('name', '==', newCategoryName.trim()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        await addDoc(collection(db, 'categories'), { name: newCategoryName.trim() });
-      }
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCategoryName.trim() })
+      });
+      if (!res.ok) throw new Error('Failed to save category');
       setNewCategoryName('');
+      // Note: In App.tsx, the parent component fetches data. We might need to trigger a re-fetch or reload.
+      window.location.reload();
     } catch (err) {
       console.error(err);
     } finally {
@@ -2113,21 +2110,14 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
     if (!editingCategory || !editingCategory.new.trim()) return;
     setLoading(true);
     try {
-      // 1. Update Category Name in categories collection
-      const q = query(collection(db, 'categories'), where('name', '==', editingCategory.old));
-      const snap = await getDocs(q);
-      for (const d of snap.docs) {
-        await updateDoc(doc(db, 'categories', d.id), { name: editingCategory.new.trim() });
-      }
-
-      // 2. Update all articles using this category
-      const articlesToUpdate = articles.filter(a => a.category === editingCategory.old);
-      for (const art of articlesToUpdate) {
-        if (art.id) {
-          await updateDoc(doc(db, 'articles', art.id), { category: editingCategory.new.trim() });
-        }
-      }
+      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newName: editingCategory.new.trim() })
+      });
+      if (!res.ok) throw new Error('Failed to update category');
       setEditingCategory(null);
+      window.location.reload();
     } catch (err) {
       console.error(err);
     } finally {
@@ -2139,11 +2129,11 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
     if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบหมวดหมู่ "${catName}"?`)) return;
     setLoading(true);
     try {
-      const q = query(collection(db, 'categories'), where('name', '==', catName));
-      const snap = await getDocs(q);
-      for (const d of snap.docs) {
-        await deleteDoc(doc(db, 'categories', d.id));
-      }
+      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete category');
+      window.location.reload();
     } catch (err) {
       console.error(err);
     } finally {
@@ -2262,59 +2252,78 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       
       const getPublishedAt = () => {
         if (status === 'draft') return null;
-        if (!currentArticle.publishedAt) return serverTimestamp();
+        if (!currentArticle.publishedAt) return new Date().toISOString();
         // If it's a string from the datetime-local input
-        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt);
+        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt).toISOString();
         // If it's already a Firestore Timestamp or Date object
-        return currentArticle.publishedAt;
+        if (currentArticle.publishedAt.seconds) return new Date(currentArticle.publishedAt.seconds * 1000).toISOString();
+        return new Date(currentArticle.publishedAt).toISOString();
       };
 
       const articleData = {
         ...dataWithoutId,
         status,
-        updatedAt: serverTimestamp(),
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
       };
 
-      // Check document size (Firestore limit is 1MB)
+      // Check document size (SQLite limit is higher, but keep reasonable)
       const estimatedSize = JSON.stringify(articleData).length;
-      if (estimatedSize > 1000000) {
-        throw new Error(`บทความมีขนาดใหญ่เกินไป (${(estimatedSize / 1024 / 1024).toFixed(2)} MB) ขีดจำกัดของระบบคือ 1 MB กรุณาลดขนาดเนื้อหาหรือรูปภาพที่ฝังอยู่ในบทความ`);
+      if (estimatedSize > 5000000) {
+        throw new Error(`บทความมีขนาดใหญ่เกินไป (${(estimatedSize / 1024 / 1024).toFixed(2)} MB) กรุณาลดขนาดเนื้อหาหรือรูปภาพที่ฝังอยู่ในบทความ`);
       }
 
+      let res;
       if (id) {
-        const docRef = doc(db, 'articles', id);
-        await updateDoc(docRef, articleData);
-      } else {
-        await addDoc(collection(db, 'articles'), {
-          ...articleData,
-          createdAt: serverTimestamp(),
+        res = await fetch(`/api/articles/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(articleData)
         });
+      } else {
+        res = await fetch('/api/articles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(articleData)
+        });
+      }
+
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to save article');
+        } else {
+          throw new Error(`Failed to save article: ${res.status} ${res.statusText}`);
+        }
       }
 
       // Also ensure category exists in categories collection
       if (articleData.category) {
-        const q = query(collection(db, 'categories'), where('name', '==', articleData.category));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          await addDoc(collection(db, 'categories'), { name: articleData.category });
+        const catRes = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: articleData.category })
+        });
+        if (!catRes.ok) {
+          console.error('Failed to save category');
         }
       }
 
       setIsEditing(false);
       setCurrentArticle({});
+      window.location.reload();
     } catch (err: any) {
       let message = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
       try {
         const parsed = JSON.parse(err.message);
-        if (parsed.error.includes('permission-denied')) {
+        if (parsed.error && parsed.error.includes('permission-denied')) {
           message = "คุณไม่มีสิทธิ์ในการบันทึกข้อมูล (Permission Denied)";
-        } else if (parsed.error.includes('exceeds the maximum allowed size')) {
+        } else if (parsed.error && parsed.error.includes('exceeds the maximum allowed size')) {
           message = "บทความมีขนาดใหญ่เกินไป (เกิน 1MB) กรุณาลดขนาดรูปภาพหรือเนื้อหาลง";
         } else {
-          message = parsed.error;
+          message = parsed.error || err.message;
         }
       } catch (e) {
         if (err.message.includes('เกินไป')) {
@@ -2333,9 +2342,12 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   const handleDelete = async (id: string) => {
     if (!window.confirm("ยืนยันการลบตัวเลือกนี้?")) return;
     try {
-      await deleteDoc(doc(db, 'articles', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'articles');
+      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete article');
+      window.location.reload();
+    } catch (error: any) {
+      console.error("Delete Error:", error);
+      setError("ไม่สามารถลบบทความได้: " + error.message);
     }
   };
 
@@ -3834,12 +3846,9 @@ export default function App() {
     // Fetch Articles once
     const fetchArticles = async () => {
       try {
-        const qArticles = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
-        const snapshot = await getDocs(qArticles);
-        const docs = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Article[];
+        const response = await fetch('/api/articles');
+        if (!response.ok) throw new Error('Failed to fetch articles');
+        const docs = await response.json();
         
         if (docs.length === 0) {
           setArticles(STATIC_ARTICLES);
@@ -3847,7 +3856,7 @@ export default function App() {
           setArticles(docs);
         }
       } catch (error) {
-        console.error("Firestore Error (Articles):", error);
+        console.error("API Error (Articles):", error);
         setArticles(STATIC_ARTICLES);
       }
     };
@@ -3855,12 +3864,13 @@ export default function App() {
     // Fetch Categories once
     const fetchCategories = async () => {
       try {
-        const qCategories = query(collection(db, 'categories'), orderBy('name', 'asc'));
-        const snapshot = await getDocs(qCategories);
-        const cats = snapshot.docs.map(doc => doc.data().name as string);
+        const response = await fetch('/api/categories');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        const catsData = await response.json();
+        const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       } catch (error) {
-        console.error("Firestore Error (Categories):", error);
+        console.error("API Error (Categories):", error);
       }
     };
 
