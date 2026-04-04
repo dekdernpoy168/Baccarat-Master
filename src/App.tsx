@@ -1830,7 +1830,7 @@ const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '
   );
 };
 
-const AdminDashboard = ({ articles, categories }: { articles: Article[], categories: string[] }) => {
+const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { articles: Article[], categories: string[], setArticles: (articles: Article[]) => void, setCategories: (categories: string[]) => void }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -2101,8 +2101,14 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       });
       if (!res.ok) throw new Error('Failed to save category');
       setNewCategoryName('');
-      // Note: In App.tsx, the parent component fetches data. We might need to trigger a re-fetch or reload.
-      window.location.reload();
+      
+      // Update categories state
+      const catsRes = await fetch('/api/categories');
+      if (catsRes.ok) {
+        const catsData = await catsRes.json();
+        const cats = catsData.map((cat: any) => cat.name);
+        setCategories(cats);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -2121,7 +2127,14 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
       });
       if (!res.ok) throw new Error('Failed to update category');
       setEditingCategory(null);
-      window.location.reload();
+      
+      // Update categories state
+      const catsRes = await fetch('/api/categories');
+      if (catsRes.ok) {
+        const catsData = await catsRes.json();
+        const cats = catsData.map((cat: any) => cat.name);
+        setCategories(cats);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -2130,14 +2143,21 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   };
 
   const handleDeleteCategory = async (catName: string) => {
-    if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบหมวดหมู่ "${catName}"?`)) return;
+    // Removed window.confirm as it is blocked in the sandboxed environment
     setLoading(true);
     try {
       const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error('Failed to delete category');
-      window.location.reload();
+      
+      // Update categories state
+      const catsRes = await fetch('/api/categories');
+      if (catsRes.ok) {
+        const catsData = await catsRes.json();
+        const cats = catsData.map((cat: any) => cat.name);
+        setCategories(cats);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -2317,7 +2337,21 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
 
       setIsEditing(false);
       setCurrentArticle({});
-      window.location.reload();
+      
+      // Update articles and categories state
+      const [articlesRes, categoriesRes] = await Promise.all([
+        fetch('/api/articles'),
+        fetch('/api/categories')
+      ]);
+      if (articlesRes.ok) {
+        const docs = await articlesRes.json();
+        setArticles(docs);
+      }
+      if (categoriesRes.ok) {
+        const catsData = await categoriesRes.json();
+        const cats = catsData.map((cat: any) => cat.name);
+        setCategories(cats);
+      }
     } catch (err: any) {
       let message = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
       try {
@@ -2344,7 +2378,7 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("ยืนยันการลบตัวเลือกนี้?")) return;
+    // Removed window.confirm as it is blocked in the sandboxed environment
     try {
       const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete article');
@@ -3906,7 +3940,7 @@ export default function App() {
               path="/admin" 
               element={
                 user?.email === ADMIN_EMAIL ? (
-                  <AdminDashboard articles={articles} categories={categories} />
+                  <AdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} />
                 ) : (
                   <Navigate to="/login" />
                 )
