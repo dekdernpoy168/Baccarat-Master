@@ -269,8 +269,8 @@ const Footer = () => (
       <div className="mt-12 pt-8 border-t border-gray-800">
         <h4 className="text-gray-500 text-xs font-bold mb-3 uppercase tracking-wider">คำค้นหายอดนิยม</h4>
         <div className="flex flex-wrap gap-2">
-          {["บาคาร่า", "สูตรบาคาร่า", "เล่นบาคาร่า", "บาคาร่าออนไลน์", "เทคนิคบาคาร่า", "บาคาร่ามือถือ", "เว็บบาคาร่า", "เซียนบาคาร่า", "วิธีเล่นบาคาร่า", "สูตรเดินเงินบาคาร่า"].map((keyword, index) => (
-            <span key={index} className="text-xs text-gray-600 hover:text-gold transition-colors cursor-default">
+          {["บาคาร่า", "สูตรบาคาร่า", "เล่นบาคาร่า", "บาคาร่าออนไลน์", "เทคนิคบาคาร่า", "บาคาร่ามือถือ", "เว็บบาคาร่า", "เซียนบาคาร่า", "วิธีเล่นบาคาร่า", "สูตรเดินเงินบาคาร่า"].map((keyword) => (
+            <span key={keyword} className="text-xs text-gray-600 hover:text-gold transition-colors cursor-default">
               {keyword}
             </span>
           ))}
@@ -546,13 +546,13 @@ const AboutPage = () => {
               { name: "Master K", role: "Founder & Lead Strategist", bio: "ผู้เชี่ยวชาญด้านการอ่านเค้าไพ่และเทคนิคการเดินเงินที่มีประสบการณ์กว่า 10 ปี" },
               { name: "Sarah J.", role: "Content Editor", bio: "บรรณาธิการผู้ดูแลเนื้อหาและตรวจสอบความถูกต้องของข้อมูลทั้งหมดในเว็บไซต์" },
               { name: "Alex T.", role: "Data Analyst", bio: "นักวิเคราะห์ข้อมูลที่ช่วยพัฒนาสูตรและระบบการคำนวณต่างๆ ให้มีความแม่นยำสูงสุด" }
-            ].map((member, index) => (
+            ].map((member) => (
               <motion.div
-                key={index}
+                key={member.name}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: 0.1 }}
                 className="bg-gray-900/50 border border-gold/10 p-8 rounded-3xl text-center hover:border-gold/30 transition-colors group"
               >
                 <div className="w-24 h-24 bg-gold/10 rounded-full mx-auto mb-6 flex items-center justify-center border border-gold/20 group-hover:scale-110 transition-transform">
@@ -659,6 +659,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {[
             { 
+              id: "basic",
               title: "วิธีเล่นเบื้องต้น", 
               desc: "ทำความเข้าใจกฎ กติกา อัตราการจ่ายเงิน และเงื่อนไขการจั่วไพ่ใบที่สามอย่างละเอียดสำหรับมือใหม่ที่ต้องการเริ่มอย่างถูกต้อง",
               icon: <BookOpen className="w-6 h-6 text-gold" />,
@@ -666,6 +667,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               color: "from-blue-500/20 to-transparent"
             },
             { 
+              id: "reading",
               title: "การอ่านเค้าไพ่", 
               desc: "เจาะลึกเค้าไพ่มังกร ปิงปอง เ้าไพ่ลูกคู่ และการวิเคราะห์โรดแมพ (Roadmap) ทั้ง 5 รูปแบบที่เซียนใช้ทำเงินจริง",
               icon: <Eye className="w-6 h-6 text-gold" />,
@@ -673,6 +675,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               color: "from-purple-500/20 to-transparent"
             },
             { 
+              id: "money",
               title: "เทคนิคการเดินเงิน", 
               desc: "สอนระบบการวางเดิมพันแบบ Martingale, Fibonacci, 1-3-2-4 และสูตรเดินเงินคงที่เพื่อรักษาพอร์ตและทำกำไรยั่งยืน",
               icon: <TrendingUp className="w-6 h-6 text-gold" />,
@@ -680,6 +683,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               color: "from-green-500/20 to-transparent"
             },
             { 
+              id: "expert",
               title: "ทริคระดับเซียน", 
               desc: "รวบรวมเคล็ดลับจิตวิทยาการเล่น การจัดการอารมณ์ และเทคนิคการเลือกห้องที่เพิ่มโอกาสชนะได้มากกว่า 80%",
               icon: <Zap className="w-6 h-6 text-gold" />,
@@ -688,7 +692,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
             }
           ].map((item, i) => (
             <motion.div 
-              key={i}
+              key={item.id}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
@@ -931,7 +935,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               desc: "นำสูตร AI และเทคนิคการเดินเงินมาประยุกต์ใช้เพื่อเพิ่มความแม่นยำในการตัดสินใจ" 
             }
           ].map((item, i) => (
-            <div key={i} className="relative group">
+            <div key={item.step} className="relative group">
               <div className="text-8xl font-black text-white/5 absolute -top-8 -left-4 group-hover:text-gold/10 transition-colors">
                 {item.step}
               </div>
@@ -2394,8 +2398,8 @@ const AdminDashboard = ({ articles, categories }: { articles: Article[], categor
             </div>
 
             <div className="space-y-3">
-              {categories.map(cat => (
-                <div key={cat} className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
+              {categories.map((cat, index) => (
+                <div key={cat + index} className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
                   {editingCategory?.old === cat ? (
                     <div className="flex-grow flex gap-2 mr-4">
                       <input 

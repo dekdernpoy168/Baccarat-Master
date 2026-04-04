@@ -23,6 +23,44 @@ async function startServer() {
   server.use(express.json({ limit: '50mb' })); // Add JSON body parser with increased limit
   const PORT = 3000;
 
+  // Initialize SQLiteCloud tables
+  try {
+    const connectionString = process.env.SQLITE_CLOUD_URL || "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/auth.sqlitecloud?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
+    const sqliteDb = new Database(connectionString);
+    await sqliteDb.sql`
+      CREATE TABLE IF NOT EXISTS articles (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        excerpt TEXT,
+        content TEXT,
+        category TEXT,
+        date TEXT,
+        author TEXT,
+        image TEXT,
+        slug TEXT,
+        metaTitle TEXT,
+        metaDescription TEXT,
+        metaKeywords TEXT,
+        publishedAt TEXT,
+        createdAt TEXT,
+        updatedAt TEXT,
+        status TEXT
+      );
+    `;
+    await sqliteDb.sql`
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        slug TEXT,
+        description TEXT,
+        createdAt TEXT
+      );
+    `;
+    console.log("SQLiteCloud tables initialized successfully.");
+  } catch (error) {
+    console.error("Error initializing SQLiteCloud tables:", error);
+  }
+
   // API routes
   server.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -158,9 +196,11 @@ async function startServer() {
   // --- Articles ---
   server.get("/api/articles", async (req, res) => {
     try {
+      console.log("Fetching articles...");
       const connectionString = process.env.SQLITE_CLOUD_URL || "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/auth.sqlitecloud?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
       const sqliteDb = new Database(connectionString);
       const articles = await sqliteDb.sql`SELECT * FROM articles ORDER BY createdAt DESC;`;
+      console.log("Articles fetched successfully:", articles);
       res.json(articles);
     } catch (error: any) {
       console.error("Error fetching articles:", error);
