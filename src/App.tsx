@@ -56,7 +56,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
+import { Article } from './constants';
 import { cn } from './lib/utils';
 
 // --- Types & Constants ---
@@ -3899,15 +3899,12 @@ export default function App() {
         const docs = await response.json();
         console.log(`Fetched ${docs.length} articles from API`);
         
-        if (docs.length === 0) {
-          console.log('No articles in DB, using static articles');
-          setArticles(STATIC_ARTICLES);
-        } else {
-          setArticles(docs);
-        }
+        // Only use articles from the database
+        setArticles(docs);
       } catch (error) {
         console.error("API Error (Articles):", error);
-        setArticles(STATIC_ARTICLES);
+        // Set to empty array on error instead of static articles
+        setArticles([]);
       }
     };
 
