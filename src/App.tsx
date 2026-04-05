@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -54,12 +54,16 @@ if (typeof window !== 'undefined') {
 }
 import { Helmet } from 'react-helmet-async';
 import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  signOut,
   User
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { Article } from './constants';
 import { cn } from './lib/utils';
-import { AuthProvider, useAuth } from './auth';
+import { AuthProvider } from './auth';
 
 // --- Types & Constants ---
 
@@ -183,7 +187,7 @@ const Navbar = ({ user }: { user: User | null }) => {
           ) : (
             <div className="flex items-center space-x-2">
               <span className="text-gray-400 text-xs hidden sm:inline-block max-w-[100px] lg:max-w-[120px] truncate">{user.email}</span>
-              <button onClick={() => logout()} className="bg-baccarat-red/20 text-baccarat-red hover:bg-baccarat-red hover:text-white p-1.5 lg:p-2 rounded-lg transition-colors">
+              <button onClick={() => signOut(auth)} className="bg-baccarat-red/20 text-baccarat-red hover:bg-baccarat-red hover:text-white p-1.5 lg:p-2 rounded-lg transition-colors">
                 <LogOut size={16} className="lg:w-[18px] lg:h-[18px]" />
               </button>
             </div>
@@ -1307,12 +1311,9 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
   );
 };
 
-const LoginPage = () => {
+const LoginPage = ({ user }: { user: User | null }) => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const { user, login } = useAuth();
 
   useEffect(() => {
     if (user?.email === ADMIN_EMAIL) {
@@ -1320,14 +1321,14 @@ const LoginPage = () => {
     }
   }, [user, navigate]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     setError(null);
     try {
-      await login(email, password);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
     } catch (err: any) {
       console.error("Login failed", err);
-      setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+      setError(err.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
     }
   };
 
@@ -1350,11 +1351,13 @@ const LoginPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 rounded-xl bg-gray-800 text-white border border-gray-700" required />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 rounded-xl bg-gray-800 text-white border border-gray-700" required />
-          <button type="submit" className="w-full bg-gold text-baccarat-black font-bold py-3 rounded-xl hover:bg-gold/90 transition-colors">เข้าสู่ระบบ</button>
-        </form>
+        <button 
+          onClick={handleLogin}
+          className="w-full flex items-center justify-center space-x-3 bg-white text-black font-bold py-4 rounded-full hover:bg-gray-200 transition-colors"
+        >
+          <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+          <span>เข้าสู่ระบบด้วย Google</span>
+        </button>
       </div>
     </div>
   );
@@ -4026,45 +4029,11 @@ const FormulaPage = () => {
 // --- Main App ---
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
-
-function AppContent() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const { user, loading: authLoading, logout } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' } | null>(null);
-
-  const fetchArticles = useCallback(async () => {
-    console.log('Fetching articles from API...');
-    try {
-      const response = await fetch('/api/articles');
-      if (!response.ok) throw new Error('Failed to fetch articles');
-      const docs = await response.json();
-      console.log(`Fetched ${docs.length} articles from API`);
-      setArticles(docs);
-    } catch (error) {
-      console.error("API Error (Articles):", error);
-      setArticles([]);
-    }
-  }, []);
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const response = await fetch('/api/categories');
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      const catsData = await response.json();
-      const cats = catsData.map((cat: any) => cat.name);
-      setCategories(cats);
-    } catch (error) {
-      console.error("API Error (Categories):", error);
-      setCategories([]);
-    }
-  }, []);
 
   useEffect(() => {
     if (notification) {
@@ -4074,44 +4043,44 @@ function AppContent() {
   }, [notification]);
 
   useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthReady(true);
+    });
+
+    // Fetch Articles
+    const fetchArticles = async () => {
+      console.log('Fetching articles from API...');
+      try {
+        const response = await fetch('/api/articles');
+        if (!response.ok) throw new Error('Failed to fetch articles');
+        const docs = await response.json();
+        console.log(`Fetched ${docs.length} articles from API`);
+        
+        // Only use articles from the database
+        setArticles(docs);
+      } catch (error) {
+        console.error("API Error (Articles):", error);
+        // Set to empty array on error instead of static articles
+        setArticles([]);
+      }
+    };
+
+    // Fetch Categories
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        const catsData = await response.json();
+        const cats = catsData.map((cat: any) => cat.name);
+        setCategories(cats);
+      } catch (error) {
+        console.error("API Error (Categories):", error);
+      }
+    };
+
     fetchArticles();
     fetchCategories();
-
-    // Socket.io for real-time updates
-    console.log('Initializing socket.io client...');
-    const socket = io({
-      transports: ['polling'], // Force polling to avoid WebSocket errors and unhandled rejections in this environment
-      reconnectionAttempts: 10,
-      reconnectionDelay: 5000, // Wait 5s between retries
-      timeout: 60000, // Increased timeout to 60s
-      autoConnect: true
-    });
-    
-    socket.on('connect', () => {
-      console.log('Socket.io connected with ID:', socket.id);
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Socket.io connection error:', error.message, error);
-    });
-
-    socket.on('articles_updated', () => {
-      console.log('Articles updated via socket - fetching new data...');
-      fetchArticles();
-      setNotification({ message: 'อัพเดตบทความเรียบร้อยแล้ว', type: 'info' });
-    });
-    socket.on('categories_updated', () => {
-      console.log('Categories updated via socket - fetching new data...');
-      fetchCategories();
-      setNotification({ message: 'อัพเดตหมวดหมู่เรียบร้อยแล้ว', type: 'info' });
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
-  if (authLoading) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
 
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
@@ -4147,11 +4116,12 @@ function AppContent() {
     });
 
     return () => {
+      unsubscribeAuth();
       socket.disconnect();
     };
   }, []);
 
-  if (authLoading) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
+  if (!authReady) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
 
   return (
     <Router>
@@ -4182,7 +4152,7 @@ function AppContent() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/login" element={<LoginPage user={user} />} />
             <Route 
               path="/admin" 
               element={
