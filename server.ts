@@ -465,7 +465,10 @@ Sitemap: https://huisache.com/sitemap.xml`;
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
-        hmr: false // Explicitly disable HMR to avoid WebSocket errors in this environment
+        hmr: {
+          protocol: 'ws',
+          host: 'localhost',
+        }
       },
       appType: "spa",
     });

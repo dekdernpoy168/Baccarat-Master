@@ -19,7 +19,10 @@ export default defineConfig(({mode}) => {
       proxy: {
         '/api': 'http://localhost:3000',
       },
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+      },
     },
   };
 });
