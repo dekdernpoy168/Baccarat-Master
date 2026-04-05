@@ -34,7 +34,9 @@ import {
   Type as TypeIcon,
   Eye,
   Calendar,
-  Tag
+  Tag,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { format } from 'date-fns';
@@ -1123,7 +1125,13 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
 };
 
 const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | null }) => {
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
+  console.log('ArticlesPage Debug:', { 
+    articlesCount: articles.length, 
+    userEmail: user?.email, 
+    isAdmin, 
+    ADMIN_EMAIL 
+  });
   const publishedArticles = articles.filter(a => isAdmin || isPublished(a));
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -1147,11 +1155,17 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
             <>คลังบทความ <span className="gold-gradient">บาคาร่า</span></>
           )}
         </h1>
-        <p className="text-gray-400 max-w-2xl mx-auto">
+        <p className="text-gray-400 max-w-2xl mx-auto mb-6">
           {categoryFilter === 'สูตรบาคาร่าฟรี' 
             ? 'รวบรวมสูตรบาคาร่าฟรี เทคนิคการเดินเงิน และวิธีการอ่านเค้าไพ่ที่แม่นยำที่สุด เพื่อเพิ่มโอกาสชนะให้กับคุณ'
             : 'รวบรวมทุกเรื่องราวเกี่ยวกับบาคาร่า ตั้งแต่วิธีเล่น สูตรเดินเงิน การอ่านเค้าไพ่ และเทคนิคต่างๆ ที่จะช่วยให้คุณเป็นมืออาชีพ'}
         </p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="text-gold/60 hover:text-gold text-sm flex items-center gap-2 mx-auto transition-colors"
+        >
+          <RefreshCw size={14} /> รีเฟรชข้อมูล
+        </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {filteredArticles.length > 0 ? (
@@ -1857,6 +1871,61 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
 
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleSeedArticles = async () => {
+    if (!confirm('ต้องการเพิ่มบทความเริ่มต้นเข้าระบบหรือไม่? (บทความทดลองจะถูกเพิ่มเข้าไป)')) return;
+    
+    setIsSeeding(true);
+    try {
+      // Import ARTICLES from constants (we need to make sure it's available or just define a few here)
+      const defaultArticles = [
+        {
+          id: 'welcome-article',
+          title: 'ยินดีต้อนรับสู่คลังบทความบาคาร่า',
+          slug: 'welcome-to-baccarat-articles',
+          excerpt: 'เริ่มต้นเรียนรู้เทคนิคและสูตรบาคาร่าที่นี่ เพื่อเพิ่มโอกาสในการชนะเดิมพันของคุณ',
+          content: '<h1>ยินดีต้อนรับ</h1><p>นี่คือบทความแรกของคุณ คุณสามารถแก้ไขหรือลบบทความนี้ได้ในหน้าจัดการหลังบ้าน</p>',
+          category: 'เทคนิคบาคาร่า',
+          image: 'https://picsum.photos/seed/baccarat/800/600',
+          status: 'published',
+          publishedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          author: 'Admin',
+          views: 0,
+          readTime: '2 min read',
+          tags: ['บาคาร่า', 'เทคนิค'],
+          metaTitle: 'ยินดีต้อนรับสู่คลังบทความบาคาร่า',
+          metaDescription: 'เริ่มต้นเรียนรู้เทคนิคและสูตรบาคาร่าที่นี่',
+          keywords: 'บาคาร่า, เทคนิค'
+        }
+      ];
+
+      for (const article of defaultArticles) {
+        await fetch('/api/articles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(article)
+        });
+      }
+      
+      // Refresh articles
+      const response = await fetch('/api/articles');
+      if (response.ok) {
+        const docs = await response.json();
+        setArticles(docs);
+      }
+      
+      alert('เพิ่มบทความเริ่มต้นเรียบร้อยแล้ว');
+    } catch (error) {
+      console.error('Error seeding articles:', error);
+      alert('เกิดข้อผิดพลาดในการเพิ่มบทความ');
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   const filteredArticles = articles.filter(a => {
     if (filterStatus === 'all') return true;
     if (filterStatus === 'draft') return a.status === 'draft';
@@ -2493,6 +2562,13 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
             className="gold-bg-gradient text-baccarat-black px-8 py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center"
           >
             <Plus size={20} className="mr-2" /> เพิ่มบทความใหม่
+          </button>
+          <button 
+            onClick={handleSeedArticles}
+            disabled={isSeeding}
+            className="bg-blue-600/20 text-blue-400 px-6 py-3 rounded-full font-bold hover:bg-blue-600/30 border border-blue-600/30 transition-all disabled:opacity-50 flex items-center"
+          >
+            {isSeeding ? 'กำลังเพิ่ม...' : <><Database size={20} className="mr-2" /> เพิ่มบทความเริ่มต้น</>}
           </button>
         </div>
       </div>
