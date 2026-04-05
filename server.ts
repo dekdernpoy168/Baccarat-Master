@@ -5,6 +5,8 @@ import fs from "fs";
 import { Database } from "@sqlitecloud/drivers";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 async function startServer() {
   const server = express();
@@ -34,7 +36,8 @@ async function startServer() {
 
   const PORT = 3000;
 
-  const connectionString = process.env.SQLITE_CLOUD_URL || "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/bgm-database?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
+  const connectionString = "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/bgm-database?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
+  console.log("Using SQLiteCloud connection string:", connectionString);
   const encryptionKey = process.env.SQLITE_CLOUD_ENCRYPTION_KEY || ""; // Temporarily empty to test
   
   const sqliteDb = new Database(connectionString);
@@ -43,15 +46,8 @@ async function startServer() {
   if (encryptionKey) {
     try {
       console.log("Attempting to apply encryption key...");
-      // For 64-character hex keys, SQLite often requires the x'...' prefix
-      // We use a plain string instead of a tagged template to avoid incorrect parameterization
-      if (encryptionKey.length === 64 && /^[0-9a-fA-F]+$/.test(encryptionKey)) {
-        await sqliteDb.sql("PRAGMA key = x'" + encryptionKey + "';");
-        console.log("SQLiteCloud encryption key applied with hex prefix.");
-      } else {
-        await sqliteDb.sql("PRAGMA key = '" + encryptionKey + "';");
-        console.log("SQLiteCloud encryption key applied as regular string.");
-      }
+      await sqliteDb.sql("PRAGMA key = '" + encryptionKey + "';");
+      console.log("SQLiteCloud encryption key applied.");
     } catch (err) {
       console.error("Error applying encryption key:", err);
     }
@@ -107,6 +103,15 @@ async function startServer() {
         name TEXT,
         slug TEXT,
         description TEXT,
+        createdAt TEXT
+      );
+    `;
+    await sqliteDb.sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE,
+        password TEXT,
+        role TEXT DEFAULT 'user',
         createdAt TEXT
       );
     `;
@@ -458,6 +463,42 @@ Sitemap: https://huisache.com/sitemap.xml`;
   server.all("/api/*", (req, res) => {
     console.log(`[${new Date().toISOString()}] Unmatched API route: ${req.method} ${req.url}`);
     res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+  });
+
+  // Auth API routes
+  server.post("/api/auth/register", async (req, res) => {
+    const { email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const id = Date.now().toString();
+    const createdAt = new Date().toISOString();
+    try {
+      await sqliteDb.sql`INSERT INTO users (id, email, password, createdAt) VALUES (${id}, ${email}, ${hashedPassword}, ${createdAt})`;
+      res.status(201).json({ message: "User registered" });
+    } catch (err) {
+      res.status(400).json({ error: "Registration failed" });
+    }
+  });
+
+  server.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    const users = await sqliteDb.sql`SELECT * FROM users WHERE email = ${email}`;
+    if (users.length === 0) return res.status(401).json({ error: "Invalid credentials" });
+    const user = users[0];
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: "Invalid credentials" });
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, "secret", { expiresIn: "1h" });
+    res.json({ token, user: { id: user.id, email: user.email, role: user.role } });
+  });
+
+  server.get("/api/auth/me", (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const user = jwt.verify(token, "secret");
+      res.json(user);
+    } catch (err) {
+      res.status(401).json({ error: "Unauthorized" });
+    }
   });
 
   // Vite middleware for development
