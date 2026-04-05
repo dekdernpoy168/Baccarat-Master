@@ -14,11 +14,11 @@ async function startServer() {
       origin: "*",
       methods: ["GET", "POST"]
     },
-    transports: ["polling", "websocket"], // Prefer polling to avoid websocket errors in logs
-    pingTimeout: 60000,
-    pingInterval: 25000,
+    transports: ["polling"], // Force polling to avoid WebSocket errors and unhandled rejections in this environment
+    pingTimeout: 120000,
+    pingInterval: 30000,
     allowEIO3: true,
-    connectTimeout: 45000,
+    connectTimeout: 60000,
     maxHttpBufferSize: 1e8 // 100MB
   });
 
@@ -111,6 +111,53 @@ async function startServer() {
       );
     `;
     console.log("SQLiteCloud tables initialized successfully.");
+
+    // Seed default articles if table is empty
+    const articlesCount = await sqliteDb.sql`SELECT COUNT(*) as count FROM articles;`;
+    if (articlesCount[0].count === 0) {
+      console.log("Seeding default articles...");
+      const now = new Date().toISOString();
+      const defaultArticles = [
+        {
+          id: 'baccarat-basics',
+          title: 'พื้นฐานการเล่นบาคาร่าสำหรับมือใหม่',
+          excerpt: 'เรียนรู้วิธีการเล่นบาคาร่าเบื้องต้น กฎกติกา และวิธีการวางเดิมพันที่ถูกต้อง',
+          content: '<h2>พื้นฐานการเล่นบาคาร่า</h2><p>บาคาร่าเป็นเกมไพ่ที่ได้รับความนิยมอย่างมากในคาสิโนทั่วโลก...</p>',
+          category: 'วิธีเล่นเบื้องต้น',
+          author: 'Admin',
+          image: 'https://picsum.photos/seed/baccarat1/800/600',
+          slug: 'baccarat-basics-for-beginners',
+          status: 'published',
+          publishedAt: now
+        },
+        {
+          id: 'money-management',
+          title: 'เทคนิคการเดินเงินบาคาร่าที่แม่นยำที่สุด',
+          excerpt: 'รวมสูตรการเดินเงินบาคาร่าที่ช่วยให้คุณบริหารทุนได้อย่างมีประสิทธิภาพ',
+          content: '<h2>เทคนิคการเดินเงิน</h2><p>การบริหารเงินทุนเป็นหัวใจสำคัญของการเล่นบาคาร่า...</p>',
+          category: 'เทคนิคการเดินเงิน',
+          author: 'Admin',
+          image: 'https://picsum.photos/seed/baccarat2/800/600',
+          slug: 'best-baccarat-money-management',
+          status: 'published',
+          publishedAt: now
+        }
+      ];
+
+      for (const article of defaultArticles) {
+        await sqliteDb.sql`
+          INSERT INTO articles (
+            id, title, excerpt, content, category, author, image, slug, 
+            publishedAt, createdAt, updatedAt, status
+          ) VALUES (
+            ${article.id}, ${article.title}, ${article.excerpt}, ${article.content}, 
+            ${article.category}, ${article.author}, ${article.image}, ${article.slug}, 
+            ${article.publishedAt}, ${now}, ${now}, ${article.status}
+          );
+        `;
+      }
+      console.log("Default articles seeded.");
+    }
   } catch (error) {
     console.error("Error initializing SQLiteCloud tables:", error);
   }
@@ -416,7 +463,10 @@ Sitemap: https://huisache.com/sitemap.xml`;
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        hmr: false // Explicitly disable HMR to avoid WebSocket errors in this environment
+      },
       appType: "spa",
     });
     server.use(vite.middlewares);

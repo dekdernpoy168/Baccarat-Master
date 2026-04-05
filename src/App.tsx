@@ -4040,9 +4040,10 @@ export default function App() {
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
     const socket = io({
-      transports: ['polling', 'websocket'], // Prefer polling to avoid websocket errors in logs
+      transports: ['polling'], // Force polling to avoid WebSocket errors and unhandled rejections in this environment
       reconnectionAttempts: 10,
-      timeout: 20000, // Increase timeout
+      reconnectionDelay: 5000, // Wait 5s between retries
+      timeout: 60000, // Increased timeout to 60s
       autoConnect: true
     });
     
