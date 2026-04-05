@@ -1127,12 +1127,6 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
 
 const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | null }) => {
   const isAdmin = user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
-  console.log('ArticlesPage Debug:', { 
-    articlesCount: articles.length, 
-    userEmail: user?.email, 
-    isAdmin, 
-    ADMIN_EMAIL 
-  });
   const publishedArticles = articles.filter(a => isAdmin || isPublished(a));
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -1141,6 +1135,20 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
   const filteredArticles = categoryFilter 
     ? publishedArticles.filter(a => a.category === categoryFilter)
     : publishedArticles;
+
+  const [visibleCount, setVisibleCount] = useState(9);
+  
+  // Reset visible count when category changes
+  useEffect(() => {
+    setVisibleCount(9);
+  }, [categoryFilter]);
+
+  const displayedArticles = filteredArticles.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredArticles.length;
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + 9);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -1168,9 +1176,10 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
           <RefreshCw size={14} /> รีเฟรชข้อมูล
         </button>
       </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {filteredArticles.length > 0 ? (
-          filteredArticles.map((article) => (
+        {displayedArticles.length > 0 ? (
+          displayedArticles.map((article) => (
             <ArticleCard key={article.id} article={article} />
           ))
         ) : (
@@ -1179,6 +1188,22 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
           </div>
         )}
       </div>
+
+      {hasMore && (
+        <div className="mt-16 text-center">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleLoadMore}
+            className="bg-gradient-to-r from-gold-light via-gold to-gold-dark text-black font-black px-10 py-4 rounded-full shadow-2xl shadow-gold/20 hover:shadow-gold/40 transition-all flex items-center gap-2 mx-auto"
+          >
+            <Plus size={20} /> โหลดบทความเพิ่มเติม
+          </motion.button>
+          <p className="mt-4 text-gray-500 text-sm">
+            แสดง {displayedArticles.length} จากทั้งหมด {filteredArticles.length} บทความ
+          </p>
+        </div>
+      )}
     </div>
   );
 };
