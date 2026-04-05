@@ -933,9 +933,9 @@ const AdminDashboard = () => {
 - **ความยาวของเนื้อหาบทความต้องอยู่ระหว่าง 1000 - 1500 คำ** (เน้นเนื้อหาที่เจาะลึกและมีประโยชน์)
 - นำคีย์เวิร์ดที่เกี่ยวข้องมาแทรกในเนื้อหาและติดตัวหนา (<strong>) ไว้ด้วย
 - เน้นความแม่นยำของข้อมูล
-- **Meta Title: ห้ามเกิน 60 ตัวอักษร**
-- **Meta Description: ห้ามเกิน 160 ตัวอักษร**
-- **URL Slug: ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง**
+- **Meta Title: ห้ามเกิน 60 ตัวอักษร** (ต้องมีความน่าสนใจและมีคีย์เวิร์ดหลัก)
+- **Meta Description: ห้ามเกิน 160 ตัวอักษร** (ต้องสรุปเนื้อหาและกระตุ้นให้คลิก)
+- **URL Slug: ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง** (ต้องสั้นและสื่อถึงเนื้อหา)
 
 สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON`,
         config: {
@@ -944,9 +944,9 @@ const AdminDashboard = () => {
             type: Type.OBJECT,
             properties: {
               content: { type: Type.STRING, description: "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ" },
-              metaTitle: { type: Type.STRING, description: "Meta Title สำหรับ SEO" },
-              metaDescription: { type: Type.STRING, description: "Meta Description สำหรับ SEO" },
-              slug: { type: Type.STRING, description: "URL Slug ภาษาอังกฤษ" }
+              metaTitle: { type: Type.STRING, description: "Meta Title สำหรับ SEO (SEO-friendly)" },
+              metaDescription: { type: Type.STRING, description: "Meta Description สำหรับ SEO (SEO-friendly)" },
+              slug: { type: Type.STRING, description: "URL Slug ภาษาอังกฤษ (SEO-friendly)" }
             },
             required: ["content", "metaTitle", "metaDescription", "slug"]
           }
@@ -1483,6 +1483,13 @@ const AdminDashboard = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-gold text-sm font-bold flex items-center"><TypeIcon size={16} className="mr-2" /> หัวข้อบทความ (Title)</label>
+                  <button 
+                    type="button"
+                    onClick={() => setShowSeoModal(true)}
+                    className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all flex items-center gap-1"
+                  >
+                    <Sparkles size={10} /> Generate SEO Tags
+                  </button>
                 </div>
                 <input 
                   required
