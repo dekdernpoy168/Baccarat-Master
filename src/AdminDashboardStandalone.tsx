@@ -37,7 +37,7 @@ import {
   Tag
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
-import { format } from 'date-fns';
+import { calculateReadTime } from './lib/readTime';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -1207,6 +1207,7 @@ const AdminDashboard = () => {
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
+        tags: currentArticle.tags || '',
       };
 
       // Check document size (SQLite limit is higher, but keep reasonable)
@@ -1501,6 +1502,16 @@ const AdminDashboard = () => {
                 />
               </div>
               <div className="space-y-2">
+                <label className="text-gold text-sm font-bold flex items-center"><Tag size={16} className="mr-2" /> Tags (คั่นด้วยคอมมา)</label>
+                <input 
+                  type="text" 
+                  value={currentArticle.tags || ''} 
+                  onChange={e => setCurrentArticle({...currentArticle, tags: e.target.value})}
+                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
+                  placeholder="บาคาร่า, เทคนิค, สูตร"
+                />
+              </div>
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-gold text-sm font-bold flex items-center"><ExternalLink size={16} className="mr-2" /> Slug (URL)</label>
                   <button 
@@ -1750,6 +1761,9 @@ const AdminDashboard = () => {
                     AI ช่วยเขียน
                   </button>
                 </div>
+              </div>
+              <div className="text-sm text-gray-400 mb-2">
+                เวลาอ่านโดยประมาณ: {calculateReadTime(currentArticle.content || '')}
               </div>
               <ReactQuill 
                 theme="snow" 

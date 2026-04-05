@@ -36,9 +36,11 @@ import {
   Calendar,
   Tag,
   RefreshCw,
-  Database
+  Database,
+  Clock
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
+import { calculateReadTime } from './lib/readTime';
 import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -329,6 +331,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string }) => {
           </p>
           <div className="flex items-center justify-between">
             <span className="text-gray-500 text-xs">{article.date}</span>
+            <span className="text-gray-500 text-xs flex items-center"><Clock size={12} className="mr-1" /> {calculateReadTime(article.content)}</span>
             <span className="text-gold text-sm font-bold flex items-center">
               อ่านต่อ <ChevronRight size={16} className="ml-1" />
             </span>
@@ -1131,17 +1134,20 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const categoryFilter = searchParams.get('category');
+  const tagFilter = searchParams.get('tag');
 
-  const filteredArticles = categoryFilter 
-    ? publishedArticles.filter(a => a.category === categoryFilter)
-    : publishedArticles;
+  const filteredArticles = publishedArticles.filter(a => {
+    const categoryMatch = categoryFilter ? a.category === categoryFilter : true;
+    const tagMatch = tagFilter ? (a.tags && a.tags.split(',').map(t => t.trim()).includes(tagFilter)) : true;
+    return categoryMatch && tagMatch;
+  });
 
   const [visibleCount, setVisibleCount] = useState(9);
   
-  // Reset visible count when category changes
+  // Reset visible count when category or tag changes
   useEffect(() => {
     setVisibleCount(9);
-  }, [categoryFilter]);
+  }, [categoryFilter, tagFilter]);
 
   const displayedArticles = filteredArticles.slice(0, visibleCount);
   const hasMore = visibleCount < filteredArticles.length;
@@ -1264,6 +1270,7 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
           <div className="flex items-center text-gray-500 text-sm space-x-6">
             <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {article.author}</span>
             <span className="flex items-center"><Target size={16} className="mr-2" /> {article.date}</span>
+            <span className="flex items-center"><Clock size={16} className="mr-2" /> {calculateReadTime(article.content)}</span>
           </div>
         </div>
         
@@ -1285,6 +1292,18 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
           >
             ไปที่หน้าเดิมพัน <ExternalLink size={20} className="ml-2" />
           </a>
+        </div>
+
+        <div className="mt-20">
+          <h3 className="text-2xl font-bold text-white mb-8">บทความที่เกี่ยวข้อง</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {articles
+              .filter(a => a.id !== article.id && (a.category === article.category || (a.tags && article.tags && a.tags.split(',').some(t => article.tags.split(',').includes(t)))))
+              .slice(0, 3)
+              .map(related => (
+                <ArticleCard key={related.id} article={related} />
+              ))}
+          </div>
         </div>
       </motion.div>
     </div>
