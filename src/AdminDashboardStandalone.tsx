@@ -728,7 +728,21 @@ const AdminDashboard = () => {
     loadData();
 
     // Socket.io for real-time updates
-    const socket = io();
+    const socket = io({
+      transports: ['websocket', 'polling'], // Prefer websocket
+      reconnectionAttempts: 10,
+      timeout: 20000, // Increase timeout
+      autoConnect: true
+    });
+    
+    socket.on('connect', () => {
+      console.log('Socket.io connected (Admin) with ID:', socket.id);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket.io connection error (Admin):', error.message, error);
+    });
+
     socket.on('articles_updated', () => {
       console.log('Articles updated via socket (Admin)');
       loadData();

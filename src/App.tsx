@@ -3929,14 +3929,23 @@ export default function App() {
 
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
-    const socket = io();
+    const socket = io({
+      transports: ['websocket', 'polling'], // Prefer websocket
+      reconnectionAttempts: 10,
+      timeout: 20000, // Increase timeout
+      autoConnect: true
+    });
     
     socket.on('connect', () => {
       console.log('Socket.io connected with ID:', socket.id);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Socket.io connection error:', error);
+      console.error('Socket.io connection error:', error.message, error);
+      // If websocket fails, try polling explicitly if not already tried
+      if (socket.io.opts.transports[0] === 'websocket') {
+        console.log('Falling back to polling...');
+      }
     });
 
     socket.on('articles_updated', () => {

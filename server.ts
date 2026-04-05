@@ -13,10 +13,24 @@ async function startServer() {
     cors: {
       origin: "*",
       methods: ["GET", "POST"]
-    }
+    },
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    allowEIO3: true,
+    connectTimeout: 45000,
+    maxHttpBufferSize: 1e8 // 100MB
   });
 
   server.use(express.json({ limit: '50mb' }));
+  
+  // Request logging middleware
+  server.use((req, res, next) => {
+    if (!req.url.startsWith('/socket.io')) {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    }
+    next();
+  });
+
   const PORT = 3000;
 
   const connectionString = process.env.SQLITE_CLOUD_URL || "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/bgm-database?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
@@ -44,9 +58,13 @@ async function startServer() {
   // Socket.io connection
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
-    socket.on("disconnect", () => {
-      console.log("Client disconnected:", socket.id);
+    socket.on("disconnect", (reason) => {
+      console.log("Client disconnected:", socket.id, "Reason:", reason);
     });
+  });
+
+  io.engine.on("connection_error", (err) => {
+    console.error("Socket.io server connection error:", err.req ? err.req.url : "no req", err.code, err.message, err.context);
   });
 
   // Helper to broadcast updates
@@ -385,6 +403,12 @@ Disallow: /admin
 Sitemap: https://huisache.com/sitemap.xml`;
     res.header("Content-Type", "text/plain");
     res.send(robots);
+  });
+
+  // Catch-all for API routes that don't exist
+  server.all("/api/*", (req, res) => {
+    console.log(`[${new Date().toISOString()}] Unmatched API route: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
   });
 
   // Vite middleware for development
