@@ -43,6 +43,7 @@ import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
+import OpenAI from 'openai';
 import { io } from 'socket.io-client';
 
 // Initialize PDF.js worker
@@ -2088,13 +2089,9 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     if (!aiPrompt.trim()) return;
     setIsGeneratingAI(true);
     setError(null);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `คุณคือผู้เชี่ยวชาญด้านการเขียนบทความ SEO และการพนันออนไลน์ (บาคาร่า) ที่มีประสบการณ์จริง เขียนด้วยภาษาที่อ่านง่าย สื่อสารได้ใจความ ไม่ซับซ้อน มีความเป็นมนุษย์ มีมุมมองเฉพาะตัวเหมือนคนเขียนจริงๆ ไม่ใช่หุ่นยนต์
 
-โจทย์/คีย์เวิร์ด: ${aiPrompt}
+    const systemPrompt = `คุณคือผู้เชี่ยวชาญด้านการเขียนบทความ SEO และการพนันออนไลน์ (บาคาร่า) ที่มีประสบการณ์จริง เขียนด้วยภาษาที่อ่านง่าย สื่อสารได้ใจความ ไม่ซับซ้อน มีความเป็นมนุษย์ มีมุมมองเฉพาะตัวเหมือนคนเขียนจริงๆ ไม่ใช่หุ่นยนต์`;
+    const userPrompt = `โจทย์/คีย์เวิร์ด: ${aiPrompt}
 
 ข้อกำหนด:
 - เขียนเนื้อหาบทความในรูปแบบ HTML (ใช้ <h2>, <p>, <ul>, <li>, <strong>)
@@ -2105,32 +2102,70 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
 - **Meta Description: ห้ามเกิน 160 ตัวอักษร**
 - **URL Slug: ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง**
 
-สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              content: { type: Type.STRING, description: "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ" },
-              metaTitle: { type: Type.STRING, description: "Meta Title สำหรับ SEO" },
-              metaDescription: { type: Type.STRING, description: "Meta Description สำหรับ SEO" },
-              slug: { type: Type.STRING, description: "URL Slug ภาษาอังกฤษ" }
-            },
-            required: ["content", "metaTitle", "metaDescription", "slug"]
+สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON:
+{
+  "content": "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ",
+  "metaTitle": "Meta Title สำหรับ SEO",
+  "metaDescription": "Meta Description สำหรับ SEO",
+  "slug": "URL Slug ภาษาอังกฤษ"
+}`;
+
+    try {
+      let result: any = null;
+      let rawResponse = '';
+
+      // Try Gemini first
+      try {
+        console.log('Attempting generation with Gemini...');
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: `${systemPrompt}\n\n${userPrompt}`,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                content: { type: Type.STRING, description: "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ" },
+                metaTitle: { type: Type.STRING, description: "Meta Title สำหรับ SEO" },
+                metaDescription: { type: Type.STRING, description: "Meta Description สำหรับ SEO" },
+                slug: { type: Type.STRING, description: "URL Slug ภาษาอังกฤษ" }
+              },
+              required: ["content", "metaTitle", "metaDescription", "slug"]
+            }
           }
-        }
-      });
-      
-      const text = response.text || '';
-      console.log('AI Raw Response:', text);
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+        });
+        rawResponse = response.text || '';
+      } catch (geminiErr) {
+        console.error('Gemini failed, falling back to OpenAI:', geminiErr);
+        
+        // Fallback to OpenAI
+        const openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+          dangerouslyAllowBrowser: true
+        });
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          response_format: { type: "json_object" }
+        });
+
+        rawResponse = completion.choices[0].message.content || '';
+      }
+
+      console.log('AI Raw Response:', rawResponse);
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : rawResponse;
       
       try {
-        const result = JSON.parse(jsonStr || '{}');
+        result = JSON.parse(jsonStr || '{}');
         console.log('AI Parsed Result:', result);
         
-        if (result) {
+        if (result && result.content) {
           setCurrentArticle(prev => {
             const updated = {
               ...prev,
@@ -2143,18 +2178,20 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
             return updated;
           });
           setAiPrompt('');
+        } else {
+          throw new Error('Invalid AI response structure');
         }
       } catch (parseErr) {
         console.error('JSON Parse Error:', parseErr);
         // Fallback: if JSON parse fails, just use the raw text as content
         setCurrentArticle(prev => ({
           ...prev,
-          content: (prev.content || '') + text
+          content: (prev.content || '') + rawResponse
         }));
       }
     } catch (err: any) {
       console.error('AI Generation Error:', err);
-      setError('ไม่สามารถเชื่อมต่อกับ AI ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
+      setError('ไม่สามารถเชื่อมต่อกับ AI ทั้ง Gemini และ ChatGPT ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsGeneratingAI(false);
     }
@@ -4003,7 +4040,7 @@ export default function App() {
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
     const socket = io({
-      transports: ['websocket', 'polling'], // Prefer websocket
+      transports: ['polling', 'websocket'], // Prefer polling to avoid websocket errors in logs
       reconnectionAttempts: 10,
       timeout: 20000, // Increase timeout
       autoConnect: true

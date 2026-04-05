@@ -14,6 +14,7 @@ async function startServer() {
       origin: "*",
       methods: ["GET", "POST"]
     },
+    transports: ["polling", "websocket"], // Prefer polling to avoid websocket errors in logs
     pingTimeout: 60000,
     pingInterval: 25000,
     allowEIO3: true,
@@ -43,11 +44,12 @@ async function startServer() {
     try {
       console.log("Attempting to apply encryption key...");
       // For 64-character hex keys, SQLite often requires the x'...' prefix
+      // We use a plain string instead of a tagged template to avoid incorrect parameterization
       if (encryptionKey.length === 64 && /^[0-9a-fA-F]+$/.test(encryptionKey)) {
-        await sqliteDb.sql(`PRAGMA key = x'${encryptionKey}';`);
+        await sqliteDb.sql("PRAGMA key = x'" + encryptionKey + "';");
         console.log("SQLiteCloud encryption key applied with hex prefix.");
       } else {
-        await sqliteDb.sql(`PRAGMA key = '${encryptionKey}';`);
+        await sqliteDb.sql("PRAGMA key = '" + encryptionKey + "';");
         console.log("SQLiteCloud encryption key applied as regular string.");
       }
     } catch (err) {
