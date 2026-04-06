@@ -143,6 +143,60 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Extracted Components ---
 
+const BrainstormModal = ({ isOpen, onClose, topics, onSelect }: { isOpen: boolean, onClose: () => void, topics: string[], onSelect: (topic: string) => void }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-gray-900 border border-gold/30 p-8 rounded-[2rem] max-w-2xl w-full shadow-2xl relative overflow-hidden"
+      >
+        <div className="absolute top-0 left-0 w-full h-1 bg-gold-gradient" />
+        <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors">
+          <X size={24} />
+        </button>
+
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 bg-gold/10 rounded-2xl flex items-center justify-center">
+            <Sparkles className="text-gold" size={24} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">AI Topic <span className="text-gold">Brainstormer</span></h2>
+            <p className="text-gray-400 text-sm">หัวข้อบทความที่ AI แนะนำเพื่อเพิ่มยอดผู้เข้าชม</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+          {topics.map((topic, idx) => (
+            <button
+              key={idx}
+              onClick={() => onSelect(topic)}
+              className="group flex items-center justify-between p-4 bg-black/40 hover:bg-gold/5 border border-white/5 hover:border-gold/30 rounded-2xl transition-all text-left"
+            >
+              <div className="flex items-center gap-4">
+                <span className="text-gold font-black text-lg opacity-30 group-hover:opacity-100 transition-opacity">{(idx + 1).toString().padStart(2, '0')}</span>
+                <span className="text-white font-medium group-hover:text-gold transition-colors">{topic}</span>
+              </div>
+              <ChevronRight className="text-gray-600 group-hover:text-gold transition-colors" size={18} />
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-8 flex justify-end">
+          <button 
+            onClick={onClose}
+            className="px-8 py-3 rounded-full font-bold text-gray-400 hover:text-white transition-colors"
+          >
+            ปิดหน้าต่าง
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, onClose: () => void, onExecute: (prompt: string) => void }) => {
   const [category, setCategory] = useState('Copywriting');
   const [subCategory, setSubCategory] = useState('Blog Writing');
@@ -691,6 +745,10 @@ const AdminDashboard = () => {
   const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false);
   const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
+  const [isGeneratingArticleImage, setIsGeneratingArticleImage] = useState(false);
+  const [isBrainstorming, setIsBrainstorming] = useState(false);
+  const [brainstormResults, setBrainstormResults] = useState<string[]>([]);
+  const [showBrainstormModal, setShowBrainstormModal] = useState(false);
   const [generatedLogo, setGeneratedLogo] = useState<string | null>(localStorage.getItem('baccarat_master_logo'));
   const [slugOptions, setSlugOptions] = useState<string[]>([]);
   const [excerptOptions, setExcerptOptions] = useState<string[]>([]);
@@ -807,6 +865,84 @@ const AdminDashboard = () => {
       console.error(err);
     } finally {
       setIsGeneratingSlug(false);
+    }
+  };
+
+  const generateArticleImage = async () => {
+    if (!currentArticle.title?.trim()) {
+      alert('กรุณาใส่หัวข้อบทความก่อน');
+      return;
+    }
+    setIsGeneratingArticleImage(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: {
+          parts: [
+            {
+              text: `A high-quality, professional, and visually striking featured image for a blog post titled: "${currentArticle.title}". The theme is online baccarat, luxury casino, gambling strategy, and professional gaming. The style should be realistic but with a cinematic, high-end feel. Use a color palette of gold, black, and deep red. No text in the image. 16:9 aspect ratio.`,
+            },
+          ],
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "16:9",
+          },
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData) {
+          const base64 = `data:image/png;base64,${part.inlineData.data}`;
+          setCurrentArticle(prev => ({ ...prev, image: base64 }));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการสร้างรูปภาพ');
+    } finally {
+      setIsGeneratingArticleImage(false);
+    }
+  };
+
+  const brainstormTopics = async () => {
+    setIsBrainstorming(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `คุณคือผู้เชี่ยวชาญด้าน Content Strategy สำหรับเว็บไซต์บาคาร่าและคาสิโนออนไลน์ ช่วยคิดหัวข้อบทความที่น่าสนใจและมีโอกาสติดอันดับ SEO สูงมาให้ 10 หัวข้อ โดยเน้นเทคนิคใหม่ๆ สูตรที่คนสนใจ หรือข่าวสารที่เกี่ยวข้อง
+        
+        ตอบกลับมาเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด:
+        { "topics": ["หัวข้อที่ 1", "หัวข้อที่ 2", ...] }`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              topics: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["topics"]
+          }
+        }
+      });
+      
+      const text = response.text || '{}';
+      const data = JSON.parse(text);
+      if (data.topics) {
+        setBrainstormResults(data.topics);
+        setShowBrainstormModal(true);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการระดมสมอง');
+    } finally {
+      setIsBrainstorming(false);
     }
   };
 
@@ -1402,6 +1538,18 @@ const AdminDashboard = () => {
         </div>
         <div className="flex gap-3">
           <button 
+            onClick={brainstormTopics}
+            disabled={isBrainstorming}
+            className="bg-gold/10 text-gold px-6 py-3 rounded-full font-bold hover:bg-gold/20 border border-gold/30 transition-all flex items-center disabled:opacity-50"
+          >
+            {isBrainstorming ? (
+              <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
+            ) : (
+              <Sparkles size={20} className="mr-2" />
+            )}
+            ระดมสมอง AI
+          </button>
+          <button 
             onClick={() => setIsManagingCategories(true)}
             className="bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center"
           >
@@ -1706,7 +1854,22 @@ const AdminDashboard = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><ImageIcon size={16} className="mr-2" /> URL รูปภาพหน้าปก</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-gold text-sm font-bold flex items-center"><ImageIcon size={16} className="mr-2" /> URL รูปภาพหน้าปก</label>
+                  <button 
+                    type="button"
+                    onClick={generateArticleImage}
+                    disabled={isGeneratingArticleImage || !currentArticle.title?.trim()}
+                    className="text-gold hover:text-white text-[10px] font-bold flex items-center transition-all disabled:opacity-50"
+                  >
+                    {isGeneratingArticleImage ? (
+                      <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-1"></div>
+                    ) : (
+                      <Sparkles size={12} className="mr-1" />
+                    )}
+                    AI สร้างรูป
+                  </button>
+                </div>
                 <input 
                   type="text" 
                   value={currentArticle.image || ''} 
@@ -1780,6 +1943,18 @@ const AdminDashboard = () => {
               onExecute={(prompt) => {
                 setAiPrompt(prompt);
                 setShowPromptBuilder(false);
+              }}
+            />
+
+            <BrainstormModal 
+              isOpen={showBrainstormModal} 
+              onClose={() => setShowBrainstormModal(false)} 
+              topics={brainstormResults}
+              onSelect={(topic) => {
+                setCurrentArticle(prev => ({ ...prev, title: topic }));
+                setAiPrompt(`เขียนบทความเกี่ยวกับ: ${topic}`);
+                setShowBrainstormModal(false);
+                setIsEditing(true);
               }}
             />
 

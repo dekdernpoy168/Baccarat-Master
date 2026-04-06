@@ -240,8 +240,8 @@ const Footer = () => (
           <ul className="space-y-4 text-gray-400 text-sm">
             <li><Link to="/" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> หน้าแรก</Link></li>
             <li><Link to="/articles" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> บทความทั้งหมด</Link></li>
-            <li><Link to="/formula" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> สูตรบาคาร่าฟรี</Link></li>
-            <li><Link to="/about" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> เกี่ยวกับเรา</Link></li>
+            <li><Link to="/formula" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> AI Formula</Link></li>
+            <li><Link to="/about" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> About Us</Link></li>
           </ul>
         </div>
 
