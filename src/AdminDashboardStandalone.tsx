@@ -1418,7 +1418,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string | number) => {
     if (!window.confirm("ยืนยันการลบตัวเลือกนี้?")) return;
     try {
       const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });

@@ -303,7 +303,7 @@ const Footer = () => (
   </footer>
 );
 
-const ArticleCard = ({ article }: { article: Article; key?: string }) => {
+const ArticleCard = ({ article }: { article: Article; key?: string | number }) => {
   const isDraft = article.status === 'draft';
   
   return (
@@ -2565,7 +2565,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string | number) => {
     // Removed window.confirm as it is blocked in the sandboxed environment
     try {
       const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });

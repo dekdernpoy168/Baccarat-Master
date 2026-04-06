@@ -1,12 +1,15 @@
+import 'dotenv/config';
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
-import { Database } from "@sqlitecloud/drivers";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import cors from "cors";
+import { exec, query } from './src/db';
+import { initSchema } from './src/initSchema';
 
 async function startServer() {
   const server = express();
@@ -24,6 +27,7 @@ async function startServer() {
     transports: ['polling', 'websocket']
   });
 
+  server.use(cors());
   server.use(express.json({ limit: '50mb' }));
   
   // Request logging middleware
@@ -34,24 +38,7 @@ async function startServer() {
     next();
   });
 
-  const PORT = 3000;
-
-  const connectionString = "sqlitecloud://cjr9vthpvk.g4.sqlite.cloud:8860/bgm-database?apikey=y5jXshHEP9qJ5TSOM2ehp9XYB6idcYAnw9XnPliYYII";
-  console.log("Using SQLiteCloud connection string:", connectionString);
-  const encryptionKey = process.env.SQLITE_CLOUD_ENCRYPTION_KEY || ""; // Temporarily empty to test
-  
-  const sqliteDb = new Database(connectionString);
-  
-  // Apply encryption key if provided
-  if (encryptionKey) {
-    try {
-      console.log("Attempting to apply encryption key...");
-      await sqliteDb.sql("PRAGMA key = '" + encryptionKey + "';");
-      console.log("SQLiteCloud encryption key applied.");
-    } catch (err) {
-      console.error("Error applying encryption key:", err);
-    }
-  }
+  const PORT = Number(process.env.PORT || 3000);
 
   // Socket.io connection
   io.on("connection", (socket) => {
@@ -59,10 +46,6 @@ async function startServer() {
     socket.on("disconnect", (reason) => {
       console.log("Client disconnected:", socket.id, "Reason:", reason);
     });
-  });
-
-  io.engine.on("connection_error", (err) => {
-    console.error("Socket.io server connection error:", err.req ? err.req.url : "no req", err.code, err.message, err.context);
   });
 
   // Helper to broadcast updates
@@ -77,94 +60,74 @@ async function startServer() {
 
   // Initialize SQLiteCloud tables
   try {
-    await sqliteDb.sql`
-      CREATE TABLE IF NOT EXISTS articles (
-        id TEXT PRIMARY KEY,
-        title TEXT,
-        excerpt TEXT,
-        content TEXT,
-        category TEXT,
-        date TEXT,
-        author TEXT,
-        image TEXT,
-        slug TEXT,
-        metaTitle TEXT,
-        metaDescription TEXT,
-        metaKeywords TEXT,
-        publishedAt TEXT,
-        createdAt TEXT,
-        updatedAt TEXT,
-        status TEXT
-      );
-    `;
-    await sqliteDb.sql`
-      CREATE TABLE IF NOT EXISTS categories (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        slug TEXT,
-        description TEXT,
-        createdAt TEXT
-      );
-    `;
-    await sqliteDb.sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE,
-        password TEXT,
-        role TEXT DEFAULT 'user',
-        createdAt TEXT
-      );
-    `;
+    await initSchema();
     console.log("SQLiteCloud tables initialized successfully.");
-
-    // Seed default articles if table is empty
-    const articlesCount = await sqliteDb.sql`SELECT COUNT(*) as count FROM articles;`;
-    if (articlesCount[0].count === 0) {
-      console.log("Seeding default articles...");
-      const now = new Date().toISOString();
-      const defaultArticles = [
-        {
-          id: 'baccarat-basics',
-          title: 'พื้นฐานการเล่นบาคาร่าสำหรับมือใหม่',
-          excerpt: 'เรียนรู้วิธีการเล่นบาคาร่าเบื้องต้น กฎกติกา และวิธีการวางเดิมพันที่ถูกต้อง',
-          content: '<h2>พื้นฐานการเล่นบาคาร่า</h2><p>บาคาร่าเป็นเกมไพ่ที่ได้รับความนิยมอย่างมากในคาสิโนทั่วโลก...</p>',
-          category: 'วิธีเล่นเบื้องต้น',
-          author: 'Admin',
-          image: 'https://picsum.photos/seed/baccarat1/800/600',
-          slug: 'baccarat-basics-for-beginners',
-          status: 'published',
-          publishedAt: now
-        },
-        {
-          id: 'money-management',
-          title: 'เทคนิคการเดินเงินบาคาร่าที่แม่นยำที่สุด',
-          excerpt: 'รวมสูตรการเดินเงินบาคาร่าที่ช่วยให้คุณบริหารทุนได้อย่างมีประสิทธิภาพ',
-          content: '<h2>เทคนิคการเดินเงิน</h2><p>การบริหารเงินทุนเป็นหัวใจสำคัญของการเล่นบาคาร่า...</p>',
-          category: 'เทคนิคการเดินเงิน',
-          author: 'Admin',
-          image: 'https://picsum.photos/seed/baccarat2/800/600',
-          slug: 'best-baccarat-money-management',
-          status: 'published',
-          publishedAt: now
-        }
-      ];
-
-      for (const article of defaultArticles) {
-        await sqliteDb.sql`
-          INSERT INTO articles (
-            id, title, excerpt, content, category, author, image, slug, 
-            publishedAt, createdAt, updatedAt, status
-          ) VALUES (
-            ${article.id}, ${article.title}, ${article.excerpt}, ${article.content}, 
-            ${article.category}, ${article.author}, ${article.image}, ${article.slug}, 
-            ${article.publishedAt}, ${now}, ${now}, ${article.status}
-          );
-        `;
-      }
-      console.log("Default articles seeded.");
-    }
   } catch (error) {
     console.error("Error initializing SQLiteCloud tables:", error);
+  }
+
+  // Helper functions
+  function slugify(text: string) {
+    return String(text || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function normalizeArticleBody(body: any) {
+    return {
+      title: String(body.title || '').trim(),
+      slug: String(body.slug || '').trim(),
+      excerpt: body.excerpt ?? '',
+      content: body.content ?? '',
+      image: body.image ?? '',
+      category: body.category ?? null,
+      tags: body.tags ?? '',
+      metaTitle: body.metaTitle ?? '',
+      metaDescription: body.metaDescription ?? '',
+      metaKeywords: body.metaKeywords ?? '',
+      author: body.author ?? 'Admin',
+      status: body.status === 'published' ? 'published' : 'draft',
+      date: body.date ?? today(),
+      publishedAt: body.publishedAt ?? null,
+    };
+  }
+
+  async function getArticleById(id: number) {
+    const rows = await query(
+      `
+      SELECT
+        id,
+        title,
+        slug,
+        excerpt,
+        content,
+        image,
+        category,
+        tags,
+        meta_title AS metaTitle,
+        meta_description AS metaDescription,
+        meta_keywords AS metaKeywords,
+        author,
+        status,
+        date,
+        published_at AS publishedAt,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM articles
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    return rows[0] || null;
   }
 
   // API routes
@@ -180,87 +143,190 @@ async function startServer() {
   // --- Articles ---
   server.get("/api/articles", async (req, res) => {
     try {
-      const articles = await sqliteDb.sql`SELECT * FROM articles ORDER BY createdAt DESC;`;
-      res.json(articles);
+      const rows = await query(
+        `
+        SELECT
+          id,
+          title,
+          slug,
+          excerpt,
+          content,
+          image,
+          category,
+          tags,
+          meta_title AS metaTitle,
+          meta_description AS metaDescription,
+          meta_keywords AS metaKeywords,
+          author,
+          status,
+          date,
+          published_at AS publishedAt,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM articles
+        ORDER BY datetime(created_at) DESC, id DESC
+        `
+      );
+      res.json(rows);
     } catch (error: any) {
       console.error("Error fetching articles:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to fetch articles' });
+    }
+  });
+
+  server.get('/api/articles/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const article = await getArticleById(id);
+
+      if (!article) {
+        return res.status(404).json({ error: 'Article not found' });
+      }
+
+      res.json(article);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to fetch article' });
     }
   });
 
   server.post("/api/articles", async (req, res) => {
     try {
-      const article = req.body;
-      const id = article.id || Math.random().toString(36).substring(2, 15);
-      const now = new Date().toISOString();
-      
-      await sqliteDb.sql`
+      const data = normalizeArticleBody(req.body);
+
+      if (!data.title) {
+        return res.status(400).json({ error: 'title is required' });
+      }
+
+      if (!data.slug) {
+        data.slug = slugify(data.title);
+      }
+
+      const inserted = await query<{ id: number }>(
+        `
         INSERT INTO articles (
-          id, title, excerpt, content, category, date, author, image, slug, 
-          metaTitle, metaDescription, metaKeywords, publishedAt, createdAt, updatedAt, status
-        ) VALUES (
-          ${id}, ${article.title || ''}, ${article.excerpt || ''}, ${article.content || ''}, 
-          ${article.category || ''}, ${article.date || ''}, ${article.author || ''}, ${article.image || ''}, 
-          ${article.slug || ''}, ${article.metaTitle || ''}, ${article.metaDescription || ''}, 
-          ${article.metaKeywords || ''}, ${article.publishedAt || null}, ${now}, ${now}, ${article.status || 'draft'}
-        );
-      `;
+          title,
+          slug,
+          excerpt,
+          content,
+          image,
+          category,
+          tags,
+          meta_title,
+          meta_description,
+          meta_keywords,
+          author,
+          status,
+          date,
+          published_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        RETURNING id
+        `,
+        [
+          data.title,
+          data.slug,
+          data.excerpt,
+          data.content,
+          data.image,
+          data.category,
+          data.tags,
+          data.metaTitle,
+          data.metaDescription,
+          data.metaKeywords,
+          data.author,
+          data.status,
+          data.date,
+          data.publishedAt,
+        ]
+      );
+
+      const article = await getArticleById(inserted[0].id);
       broadcastArticlesUpdate();
-      res.json({ id, ...article, createdAt: now, updatedAt: now });
+      res.status(201).json(article);
     } catch (error: any) {
       console.error("Error creating article:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to create article' });
     }
   });
 
   server.put("/api/articles/:id", async (req, res) => {
     try {
-      const { id } = req.params;
-      const article = req.body;
-      const now = new Date().toISOString();
-      
-      await sqliteDb.sql`
-        UPDATE articles SET
-          title = ${article.title || ''},
-          excerpt = ${article.excerpt || ''},
-          content = ${article.content || ''},
-          category = ${article.category || ''},
-          date = ${article.date || ''},
-          author = ${article.author || ''},
-          image = ${article.image || ''},
-          slug = ${article.slug || ''},
-          metaTitle = ${article.metaTitle || ''},
-          metaDescription = ${article.metaDescription || ''},
-          metaKeywords = ${article.metaKeywords || ''},
-          publishedAt = ${article.publishedAt || null},
-          updatedAt = ${now},
-          status = ${article.status || 'draft'}
-        WHERE id = ${id};
-      `;
+      const id = Number(req.params.id);
+      const data = normalizeArticleBody(req.body);
+
+      if (!data.title) {
+        return res.status(400).json({ error: 'title is required' });
+      }
+
+      if (!data.slug) {
+        data.slug = slugify(data.title);
+      }
+
+      await exec(
+        `
+        UPDATE articles
+        SET
+          title = ?,
+          slug = ?,
+          excerpt = ?,
+          content = ?,
+          image = ?,
+          category = ?,
+          tags = ?,
+          meta_title = ?,
+          meta_description = ?,
+          meta_keywords = ?,
+          author = ?,
+          status = ?,
+          date = ?,
+          published_at = ?,
+          updated_at = datetime('now')
+        WHERE id = ?
+        `,
+        [
+          data.title,
+          data.slug,
+          data.excerpt,
+          data.content,
+          data.image,
+          data.category,
+          data.tags,
+          data.metaTitle,
+          data.metaDescription,
+          data.metaKeywords,
+          data.author,
+          data.status,
+          data.date,
+          data.publishedAt,
+          id,
+        ]
+      );
+
+      const article = await getArticleById(id);
       broadcastArticlesUpdate();
-      res.json({ id, ...article, updatedAt: now });
+      res.json(article);
     } catch (error: any) {
       console.error("Error updating article:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to update article' });
     }
   });
 
   server.delete("/api/articles/:id", async (req, res) => {
     try {
-      const { id } = req.params;
-      await sqliteDb.sql`DELETE FROM articles WHERE id = ${id};`;
+      const id = Number(req.params.id);
+      await exec(`DELETE FROM articles WHERE id = ?`, [id]);
       broadcastArticlesUpdate();
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting article:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to delete article' });
     }
   });
 
   // Reset articles table
   server.post("/api/articles/reset", async (req, res) => {
     try {
-      await sqliteDb.sql`DELETE FROM articles;`;
+      await exec(`DELETE FROM articles;`);
       broadcastArticlesUpdate();
       res.json({ success: true, message: "Articles table reset successfully." });
     } catch (error: any) {
@@ -272,135 +338,222 @@ async function startServer() {
   // --- Categories ---
   server.get("/api/categories", async (req, res) => {
     try {
-      const categories = await sqliteDb.sql`SELECT * FROM categories ORDER BY name ASC;`;
-      res.json(categories);
+      const rows = await query(
+        `
+        SELECT
+          id,
+          name,
+          slug,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM categories
+        ORDER BY name ASC
+        `
+      );
+      res.json(rows);
     } catch (error: any) {
       console.error("Error fetching categories:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to fetch categories' });
     }
   });
 
   server.post("/api/categories", async (req, res) => {
     try {
-      const cat = req.body;
-      const name = cat.name || '';
-      
-      // Check if category already exists
-      const existing = await sqliteDb.sql`SELECT * FROM categories WHERE name = ${name} LIMIT 1;`;
-      if (existing && existing.length > 0) {
-        return res.json(existing[0]);
+      const name = String(req.body?.name || '').trim();
+
+      if (!name) {
+        return res.status(400).json({ error: 'name is required' });
       }
 
-      const id = cat.id || Math.random().toString(36).substring(2, 15);
-      const now = new Date().toISOString();
-      const slug = cat.slug || name.toLowerCase().replace(/\s+/g, '-');
-      
-      await sqliteDb.sql`
-        INSERT INTO categories (id, name, slug, description, createdAt)
-        VALUES (${id}, ${name}, ${slug}, ${cat.description || ''}, ${now});
-      `;
+      const slug = slugify(name);
+
+      await exec(
+        `
+        INSERT INTO categories (name, slug)
+        VALUES (?, ?)
+        ON CONFLICT(name) DO UPDATE SET
+          slug = excluded.slug,
+          updated_at = datetime('now')
+        `,
+        [name, slug]
+      );
+
+      const rows = await query(
+        `
+        SELECT
+          id,
+          name,
+          slug,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM categories
+        WHERE name = ?
+        LIMIT 1
+        `,
+        [name]
+      );
+
       broadcastCategoriesUpdate();
-      res.json({ id, name, slug, description: cat.description || '', createdAt: now });
+      res.status(201).json(rows[0]);
     } catch (error: any) {
       console.error("Error creating category:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  server.delete("/api/categories/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await sqliteDb.sql`DELETE FROM categories WHERE id = ${id};`;
-      broadcastCategoriesUpdate();
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error("Error deleting category:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to create category' });
     }
   });
 
   server.put("/api/categories/by-name/:name", async (req, res) => {
     try {
-      const { name } = req.params;
-      const { newName } = req.body;
-      await sqliteDb.sql`UPDATE categories SET name = ${newName} WHERE name = ${name};`;
-      await sqliteDb.sql`UPDATE articles SET category = ${newName} WHERE category = ${name};`;
+      const oldName = decodeURIComponent(req.params.name);
+      const newName = String(req.body?.newName || '').trim();
+
+      if (!newName) {
+        return res.status(400).json({ error: 'newName is required' });
+      }
+
+      const slug = slugify(newName);
+
+      await exec(
+        `
+        UPDATE categories
+        SET
+          name = ?,
+          slug = ?,
+          updated_at = datetime('now')
+        WHERE name = ?
+        `,
+        [newName, slug, oldName]
+      );
+
+      await exec(
+        `
+        UPDATE articles
+        SET
+          category = ?,
+          updated_at = datetime('now')
+        WHERE category = ?
+        `,
+        [newName, oldName]
+      );
+
+      const rows = await query(
+        `
+        SELECT
+          id,
+          name,
+          slug,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM categories
+        WHERE name = ?
+        LIMIT 1
+        `,
+        [newName]
+      );
+
       broadcastCategoriesUpdate();
       broadcastArticlesUpdate();
-      res.json({ success: true });
+      res.json(rows[0] || { success: true });
     } catch (error: any) {
       console.error("Error updating category:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to update category' });
     }
   });
 
   server.delete("/api/categories/by-name/:name", async (req, res) => {
     try {
-      const { name } = req.params;
-      await sqliteDb.sql`DELETE FROM categories WHERE name = ${name};`;
+      const name = decodeURIComponent(req.params.name);
+
+      await exec(`UPDATE articles SET category = NULL, updated_at = datetime('now') WHERE category = ?`, [name]);
+      await exec(`DELETE FROM categories WHERE name = ?`, [name]);
+
       broadcastCategoriesUpdate();
+      broadcastArticlesUpdate();
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting category:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to delete category' });
     }
   });
 
   // Reset and seed categories
   server.post("/api/categories/reset", async (req, res) => {
     try {
-      await sqliteDb.sql`DELETE FROM categories;`;
-      
-      const defaultCategories = [
-        "คู่มือการเล่นบาคาร่า",
-        "วิธีเล่นเบื้องต้น",
-        "เทคนิคการเดินเงิน",
-        "การอ่านเค้าไพ่",
-        "ทริคระดับเซียน"
+      const defaults = [
+        'บาคาร่า',
+        'สูตรบาคาร่า',
+        'เทคนิคบาคาร่า',
+        'ข่าวบาคาร่า',
+        'คาสิโนออนไลน์',
+        'มือใหม่หัดเล่น',
       ];
 
-      for (const name of defaultCategories) {
-        const id = Math.random().toString(36).substring(2, 15);
-        const now = new Date().toISOString();
-        const slug = name.toLowerCase().replace(/\s+/g, '-');
-        await sqliteDb.sql`
-          INSERT INTO categories (id, name, slug, description, createdAt)
-          VALUES (${id}, ${name}, ${slug}, '', ${now});
-        `;
+      await exec(`DELETE FROM categories`);
+
+      for (const name of defaults) {
+        await exec(
+          `INSERT INTO categories (name, slug) VALUES (?, ?)`,
+          [name, slugify(name)]
+        );
       }
 
+      const rows = await query(
+        `
+        SELECT
+          id,
+          name,
+          slug,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM categories
+        ORDER BY name ASC
+        `
+      );
+
       broadcastCategoriesUpdate();
-      res.json({ success: true, message: "Categories reset and seeded successfully." });
+      res.json({ success: true, categories: rows });
     } catch (error: any) {
       console.error("Error resetting categories:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to reset categories' });
     }
   });
 
   // Clean duplicate categories
   server.post("/api/categories/clean-duplicates", async (req, res) => {
     try {
-      // Find duplicates keeping the first one (by createdAt or id)
-      await sqliteDb.sql`
-        DELETE FROM categories 
+      await exec(`
+        DELETE FROM categories
         WHERE id NOT IN (
-          SELECT MIN(id) 
-          FROM categories 
-          GROUP BY name
-        );
-      `;
+          SELECT MIN(id)
+          FROM categories
+          GROUP BY TRIM(LOWER(name))
+        )
+      `);
+
+      const rows = await query(
+        `
+        SELECT
+          id,
+          name,
+          slug,
+          created_at AS createdAt,
+          updated_at AS updatedAt
+        FROM categories
+        ORDER BY name ASC
+        `
+      );
+
       broadcastCategoriesUpdate();
-      res.json({ success: true, message: "Duplicate categories cleaned successfully." });
+      res.json({ success: true, categories: rows });
     } catch (error: any) {
       console.error("Error cleaning duplicates:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to clean duplicate categories' });
     }
   });
 
   // Sitemap route
   server.get("/sitemap.xml", async (req, res) => {
     try {
-      const articles = await sqliteDb.sql`SELECT * FROM articles;`;
+      const articles = await query(`SELECT * FROM articles;`);
 
       const baseUrl = "https://huisache.com";
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -422,13 +575,13 @@ async function startServer() {
         let isPublished = true;
         if (article.status === 'draft') {
           isPublished = false;
-        } else if (article.publishedAt) {
-          const pubDate = new Date(article.publishedAt);
+        } else if (article.published_at) {
+          const pubDate = new Date(article.published_at);
           isPublished = pubDate <= now;
         }
         
         if (isPublished && article.slug) {
-          const updatedAt = article.updatedAt ? new Date(article.updatedAt) : new Date();
+          const updatedAt = article.updated_at ? new Date(article.updated_at) : new Date();
           xml += '  <url>\n';
           xml += `    <loc>${baseUrl}/articles/${article.slug}</loc>\n`;
           xml += `    <lastmod>${updatedAt.toISOString()}</lastmod>\n`;
@@ -472,7 +625,7 @@ Sitemap: https://huisache.com/sitemap.xml`;
     const id = Date.now().toString();
     const createdAt = new Date().toISOString();
     try {
-      await sqliteDb.sql`INSERT INTO users (id, email, password, createdAt) VALUES (${id}, ${email}, ${hashedPassword}, ${createdAt})`;
+      await exec(`INSERT INTO users (id, email, password, createdAt) VALUES (?, ?, ?, ?)`, [id, email, hashedPassword, createdAt]);
       res.status(201).json({ message: "User registered" });
     } catch (err) {
       res.status(400).json({ error: "Registration failed" });
@@ -481,7 +634,7 @@ Sitemap: https://huisache.com/sitemap.xml`;
 
   server.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
-    const users = await sqliteDb.sql`SELECT * FROM users WHERE email = ${email}`;
+    const users = await query(`SELECT * FROM users WHERE email = ?`, [email]);
     if (users.length === 0) return res.status(401).json({ error: "Invalid credentials" });
     const user = users[0];
     const match = await bcrypt.compare(password, user.password);
@@ -524,3 +677,4 @@ Sitemap: https://huisache.com/sitemap.xml`;
 }
 
 startServer();
+
