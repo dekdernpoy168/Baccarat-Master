@@ -14,14 +14,14 @@ async function startServer() {
   const io = new Server(httpServer, {
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
+      methods: ["GET", "POST"],
+      credentials: true
     },
-    transports: ["polling"], // Force polling to avoid WebSocket errors and unhandled rejections in this environment
-    pingTimeout: 120000,
-    pingInterval: 30000,
     allowEIO3: true,
-    connectTimeout: 60000,
-    maxHttpBufferSize: 1e8 // 100MB
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    connectTimeout: 45000,
+    transports: ['polling', 'websocket']
   });
 
   server.use(express.json({ limit: '50mb' }));
@@ -506,10 +506,6 @@ Sitemap: https://huisache.com/sitemap.xml`;
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
-        hmr: {
-          protocol: 'ws',
-          host: 'localhost',
-        }
       },
       appType: "spa",
     });

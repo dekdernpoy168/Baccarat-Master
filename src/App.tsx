@@ -83,7 +83,7 @@ interface FirestoreErrorInfo {
   authInfo: any;
 }
 
-const ADMIN_EMAIL = "dekdernpoy168@gmail.com";
+const ADMIN_EMAIL = "admin";
 
 // --- SEO Component ---
 const SEO = ({ title, description, keywords, canonicalUrl, type = "website", image, schema }: { title: string, description: string, keywords?: string, canonicalUrl?: string, type?: string, image?: string, schema?: any }) => {
@@ -187,7 +187,14 @@ const Navbar = ({ user }: { user: User | null }) => {
           ) : (
             <div className="flex items-center space-x-2">
               <span className="text-gray-400 text-xs hidden sm:inline-block max-w-[100px] lg:max-w-[120px] truncate">{user.email}</span>
-              <button onClick={() => signOut(auth)} className="bg-baccarat-red/20 text-baccarat-red hover:bg-baccarat-red hover:text-white p-1.5 lg:p-2 rounded-lg transition-colors">
+              <button 
+                onClick={() => {
+                  signOut(auth);
+                  localStorage.removeItem('custom_admin_user');
+                  window.location.href = '/';
+                }} 
+                className="bg-baccarat-red/20 text-baccarat-red hover:bg-baccarat-red hover:text-white p-1.5 lg:p-2 rounded-lg transition-colors"
+              >
                 <LogOut size={16} className="lg:w-[18px] lg:h-[18px]" />
               </button>
             </div>
@@ -1311,9 +1318,11 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
   );
 };
 
-const LoginPage = ({ user }: { user: User | null }) => {
+const LoginPage = ({ user, setUser }: { user: User | null, setUser: (u: User | null) => void }) => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (user?.email === ADMIN_EMAIL) {
@@ -1321,14 +1330,18 @@ const LoginPage = ({ user }: { user: User | null }) => {
     }
   }, [user, navigate]);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (err: any) {
-      console.error("Login failed", err);
-      setError(err.message || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+    
+    // Check for the requested credentials
+    if (username === 'admin' && password === 'Bankk2599++') {
+      const mockUser = { email: 'admin', uid: 'admin-uid' } as User;
+      setUser(mockUser);
+      localStorage.setItem('custom_admin_user', JSON.stringify(mockUser));
+      navigate('/admin');
+    } else {
+      setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
     }
   };
 
@@ -1338,7 +1351,7 @@ const LoginPage = ({ user }: { user: User | null }) => {
         title="เข้าสู่ระบบ" 
         description="เข้าสู่ระบบเพื่อจัดการบทความและข้อมูลเว็บไซต์ Baccarat Master Guide" 
       />
-      <div className="max-w-md w-full bg-gray-900 border border-gold/20 p-10 rounded-[2rem] text-center">
+      <div className="max-w-md w-full bg-gray-900 border border-gold/20 p-10 rounded-[2rem] text-center shadow-2xl">
         <div className="w-16 h-16 bg-baccarat-red rounded-full flex items-center justify-center border border-gold mx-auto mb-8">
           <Lock className="text-gold w-8 h-8" />
         </div>
@@ -1351,13 +1364,36 @@ const LoginPage = ({ user }: { user: User | null }) => {
           </div>
         )}
 
-        <button 
-          onClick={handleLogin}
-          className="w-full flex items-center justify-center space-x-3 bg-white text-black font-bold py-4 rounded-full hover:bg-gray-200 transition-colors"
-        >
-          <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-          <span>เข้าสู่ระบบด้วย Google</span>
-        </button>
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="text-left">
+            <label className="block text-gray-400 text-xs font-bold uppercase mb-2 ml-4">Username</label>
+            <input 
+              type="text" 
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-black border border-gold/20 rounded-full px-6 py-4 text-white outline-none focus:border-gold transition-colors"
+              placeholder="admin"
+              required
+            />
+          </div>
+          <div className="text-left">
+            <label className="block text-gray-400 text-xs font-bold uppercase mb-2 ml-4">Password</label>
+            <input 
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-black border border-gold/20 rounded-full px-6 py-4 text-white outline-none focus:border-gold transition-colors"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <button 
+            type="submit"
+            className="w-full gold-bg-gradient text-baccarat-black font-black py-4 rounded-full hover:scale-105 transition-transform shadow-lg shadow-gold/20 mt-4"
+          >
+            เข้าสู่ระบบ
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -4043,8 +4079,20 @@ export default function App() {
   }, [notification]);
 
   useEffect(() => {
+    // Check for custom admin user in localStorage
+    const savedUser = localStorage.getItem('custom_admin_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('custom_admin_user');
+      }
+    }
+
     const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+      if (!savedUser) {
+        setUser(u);
+      }
       setAuthReady(true);
     });
 
@@ -4085,10 +4133,10 @@ export default function App() {
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
     const socket = io({
-      transports: ['polling'], // Force polling to avoid WebSocket errors and unhandled rejections in this environment
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
-      reconnectionDelay: 5000, // Wait 5s between retries
-      timeout: 60000, // Increased timeout to 60s
+      reconnectionDelay: 2000,
+      timeout: 30000,
       autoConnect: true
     });
     
@@ -4152,7 +4200,7 @@ export default function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
-            <Route path="/login" element={<LoginPage user={user} />} />
+            <Route path="/login" element={<LoginPage user={user} setUser={setUser} />} />
             <Route 
               path="/admin" 
               element={

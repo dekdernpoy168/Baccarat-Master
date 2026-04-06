@@ -15,6 +15,7 @@ export interface Article {
   createdAt?: any;
   updatedAt?: any;
   status?: string;
+  tags?: string;
 }
 
 export const ARTICLES: Article[] = [

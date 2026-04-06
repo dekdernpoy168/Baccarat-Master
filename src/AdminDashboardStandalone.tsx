@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { calculateReadTime } from './lib/readTime';
+import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -729,10 +730,10 @@ const AdminDashboard = () => {
 
     // Socket.io for real-time updates
     const socket = io({
-      transports: ['polling'], // Force polling to avoid WebSocket errors and unhandled rejections in this environment
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
-      reconnectionDelay: 5000, // Wait 5s between retries
-      timeout: 60000, // Increased timeout to 60s
+      reconnectionDelay: 2000,
+      timeout: 30000,
       autoConnect: true
     });
     
