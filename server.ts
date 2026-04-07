@@ -8,21 +8,13 @@ import { Server } from "socket.io";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
-import { exec, query } from './src/db';
+import { exec, query } from './src/db.ts';
 import { initSchema } from './src/initSchema';
 
 async function startServer() {
   const server = express();
   const httpServer = createServer(server);
-  
-  httpServer.on('request', (req, res) => {
-    if (req.url?.startsWith('/api/socket.io')) {
-      console.log(`[HTTP] ${req.method} ${req.url}`);
-    }
-  });
-
   const io = new Server(httpServer, {
-    path: "/api/socket.io",
     cors: {
       origin: "*",
       methods: ["GET", "POST"]
