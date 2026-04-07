@@ -42,9 +42,6 @@ const categories = sqliteTable('categories', {
 export interface Env {
   DB: D1Database;
   "baccarat-master": Queue;
-  WORKER_B: {
-    add: (a: number, b: number) => Promise<number>;
-  };
 }
 
 // --- Helper Functions ---
