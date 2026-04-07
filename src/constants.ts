@@ -1,4 +1,4 @@
-export const API_BASE = 'https://baccaratmaster.dekdernpoy168.workers.dev';
+export const API_BASE = '';
 
 export interface Article {
   id: string | number;

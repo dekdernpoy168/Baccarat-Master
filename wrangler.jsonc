@@ -42,5 +42,11 @@
         "dead_letter_queue": "my-queue-dlq"
       }
     ]
-  }
+  },
+  "services": [
+    {
+      "binding": "WORKER_B",
+      "service": "baccarat-master-worker-b"
+    }
+  ]
 }
