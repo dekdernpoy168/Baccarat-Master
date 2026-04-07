@@ -16,7 +16,7 @@ async function startServer() {
   const httpServer = createServer(server);
   const io = new Server(httpServer, {
     cors: {
-      origin: "*",
+      origin: true, // Allow any origin
       methods: ["GET", "POST"],
       credentials: true
     },
@@ -58,12 +58,12 @@ async function startServer() {
     io.emit("categories_updated");
   };
 
-  // Initialize SQLiteCloud tables
+  // Initialize Cloudflare D1 tables
   try {
     await initSchema();
-    console.log("SQLiteCloud tables initialized successfully.");
+    console.log("Cloudflare D1 tables initialized successfully.");
   } catch (error) {
-    console.error("Error initializing SQLiteCloud tables:", error);
+    console.error("Error initializing Cloudflare D1 tables:", error);
   }
 
   // Helper functions
@@ -479,20 +479,22 @@ async function startServer() {
   server.post("/api/categories/reset", async (req, res) => {
     try {
       const defaults = [
-        'บาคาร่า',
-        'สูตรบาคาร่า',
-        'เทคนิคบาคาร่า',
-        'ข่าวบาคาร่า',
-        'คาสิโนออนไลน์',
-        'มือใหม่หัดเล่น',
+        { name: 'วิธีเล่นเบื้องต้น', slug: 'basic-guide' },
+        { name: 'เทคนิคการเดินเงิน', slug: 'money-management' },
+        { name: 'การอ่านเค้าไพ่', slug: 'card-pattern-reading' },
+        { name: 'ทริคระดับเซียน', slug: 'expert-tricks' },
+        { name: 'เทคนิคบาคาร่า', slug: 'baccarat-techniques' },
+        { name: 'สูตรบาคาร่าฟรี', slug: 'free-baccarat-formula' },
+        { name: 'วิธีเล่น', slug: 'how-to-play' },
+        { name: 'เทคนิคการเดิมพัน', slug: 'betting-techniques' },
       ];
 
       await exec(`DELETE FROM categories`);
 
-      for (const name of defaults) {
+      for (const cat of defaults) {
         await exec(
           `INSERT INTO categories (name, slug) VALUES (?, ?)`,
-          [name, slugify(name)]
+          [cat.name, cat.slug]
         );
       }
 
@@ -625,9 +627,10 @@ Sitemap: https://huisache.com/sitemap.xml`;
     const id = Date.now().toString();
     const createdAt = new Date().toISOString();
     try {
-      await exec(`INSERT INTO users (id, email, password, createdAt) VALUES (?, ?, ?, ?)`, [id, email, hashedPassword, createdAt]);
+      await exec(`INSERT INTO users (id, email, password, created_at) VALUES (?, ?, ?, ?)`, [id, email, hashedPassword, createdAt]);
       res.status(201).json({ message: "User registered" });
     } catch (err) {
+      console.error("Registration error:", err);
       res.status(400).json({ error: "Registration failed" });
     }
   });

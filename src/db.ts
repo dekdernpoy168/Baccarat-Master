@@ -1,87 +1,54 @@
 import 'dotenv/config';
-import { Database } from '@sqlitecloud/drivers';
 
-const DATABASE_URL = process.env.SQLITE_CLOUD_URL || process.env.DATABASE_URL;
+const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const DATABASE_ID = process.env.CLOUDFLARE_D1_DATABASE_ID;
 
-if (!DATABASE_URL) {
-  throw new Error('Missing SQLITE_CLOUD_URL or DATABASE_URL in .env');
+if (!ACCOUNT_ID || !API_TOKEN || !DATABASE_ID) {
+  console.warn('Missing Cloudflare D1 configuration in .env. Database operations will fail.');
 }
-
-console.log('Initializing database connection with URL:', DATABASE_URL.replace(/apikey=[^&]+/, 'apikey=***'));
 
 export type SqlParam = string | number | null | undefined;
 
 export async function query<T = any>(sql: string, params: SqlParam[] = []): Promise<T[]> {
-  const db = new Database(DATABASE_URL!);
+  if (!ACCOUNT_ID || !API_TOKEN || !DATABASE_ID) {
+    throw new Error('Cloudflare D1 configuration is missing');
+  }
+
+  const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DATABASE_ID}/query`;
 
   try {
-    // If the URL doesn't specify a database, try to automatically select one
-    const url = new URL(DATABASE_URL!);
-    const hasDatabaseInPath = url.pathname && url.pathname !== '/' && url.pathname !== '';
-    
-    if (!hasDatabaseInPath) {
-      try {
-        const databases = await db.sql('LIST DATABASES;');
-        console.log('Available databases:', JSON.stringify(databases));
-        
-        const dbList = Array.isArray(databases) ? databases : [];
-        const contentDb = dbList.find(d => {
-          const name = (d.name || d.DATABASE || d.database || '').toString().toLowerCase();
-          return name === 'content.sqlite';
-        });
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sql,
+        params: params.map(p => p === undefined ? null : p),
+      }),
+    });
 
-        if (contentDb) {
-          console.log('Found content.sqlite, using it...');
-          await db.sql('USE DATABASE content.sqlite;');
-        } else {
-          // Try to create content.sqlite
-          console.log('content.sqlite not found. Attempting to create it...');
-          try {
-            await db.sql('CREATE DATABASE content.sqlite;');
-            await db.sql('USE DATABASE content.sqlite;');
-            console.log('Created and using database: content.sqlite');
-          } catch (createErr) {
-            console.warn('Could not create content.sqlite, selecting first available user database...');
-            
-            const userDbs = dbList.filter(d => {
-              const name = (d.name || d.DATABASE || d.database || '').toString();
-              return name && !name.startsWith('_') && name.toLowerCase() !== 'sqlitecloud';
-            });
-            
-            if (userDbs.length > 0) {
-              const targetDb = userDbs[0];
-              const dbName = targetDb.name || targetDb.DATABASE || targetDb.database;
-              console.log(`Automatically selecting user database: ${dbName}`);
-              await db.sql(`USE DATABASE ${dbName};`);
-            } else if (dbList.length > 0) {
-              const firstDb = dbList[0];
-              const dbName = firstDb.name || firstDb.DATABASE || firstDb.database;
-              console.log(`No user databases found, falling back to first available: ${dbName}`);
-              await db.sql(`USE DATABASE ${dbName};`);
-            } else {
-              console.error('No databases available and could not create default.');
-            }
-          }
-        }
-      } catch (listErr) {
-        console.warn('Failed to list databases or select one:', listErr);
-        // Last ditch effort
-        try {
-          await db.sql('USE DATABASE content.sqlite;');
-        } catch (e) {
-          console.error('Final attempt to use content.sqlite failed:', e);
-        }
-      }
+    const data: any = await response.json();
+
+    if (!data.success) {
+      const errorMsg = data.errors?.[0]?.message || 'Unknown D1 error';
+      throw new Error(`D1 Query Error: ${errorMsg}`);
     }
 
-    // The sql method can take a string and parameters
-    const result = await db.sql(sql, ...params.map((value) => (value === undefined ? null : value)));
-    return Array.isArray(result) ? (result as T[]) : [];
+    // D1 returns an array of results for each query in the batch
+    // Since we only send one query, we take the first result
+    const result = data.result[0];
+    
+    if (!result.success) {
+      throw new Error(`D1 Query Error: ${result.errors?.[0]?.message || 'Query failed'}`);
+    }
+
+    return Array.isArray(result.results) ? (result.results as T[]) : [];
   } catch (error) {
     console.error(`Database query error [${sql}]:`, error);
     throw error;
-  } finally {
-    db.close();
   }
 }
 
