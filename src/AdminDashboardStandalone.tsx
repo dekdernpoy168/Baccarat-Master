@@ -243,7 +243,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
 
       if (!response.ok) throw new Error('Failed to fetch keywords');
       
-      const data = await response.json();
+      const data = await response.json() as any;
       if (data.data && data.data.length > 0) {
         const kwList = data.data.map((item: any) => item.keyword).join(', ');
         setKeywords(prev => prev ? `${prev}, ${kwList}` : kwList);
@@ -766,14 +766,14 @@ const AdminDashboard = () => {
       ]);
       
       if (articlesRes.ok) {
-        const docs = await articlesRes.json();
+        const docs = await articlesRes.json() as Article[];
         setArticles(docs);
       } else {
         setError("ไม่สามารถดึงข้อมูลบทความได้");
       }
 
       if (categoriesRes.ok) {
-        const catsData = await categoriesRes.json();
+        const catsData = await categoriesRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -787,8 +787,8 @@ const AdminDashboard = () => {
     loadData();
 
     // Socket.io for real-time updates
-    const socket = io({
-      transports: ['polling', 'websocket'],
+    const socket = io(window.location.origin, {
+      path: '/socket.io',
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,

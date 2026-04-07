@@ -591,14 +591,15 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
   const guideArticle = publishedArticles.find(a => a.title.includes('คู่มือฉบับสมบูรณ์'));
   const guideLink = guideArticle ? `/articles/${guideArticle.slug}` : '/articles';
 
+  const baseUrl = import.meta.env.VITE_APP_URL || "https://huisache.com";
   const schema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "Baccarat Master Guide",
-    "url": "https://huisache.com/",
+    "url": `${baseUrl}/`,
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://huisache.com/articles?category={search_term_string}",
+      "target": `${baseUrl}/articles?category={search_term_string}`,
       "query-input": "required name=search_term_string"
     }
   };
@@ -609,7 +610,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
         title="คู่มือการเล่น บาคาร่า ฉบับสมบูรณ์ ปี 2026 เจาะลึกทุกกลยุทธ์" 
         description="คู่มือการเล่น บาคาร่า ปี 2026 เจาะลึกสอนทุกขั้นตอนตั้งแต่พื้นฐานถึงสูตรทำเงินระดับเซียน พร้อมกลยุทธ์เด็ดที่ช่วยเพิ่มโอกาสชนะให้คุณแบบมืออาชีพ" 
         keywords="บาคาร่า, สูตรบาคาร่า, เล่นบาคาร่า, บาคาร่าออนไลน์, เทคนิคบาคาร่า, บาคาร่ามือถือ, เว็บบาคาร่า, เซียนบาคาร่า"
-        canonicalUrl="https://huisache.com/" 
+        canonicalUrl={`${baseUrl}/`} 
         schema={schema}
       />
       {/* Hero Section */}
@@ -1445,7 +1446,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
 
       if (!response.ok) throw new Error('Failed to fetch keywords');
       
-      const data = await response.json();
+      const data = await response.json() as any;
       if (data.data && data.data.length > 0) {
         const kwList = data.data.map((item: any) => item.keyword).join(', ');
         setKeywords(prev => prev ? `${prev}, ${kwList}` : kwList);
@@ -1995,7 +1996,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       // Refresh articles
       const response = await fetch('/api/articles');
       if (response.ok) {
-        const docs = await response.json();
+        const docs = await response.json() as Article[];
         setArticles(docs);
       }
       
@@ -2293,7 +2294,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       // Update categories state
       const catsRes = await fetch('/api/categories');
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2319,7 +2320,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       // Update categories state
       const catsRes = await fetch('/api/categories');
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2342,7 +2343,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       // Update categories state
       const catsRes = await fetch('/api/categories');
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2532,11 +2533,11 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
         fetch('/api/categories')
       ]);
       if (articlesRes.ok) {
-        const docs = await articlesRes.json();
+        const docs = await articlesRes.json() as Article[];
         setArticles(docs);
       }
       if (categoriesRes.ok) {
-        const catsData = await categoriesRes.json();
+        const catsData = await categoriesRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -4102,7 +4103,7 @@ export default function App() {
       try {
         const response = await fetch('/api/articles');
         if (!response.ok) throw new Error('Failed to fetch articles');
-        const docs = await response.json();
+        const docs = await response.json() as Article[];
         console.log(`Fetched ${docs.length} articles from API`);
         
         // Only use articles from the database
@@ -4119,7 +4120,7 @@ export default function App() {
       try {
         const response = await fetch('/api/categories');
         if (!response.ok) throw new Error('Failed to fetch categories');
-        const catsData = await response.json();
+        const catsData = await response.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       } catch (error) {
@@ -4132,8 +4133,8 @@ export default function App() {
 
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
-    const socket = io({
-      transports: ['polling', 'websocket'],
+    const socket = io(window.location.origin, {
+      path: '/socket.io',
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,

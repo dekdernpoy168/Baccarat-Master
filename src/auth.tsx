@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       })
-        .then(res => res.json())
+        .then(res => res.json() as Promise<any>)
         .then(data => {
           if (data.id) setUser(data);
           else localStorage.removeItem('token');
@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       body: JSON.stringify({ email, password })
     });
     if (!res.ok) throw new Error('Login failed');
-    const data = await res.json();
+    const data = await res.json() as any;
     localStorage.setItem('token', data.token);
     setUser(data.user);
   };
