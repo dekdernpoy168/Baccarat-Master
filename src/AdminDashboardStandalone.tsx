@@ -756,6 +756,12 @@ const AdminDashboard = () => {
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const articlesPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus]);
 
   // Fetch data on mount
   const loadData = async () => {
@@ -824,6 +830,9 @@ const AdminDashboard = () => {
     if (filterStatus === 'scheduled') return a.status !== 'draft' && a.publishedAt && new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) > new Date();
     return true;
   });
+
+  const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+  const paginatedArticles = filteredArticles.slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage);
 
   const generateSlugFromTitle = async () => {
     if (!currentArticle.title?.trim()) {
@@ -2141,7 +2150,7 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredArticles.map((article, index) => (
+              {paginatedArticles.map((article, index) => (
                 <tr 
                   key={article.id} 
                   className={cn(
@@ -2212,7 +2221,39 @@ const AdminDashboard = () => {
               ))}
             </tbody>
           </table>
-          {articles.length === 0 && (
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gold/10">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-white/5 text-gray-400 rounded-lg text-xs font-bold hover:bg-gold/10 hover:text-gold transition-all disabled:opacity-50"
+              >
+                ก่อนหน้า
+              </button>
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={cn(
+                      "w-8 h-8 rounded-lg text-xs font-bold transition-all",
+                      currentPage === i + 1 ? "bg-gold text-baccarat-black" : "bg-white/5 text-gray-400 hover:bg-gold/10 hover:text-gold"
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-white/5 text-gray-400 rounded-lg text-xs font-bold hover:bg-gold/10 hover:text-gold transition-all disabled:opacity-50"
+              >
+                ถัดไป
+              </button>
+            </div>
+          )}
+          {filteredArticles.length === 0 && (
             <div className="py-20 text-center text-gray-500">ยังไม่มีบทความในระบบ</div>
           )}
         </div>
