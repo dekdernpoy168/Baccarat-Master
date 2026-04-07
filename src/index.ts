@@ -114,11 +114,8 @@ export default {
       return json(allUsers);
     }
 
-    // Default route: Proxy to Express server
-    url.hostname = 'localhost';
-    url.port = '3000';
-    
-    return fetch(new Request(url.toString(), request));
+    // Default route: Return 404 for unknown routes
+    return new Response('Not Found', { status: 404 });
   },
 
   async queue(batch: MessageBatch<any>, env: Env): Promise<void> {
