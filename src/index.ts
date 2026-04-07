@@ -115,7 +115,6 @@ export default {
     }
 
     // Default route: Proxy to Express server
-    const url = new URL(request.url);
     url.hostname = 'localhost';
     url.port = '3000';
     
