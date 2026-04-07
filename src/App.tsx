@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { calculateReadTime } from './lib/readTime';
-import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -61,7 +61,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { Article } from './constants';
+import { Article, API_BASE } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
 
@@ -457,6 +457,44 @@ const TermsPage = () => (
   </div>
 );
 
+const AnalyticsDashboard = () => {
+  const [data, setData] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/analytics/visits')
+      .then(res => res.json())
+      .then((data: any) => {
+        setData(data.data || []);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <div className="bg-gray-900/50 border border-gold/20 rounded-2xl p-6">
+      <h2 className="text-xl font-bold text-white mb-4">Analytics (Last 24h)</h2>
+      <table className="w-full text-left text-gray-300">
+        <thead>
+          <tr>
+            <th className="pb-2">City</th>
+            <th className="pb-2">Total Visits</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row: any, i: number) => (
+            <tr key={i} className="border-t border-white/10">
+              <td className="py-2">{row.city}</td>
+              <td className="py-2">{row.total_visits}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 // --- Pages ---
 
 const AboutPage = () => {
@@ -591,14 +629,15 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
   const guideArticle = publishedArticles.find(a => a.title.includes('คู่มือฉบับสมบูรณ์'));
   const guideLink = guideArticle ? `/articles/${guideArticle.slug}` : '/articles';
 
+  const baseUrl = import.meta.env.VITE_APP_URL || "https://huisache.com";
   const schema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "Baccarat Master Guide",
-    "url": "https://huisache.com/",
+    "url": `${baseUrl}/`,
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://huisache.com/articles?category={search_term_string}",
+      "target": `${baseUrl}/articles?category={search_term_string}`,
       "query-input": "required name=search_term_string"
     }
   };
@@ -609,7 +648,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
         title="คู่มือการเล่น บาคาร่า ฉบับสมบูรณ์ ปี 2026 เจาะลึกทุกกลยุทธ์" 
         description="คู่มือการเล่น บาคาร่า ปี 2026 เจาะลึกสอนทุกขั้นตอนตั้งแต่พื้นฐานถึงสูตรทำเงินระดับเซียน พร้อมกลยุทธ์เด็ดที่ช่วยเพิ่มโอกาสชนะให้คุณแบบมืออาชีพ" 
         keywords="บาคาร่า, สูตรบาคาร่า, เล่นบาคาร่า, บาคาร่าออนไลน์, เทคนิคบาคาร่า, บาคาร่ามือถือ, เว็บบาคาร่า, เซียนบาคาร่า"
-        canonicalUrl="https://huisache.com/" 
+        canonicalUrl={`${baseUrl}/`} 
         schema={schema}
       />
       {/* Hero Section */}
@@ -1445,7 +1484,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
 
       if (!response.ok) throw new Error('Failed to fetch keywords');
       
-      const data = await response.json();
+      const data = await response.json() as any;
       if (data.data && data.data.length > 0) {
         const kwList = data.data.map((item: any) => item.keyword).join(', ');
         setKeywords(prev => prev ? `${prev}, ${kwList}` : kwList);
@@ -1985,7 +2024,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       ];
 
       for (const article of defaultArticles) {
-        await fetch('/api/articles', {
+        await fetch(`${API_BASE}/api/articles`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(article)
@@ -1993,9 +2032,9 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       }
       
       // Refresh articles
-      const response = await fetch('/api/articles');
+      const response = await fetch(`${API_BASE}/api/articles`);
       if (response.ok) {
-        const docs = await response.json();
+        const docs = await response.json() as Article[];
         setArticles(docs);
       }
       
@@ -2282,7 +2321,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     if (!newCategoryName.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/categories', {
+      const res = await fetch(`${API_BASE}/api/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCategoryName.trim() })
@@ -2291,9 +2330,9 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       setNewCategoryName('');
       
       // Update categories state
-      const catsRes = await fetch('/api/categories');
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2308,23 +2347,60 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     if (!editingCategory || !editingCategory.new.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
+      // 1. Update the category name
+      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newName: editingCategory.new.trim() })
       });
       if (!res.ok) throw new Error('Failed to update category');
+
+      // 2. Update all articles associated with this category
+      const articlesToUpdate = articles.filter(a => a.category === editingCategory.old);
+      for (const article of articlesToUpdate) {
+        await fetch(`${API_BASE}/api/articles/${article.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...article, category: editingCategory.new.trim() })
+        });
+      }
+
       setEditingCategory(null);
       
-      // Update categories state
-      const catsRes = await fetch('/api/categories');
+      // Refresh data
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
-        const cats = catsData.map((cat: any) => cat.name);
-        setCategories(cats);
+        const catsData = await catsRes.json() as any[];
+        setCategories(catsData.map((cat: any) => cat.name));
+      }
+      const artsRes = await fetch(`${API_BASE}/api/articles`);
+      if (artsRes.ok) {
+        setArticles(await artsRes.json() as Article[]);
       }
     } catch (err) {
       console.error(err);
+      alert('เกิดข้อผิดพลาดในการอัปเดตหมวดหมู่');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetCategories = async () => {
+    if (!confirm('ต้องการรีเซ็ตหมวดหมู่ทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/categories/reset`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to reset categories');
+      
+      // Refresh data
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
+      if (catsRes.ok) {
+        const catsData = await catsRes.json() as any[];
+        setCategories(catsData.map((cat: any) => cat.name));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการรีเซ็ตหมวดหมู่');
     } finally {
       setLoading(false);
     }
@@ -2334,15 +2410,15 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     // Removed window.confirm as it is blocked in the sandboxed environment
     setLoading(true);
     try {
-      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
+      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(catName)}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error('Failed to delete category');
       
       // Update categories state
-      const catsRes = await fetch('/api/categories');
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2466,7 +2542,12 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
         if (status === 'draft') return null;
         if (!currentArticle.publishedAt) return new Date().toISOString();
         // If it's a string from the datetime-local input
-        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt).toISOString();
+        if (typeof currentArticle.publishedAt === 'string') {
+          const dateStr = currentArticle.publishedAt.includes('+') || currentArticle.publishedAt.includes('Z') 
+            ? currentArticle.publishedAt 
+            : `${currentArticle.publishedAt}+07:00`;
+          return new Date(dateStr).toISOString();
+        }
         // If it's already a Firestore Timestamp or Date object
         if (currentArticle.publishedAt.seconds) return new Date(currentArticle.publishedAt.seconds * 1000).toISOString();
         return new Date(currentArticle.publishedAt).toISOString();
@@ -2475,7 +2556,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       const articleData = {
         ...dataWithoutId,
         status,
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date: formatInTimeZone(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
       };
@@ -2488,13 +2569,13 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
 
       let res;
       if (id) {
-        res = await fetch(`/api/articles/${id}`, {
+        res = await fetch(`${API_BASE}/api/articles/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
         });
       } else {
-        res = await fetch('/api/articles', {
+        res = await fetch(`${API_BASE}/api/articles`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
@@ -2513,7 +2594,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
 
       // Also ensure category exists in categories collection
       if (articleData.category) {
-        const catRes = await fetch('/api/categories', {
+        const catRes = await fetch(`${API_BASE}/api/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: articleData.category })
@@ -2528,15 +2609,15 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       
       // Update articles and categories state
       const [articlesRes, categoriesRes] = await Promise.all([
-        fetch('/api/articles'),
-        fetch('/api/categories')
+        fetch(`${API_BASE}/api/articles`),
+        fetch(`${API_BASE}/api/categories`)
       ]);
       if (articlesRes.ok) {
-        const docs = await articlesRes.json();
+        const docs = await articlesRes.json() as Article[];
         setArticles(docs);
       }
       if (categoriesRes.ok) {
-        const catsData = await categoriesRes.json();
+        const catsData = await categoriesRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2568,7 +2649,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
   const handleDelete = async (id: string | number) => {
     // Removed window.confirm as it is blocked in the sandboxed environment
     try {
-      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/articles/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete article');
       window.location.reload();
     } catch (error: any) {
@@ -2598,7 +2679,10 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
         >
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold text-gold">จัดการหมวดหมู่</h2>
-            <button onClick={() => setIsManagingCategories(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            <div className="flex gap-2">
+              <button onClick={handleResetCategories} className="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 px-4 py-2 rounded-xl border border-red-900/50 transition-colors">รีเซ็ตหมวดหมู่</button>
+              <button onClick={() => setIsManagingCategories(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -2977,7 +3061,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                 <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> วันที่เผยแพร่ (Scheduling)</label>
                 <input 
                   type="datetime-local" 
-                  value={currentArticle.publishedAt ? format(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), "yyyy-MM-dd'T'HH:mm") : ''} 
+                  value={currentArticle.publishedAt ? formatInTimeZone(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), 'Asia/Bangkok', "yyyy-MM-dd'T'HH:mm") : ''} 
                   onChange={e => setCurrentArticle({...currentArticle, publishedAt: e.target.value})}
                   className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
                 />
@@ -3103,7 +3187,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                       </h1>
                       <div className="flex items-center text-gray-500 text-sm space-x-6">
                         <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {currentArticle.author || 'Baccarat Master'}</span>
-                        <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || format(new Date(), 'yyyy-MM-dd')}</span>
+                        <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || formatInTimeZone(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd')}</span>
                       </div>
                     </div>
                     
@@ -3253,11 +3337,11 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                       ) : article.publishedAt ? (
                         new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt) > new Date() ? (
                           <span className="text-blue-400 flex items-center">
-                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {formatInTimeZone(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'Asia/Bangkok', 'dd/MM/yyyy HH:mm')}
                           </span>
                         ) : (
                           <span className="text-green-400 flex items-center">
-                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {formatInTimeZone(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'Asia/Bangkok', 'dd/MM/yyyy HH:mm')}
                           </span>
                         )
                       ) : (
@@ -4100,9 +4184,9 @@ export default function App() {
     const fetchArticles = async () => {
       console.log('Fetching articles from API...');
       try {
-        const response = await fetch('/api/articles');
+        const response = await fetch(`${API_BASE}/api/articles`);
         if (!response.ok) throw new Error('Failed to fetch articles');
-        const docs = await response.json();
+        const docs = await response.json() as Article[];
         console.log(`Fetched ${docs.length} articles from API`);
         
         // Only use articles from the database
@@ -4117,9 +4201,9 @@ export default function App() {
     // Fetch Categories
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/categories');
+        const response = await fetch(`${API_BASE}/api/categories`);
         if (!response.ok) throw new Error('Failed to fetch categories');
-        const catsData = await response.json();
+        const catsData = await response.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       } catch (error) {
@@ -4132,8 +4216,8 @@ export default function App() {
 
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
-    const socket = io({
-      transports: ['polling', 'websocket'],
+    const socket = io(window.location.origin, {
+      path: '/socket.io',
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,

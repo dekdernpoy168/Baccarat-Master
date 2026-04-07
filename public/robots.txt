@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /admin
+Sitemap: https://huisache.com/sitemap.xml

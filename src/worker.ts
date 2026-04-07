@@ -267,4 +267,21 @@ export default {
       return error(e.message || 'Internal server error', 500);
     }
   },
+
+  // --- Queue Handler ---
+  // Added to resolve Cloudflare deployment error [code: 11001]
+  // This handler is required if the worker is configured as a Queue consumer in the Cloudflare dashboard.
+  async queue(batch: any, env: Env): Promise<void> {
+    console.log(`Processing queue batch with ${batch.messages.length} messages`);
+    for (const message of batch.messages) {
+      try {
+        console.log(`Processing message ${message.id}`);
+        // Add your queue processing logic here
+        message.ack();
+      } catch (e) {
+        console.error(`Error processing message ${message.id}:`, e);
+        message.retry();
+      }
+    }
+  },
 };

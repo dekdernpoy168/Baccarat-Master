@@ -1,3 +1,5 @@
+export const API_BASE = '';
+
 export interface Article {
   id: string | number;
   title: string;
