@@ -57,7 +57,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
+import { ARTICLES as STATIC_ARTICLES, Article, API_BASE } from './constants';
 import { cn } from './lib/utils';
 
 // --- Types & Constants ---
@@ -761,8 +761,8 @@ const AdminDashboard = () => {
   const loadData = async () => {
     try {
       const [articlesRes, categoriesRes] = await Promise.all([
-        fetch('/api/articles'),
-        fetch('/api/categories')
+        fetch(`${API_BASE}/api/articles`),
+        fetch(`${API_BASE}/api/categories`)
       ]);
       
       if (articlesRes.ok) {
@@ -1133,7 +1133,7 @@ const AdminDashboard = () => {
     if (!newCategoryName.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/categories', {
+      const res = await fetch(`${API_BASE}/api/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCategoryName.trim() })
@@ -1152,7 +1152,7 @@ const AdminDashboard = () => {
     if (!editingCategory || !editingCategory.new.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
+      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newName: editingCategory.new.trim() })
@@ -1171,7 +1171,7 @@ const AdminDashboard = () => {
     // Removed window.confirm as it is blocked in the sandboxed environment
     setLoading(true);
     try {
-      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
+      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(catName)}`, {
         method: 'DELETE'
       });
       console.log('Delete response status:', res.status);
@@ -1188,7 +1188,7 @@ const AdminDashboard = () => {
     if (!window.confirm('คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตหมวดหมู่ทั้งหมด? ข้อมูลเดิมจะถูกลบและแทนที่ด้วยหมวดหมู่เริ่มต้น')) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/categories/reset', {
+      const res = await fetch(`${API_BASE}/api/categories/reset`, {
         method: 'POST'
       });
       if (!res.ok) throw new Error('Failed to reset categories');
@@ -1205,7 +1205,7 @@ const AdminDashboard = () => {
   const handleCleanDuplicateCategories = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/categories/clean-duplicates', {
+      const res = await fetch(`${API_BASE}/api/categories/clean-duplicates`, {
         method: 'POST'
       });
       if (!res.ok) throw new Error('Failed to clean duplicate categories');
@@ -1360,13 +1360,13 @@ const AdminDashboard = () => {
 
       let res;
       if (id) {
-        res = await fetch(`/api/articles/${id}`, {
+        res = await fetch(`${API_BASE}/api/articles/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
         });
       } else {
-        res = await fetch('/api/articles', {
+        res = await fetch(`${API_BASE}/api/articles`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
@@ -1385,7 +1385,7 @@ const AdminDashboard = () => {
 
       // Also ensure category exists in categories collection
       if (articleData.category && !categories.includes(articleData.category)) {
-        const catRes = await fetch('/api/categories', {
+        const catRes = await fetch(`${API_BASE}/api/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: articleData.category })
@@ -1426,7 +1426,7 @@ const AdminDashboard = () => {
   const handleDelete = async (id: string | number) => {
     if (!window.confirm("ยืนยันการลบตัวเลือกนี้?")) return;
     try {
-      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/articles/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete article');
       loadData();
     } catch (error: any) {

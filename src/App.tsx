@@ -61,7 +61,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { Article } from './constants';
+import { Article, API_BASE } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
 
@@ -1986,7 +1986,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       ];
 
       for (const article of defaultArticles) {
-        await fetch('/api/articles', {
+        await fetch(`${API_BASE}/api/articles`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(article)
@@ -1994,7 +1994,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       }
       
       // Refresh articles
-      const response = await fetch('/api/articles');
+      const response = await fetch(`${API_BASE}/api/articles`);
       if (response.ok) {
         const docs = await response.json() as Article[];
         setArticles(docs);
@@ -2283,7 +2283,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     if (!newCategoryName.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/categories', {
+      const res = await fetch(`${API_BASE}/api/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCategoryName.trim() })
@@ -2292,7 +2292,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       setNewCategoryName('');
       
       // Update categories state
-      const catsRes = await fetch('/api/categories');
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
       if (catsRes.ok) {
         const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
@@ -2309,7 +2309,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     if (!editingCategory || !editingCategory.new.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
+      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newName: editingCategory.new.trim() })
@@ -2318,7 +2318,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       setEditingCategory(null);
       
       // Update categories state
-      const catsRes = await fetch('/api/categories');
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
       if (catsRes.ok) {
         const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
@@ -2335,13 +2335,13 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     // Removed window.confirm as it is blocked in the sandboxed environment
     setLoading(true);
     try {
-      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
+      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(catName)}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error('Failed to delete category');
       
       // Update categories state
-      const catsRes = await fetch('/api/categories');
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
       if (catsRes.ok) {
         const catsData = await catsRes.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
@@ -2494,13 +2494,13 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
 
       let res;
       if (id) {
-        res = await fetch(`/api/articles/${id}`, {
+        res = await fetch(`${API_BASE}/api/articles/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
         });
       } else {
-        res = await fetch('/api/articles', {
+        res = await fetch(`${API_BASE}/api/articles`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
@@ -2519,7 +2519,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
 
       // Also ensure category exists in categories collection
       if (articleData.category) {
-        const catRes = await fetch('/api/categories', {
+        const catRes = await fetch(`${API_BASE}/api/categories`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: articleData.category })
@@ -2534,8 +2534,8 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       
       // Update articles and categories state
       const [articlesRes, categoriesRes] = await Promise.all([
-        fetch('/api/articles'),
-        fetch('/api/categories')
+        fetch(`${API_BASE}/api/articles`),
+        fetch(`${API_BASE}/api/categories`)
       ]);
       if (articlesRes.ok) {
         const docs = await articlesRes.json() as Article[];
@@ -2574,7 +2574,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
   const handleDelete = async (id: string | number) => {
     // Removed window.confirm as it is blocked in the sandboxed environment
     try {
-      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/articles/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete article');
       window.location.reload();
     } catch (error: any) {
@@ -4106,7 +4106,7 @@ export default function App() {
     const fetchArticles = async () => {
       console.log('Fetching articles from API...');
       try {
-        const response = await fetch('/api/articles');
+        const response = await fetch(`${API_BASE}/api/articles`);
         if (!response.ok) throw new Error('Failed to fetch articles');
         const docs = await response.json() as Article[];
         console.log(`Fetched ${docs.length} articles from API`);
@@ -4123,7 +4123,7 @@ export default function App() {
     // Fetch Categories
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/categories');
+        const response = await fetch(`${API_BASE}/api/categories`);
         if (!response.ok) throw new Error('Failed to fetch categories');
         const catsData = await response.json() as any[];
         const cats = catsData.map((cat: any) => cat.name);
