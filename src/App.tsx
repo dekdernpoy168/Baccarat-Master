@@ -464,7 +464,7 @@ const AnalyticsDashboard = () => {
   React.useEffect(() => {
     fetch('/api/analytics/visits')
       .then(res => res.json())
-      .then(data => {
+      .then((data: any) => {
         setData(data.data || []);
         setLoading(false);
       });
@@ -2347,23 +2347,60 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     if (!editingCategory || !editingCategory.new.trim()) return;
     setLoading(true);
     try {
+      // 1. Update the category name
       const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newName: editingCategory.new.trim() })
       });
       if (!res.ok) throw new Error('Failed to update category');
+
+      // 2. Update all articles associated with this category
+      const articlesToUpdate = articles.filter(a => a.category === editingCategory.old);
+      for (const article of articlesToUpdate) {
+        await fetch(`${API_BASE}/api/articles/${article.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...article, category: editingCategory.new.trim() })
+        });
+      }
+
       setEditingCategory(null);
       
-      // Update categories state
+      // Refresh data
       const catsRes = await fetch(`${API_BASE}/api/categories`);
       if (catsRes.ok) {
         const catsData = await catsRes.json() as any[];
-        const cats = catsData.map((cat: any) => cat.name);
-        setCategories(cats);
+        setCategories(catsData.map((cat: any) => cat.name));
+      }
+      const artsRes = await fetch(`${API_BASE}/api/articles`);
+      if (artsRes.ok) {
+        setArticles(await artsRes.json() as Article[]);
       }
     } catch (err) {
       console.error(err);
+      alert('เกิดข้อผิดพลาดในการอัปเดตหมวดหมู่');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetCategories = async () => {
+    if (!confirm('ต้องการรีเซ็ตหมวดหมู่ทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/categories/reset`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to reset categories');
+      
+      // Refresh data
+      const catsRes = await fetch(`${API_BASE}/api/categories`);
+      if (catsRes.ok) {
+        const catsData = await catsRes.json() as any[];
+        setCategories(catsData.map((cat: any) => cat.name));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการรีเซ็ตหมวดหมู่');
     } finally {
       setLoading(false);
     }
@@ -2642,7 +2679,10 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
         >
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold text-gold">จัดการหมวดหมู่</h2>
-            <button onClick={() => setIsManagingCategories(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            <div className="flex gap-2">
+              <button onClick={handleResetCategories} className="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 px-4 py-2 rounded-xl border border-red-900/50 transition-colors">รีเซ็ตหมวดหมู่</button>
+              <button onClick={() => setIsManagingCategories(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            </div>
           </div>
 
           <div className="space-y-6">
