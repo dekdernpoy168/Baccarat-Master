@@ -76,7 +76,9 @@ async function startServer() {
   }
 
   function today() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    d.setUTCHours(d.getUTCHours() + 7);
+    return d.toISOString().slice(0, 10);
   }
 
   function normalizeArticleBody(body: any) {

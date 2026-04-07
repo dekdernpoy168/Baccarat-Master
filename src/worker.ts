@@ -85,6 +85,9 @@ export default {
       // POST /api/articles
       if (path === '/api/articles' && method === 'POST') {
         const body: any = await request.json();
+        const d = new Date();
+        d.setUTCHours(d.getUTCHours() + 7);
+        const today = d.toISOString().split('T')[0];
         const now = new Date().toISOString();
         const result = await env.DB.prepare(`
           INSERT INTO articles
@@ -105,7 +108,7 @@ export default {
           body.metaKeywords || null,
           body.author || 'Admin',
           body.status || 'draft',
-          body.date || new Date().toISOString().split('T')[0],
+          body.date || today,
           body.publishedAt || null,
           now, now
         ).run();
@@ -116,6 +119,9 @@ export default {
       if (path.match(/^\/api\/articles\/\d+$/) && method === 'PUT') {
         const id = path.split('/').pop();
         const body: any = await request.json();
+        const d = new Date();
+        d.setUTCHours(d.getUTCHours() + 7);
+        const today = d.toISOString().split('T')[0];
         const now = new Date().toISOString();
         await env.DB.prepare(`
           UPDATE articles SET
@@ -131,7 +137,7 @@ export default {
           body.metaTitle || null, body.metaDescription || null,
           body.metaKeywords || null, body.author || 'Admin',
           body.status || 'draft',
-          body.date || new Date().toISOString().split('T')[0],
+          body.date || today,
           body.publishedAt || null, now, id
         ).run();
         return json({ message: 'Updated' });

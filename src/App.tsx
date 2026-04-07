@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { calculateReadTime } from './lib/readTime';
-import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -2467,7 +2467,12 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
         if (status === 'draft') return null;
         if (!currentArticle.publishedAt) return new Date().toISOString();
         // If it's a string from the datetime-local input
-        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt).toISOString();
+        if (typeof currentArticle.publishedAt === 'string') {
+          const dateStr = currentArticle.publishedAt.includes('+') || currentArticle.publishedAt.includes('Z') 
+            ? currentArticle.publishedAt 
+            : `${currentArticle.publishedAt}+07:00`;
+          return new Date(dateStr).toISOString();
+        }
         // If it's already a Firestore Timestamp or Date object
         if (currentArticle.publishedAt.seconds) return new Date(currentArticle.publishedAt.seconds * 1000).toISOString();
         return new Date(currentArticle.publishedAt).toISOString();
@@ -2476,7 +2481,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       const articleData = {
         ...dataWithoutId,
         status,
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date: formatInTimeZone(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
       };
@@ -2978,7 +2983,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                 <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> วันที่เผยแพร่ (Scheduling)</label>
                 <input 
                   type="datetime-local" 
-                  value={currentArticle.publishedAt ? format(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), "yyyy-MM-dd'T'HH:mm") : ''} 
+                  value={currentArticle.publishedAt ? formatInTimeZone(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), 'Asia/Bangkok', "yyyy-MM-dd'T'HH:mm") : ''} 
                   onChange={e => setCurrentArticle({...currentArticle, publishedAt: e.target.value})}
                   className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
                 />
@@ -3104,7 +3109,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                       </h1>
                       <div className="flex items-center text-gray-500 text-sm space-x-6">
                         <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {currentArticle.author || 'Baccarat Master'}</span>
-                        <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || format(new Date(), 'yyyy-MM-dd')}</span>
+                        <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || formatInTimeZone(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd')}</span>
                       </div>
                     </div>
                     
@@ -3254,11 +3259,11 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                       ) : article.publishedAt ? (
                         new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt) > new Date() ? (
                           <span className="text-blue-400 flex items-center">
-                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {formatInTimeZone(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'Asia/Bangkok', 'dd/MM/yyyy HH:mm')}
                           </span>
                         ) : (
                           <span className="text-green-400 flex items-center">
-                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {formatInTimeZone(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'Asia/Bangkok', 'dd/MM/yyyy HH:mm')}
                           </span>
                         )
                       ) : (
