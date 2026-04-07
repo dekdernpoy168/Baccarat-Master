@@ -20,6 +20,7 @@ async function startServer() {
       methods: ["GET", "POST"],
       credentials: true
     },
+    allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
     connectTimeout: 45000,
@@ -31,7 +32,9 @@ async function startServer() {
   
   // Request logging middleware
   server.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    if (!req.url.startsWith('/socket.io')) {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    }
     next();
   });
 
@@ -42,9 +45,6 @@ async function startServer() {
     console.log("Client connected:", socket.id);
     socket.on("disconnect", (reason) => {
       console.log("Client disconnected:", socket.id, "Reason:", reason);
-    });
-    socket.on("error", (err) => {
-      console.error("Socket error:", err);
     });
   });
 
@@ -479,22 +479,20 @@ async function startServer() {
   server.post("/api/categories/reset", async (req, res) => {
     try {
       const defaults = [
-        { name: 'วิธีเล่นเบื้องต้น', slug: 'basic-guide' },
-        { name: 'เทคนิคการเดินเงิน', slug: 'money-management' },
-        { name: 'การอ่านเค้าไพ่', slug: 'card-pattern-reading' },
-        { name: 'ทริคระดับเซียน', slug: 'expert-tricks' },
-        { name: 'เทคนิคบาคาร่า', slug: 'baccarat-techniques' },
-        { name: 'สูตรบาคาร่าฟรี', slug: 'free-baccarat-formula' },
-        { name: 'วิธีเล่น', slug: 'how-to-play' },
-        { name: 'เทคนิคการเดิมพัน', slug: 'betting-techniques' },
+        'บาคาร่า',
+        'สูตรบาคาร่า',
+        'เทคนิคบาคาร่า',
+        'ข่าวบาคาร่า',
+        'คาสิโนออนไลน์',
+        'มือใหม่หัดเล่น',
       ];
 
       await exec(`DELETE FROM categories`);
 
-      for (const cat of defaults) {
+      for (const name of defaults) {
         await exec(
           `INSERT INTO categories (name, slug) VALUES (?, ?)`,
-          [cat.name, cat.slug]
+          [name, slugify(name)]
         );
       }
 
@@ -627,10 +625,9 @@ Sitemap: https://huisache.com/sitemap.xml`;
     const id = Date.now().toString();
     const createdAt = new Date().toISOString();
     try {
-      await exec(`INSERT INTO users (id, email, password, created_at) VALUES (?, ?, ?, ?)`, [id, email, hashedPassword, createdAt]);
+      await exec(`INSERT INTO users (id, email, password, createdAt) VALUES (?, ?, ?, ?)`, [id, email, hashedPassword, createdAt]);
       res.status(201).json({ message: "User registered" });
     } catch (err) {
-      console.error("Registration error:", err);
       res.status(400).json({ error: "Registration failed" });
     }
   });
