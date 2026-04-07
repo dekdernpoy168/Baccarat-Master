@@ -1,0 +1,12 @@
+{
+  "name": "baccarat-master-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-04-07",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "baccarat-master-db",
+      "database_id": "ใส่_DATABASE_ID_ตรงนี้"
+    }
+  ]
+}
