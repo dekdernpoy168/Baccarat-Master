@@ -16,12 +16,15 @@ async function startServer() {
   const httpServer = createServer(server);
   const io = new Server(httpServer, {
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
+      origin: true, // Allow any origin
+      methods: ["GET", "POST"],
+      credentials: true
     },
+    allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
-    connectTimeout: 45000
+    connectTimeout: 45000,
+    transports: ['polling', 'websocket']
   });
 
   server.use(cors());
@@ -29,7 +32,9 @@ async function startServer() {
   
   // Request logging middleware
   server.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    if (!req.url.startsWith('/socket.io')) {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    }
     next();
   });
 
@@ -41,10 +46,6 @@ async function startServer() {
     socket.on("disconnect", (reason) => {
       console.log("Client disconnected:", socket.id, "Reason:", reason);
     });
-  });
-
-  io.engine.on("connection_error", (err) => {
-    console.log("Socket.io connection error (Engine):", err.req.url, err.code, err.message, err.context);
   });
 
   // Helper to broadcast updates
@@ -76,9 +77,7 @@ async function startServer() {
   }
 
   function today() {
-    const d = new Date();
-    d.setUTCHours(d.getUTCHours() + 7);
-    return d.toISOString().slice(0, 10);
+    return new Date().toISOString().slice(0, 10);
   }
 
   function normalizeArticleBody(body: any) {
@@ -558,7 +557,7 @@ async function startServer() {
     try {
       const articles = await query(`SELECT * FROM articles;`);
 
-      const baseUrl = process.env.VITE_APP_URL || "https://huisache.com";
+      const baseUrl = "https://huisache.com";
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
       xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       
@@ -606,12 +605,11 @@ async function startServer() {
 
   // Robots.txt route
   server.get("/robots.txt", (req, res) => {
-    const baseUrl = process.env.VITE_APP_URL || "https://huisache.com";
     const robots = `User-agent: *
 Allow: /
 Disallow: /login
 Disallow: /admin
-Sitemap: ${baseUrl}/sitemap.xml`;
+Sitemap: https://huisache.com/sitemap.xml`;
     res.header("Content-Type", "text/plain");
     res.send(robots);
   });

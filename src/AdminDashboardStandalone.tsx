@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { calculateReadTime } from './lib/readTime';
-import { formatInTimeZone } from 'date-fns-tz';
+import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -57,7 +57,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { ARTICLES as STATIC_ARTICLES, Article, API_BASE } from './constants';
+import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
 import { cn } from './lib/utils';
 
 // --- Types & Constants ---
@@ -243,7 +243,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
 
       if (!response.ok) throw new Error('Failed to fetch keywords');
       
-      const data = await response.json() as any;
+      const data = await response.json();
       if (data.data && data.data.length > 0) {
         const kwList = data.data.map((item: any) => item.keyword).join(', ');
         setKeywords(prev => prev ? `${prev}, ${kwList}` : kwList);
@@ -756,30 +756,24 @@ const AdminDashboard = () => {
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const articlesPerPage = 10;
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterStatus]);
 
   // Fetch data on mount
   const loadData = async () => {
     try {
       const [articlesRes, categoriesRes] = await Promise.all([
-        fetch(`${API_BASE}/api/articles`),
-        fetch(`${API_BASE}/api/categories`)
+        fetch('/api/articles'),
+        fetch('/api/categories')
       ]);
       
       if (articlesRes.ok) {
-        const docs = await articlesRes.json() as Article[];
+        const docs = await articlesRes.json();
         setArticles(docs);
       } else {
         setError("ไม่สามารถดึงข้อมูลบทความได้");
       }
 
       if (categoriesRes.ok) {
-        const catsData = await categoriesRes.json() as any[];
+        const catsData = await categoriesRes.json();
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -793,8 +787,8 @@ const AdminDashboard = () => {
     loadData();
 
     // Socket.io for real-time updates
-    const socket = io(window.location.origin, {
-      path: '/socket.io',
+    const socket = io({
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,
@@ -830,9 +824,6 @@ const AdminDashboard = () => {
     if (filterStatus === 'scheduled') return a.status !== 'draft' && a.publishedAt && new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) > new Date();
     return true;
   });
-
-  const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
-  const paginatedArticles = filteredArticles.slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage);
 
   const generateSlugFromTitle = async () => {
     if (!currentArticle.title?.trim()) {
@@ -1142,7 +1133,7 @@ const AdminDashboard = () => {
     if (!newCategoryName.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories`, {
+      const res = await fetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCategoryName.trim() })
@@ -1161,7 +1152,7 @@ const AdminDashboard = () => {
     if (!editingCategory || !editingCategory.new.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
+      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newName: editingCategory.new.trim() })
@@ -1180,7 +1171,7 @@ const AdminDashboard = () => {
     // Removed window.confirm as it is blocked in the sandboxed environment
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories/by-name/${encodeURIComponent(catName)}`, {
+      const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
         method: 'DELETE'
       });
       console.log('Delete response status:', res.status);
@@ -1197,7 +1188,7 @@ const AdminDashboard = () => {
     if (!window.confirm('คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตหมวดหมู่ทั้งหมด? ข้อมูลเดิมจะถูกลบและแทนที่ด้วยหมวดหมู่เริ่มต้น')) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories/reset`, {
+      const res = await fetch('/api/categories/reset', {
         method: 'POST'
       });
       if (!res.ok) throw new Error('Failed to reset categories');
@@ -1214,7 +1205,7 @@ const AdminDashboard = () => {
   const handleCleanDuplicateCategories = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/categories/clean-duplicates`, {
+      const res = await fetch('/api/categories/clean-duplicates', {
         method: 'POST'
       });
       if (!res.ok) throw new Error('Failed to clean duplicate categories');
@@ -1341,12 +1332,7 @@ const AdminDashboard = () => {
         if (status === 'draft') return null;
         if (!currentArticle.publishedAt) return new Date().toISOString();
         // If it's a string from the datetime-local input
-        if (typeof currentArticle.publishedAt === 'string') {
-          const dateStr = currentArticle.publishedAt.includes('+') || currentArticle.publishedAt.includes('Z') 
-            ? currentArticle.publishedAt 
-            : `${currentArticle.publishedAt}+07:00`;
-          return new Date(dateStr).toISOString();
-        }
+        if (typeof currentArticle.publishedAt === 'string') return new Date(currentArticle.publishedAt).toISOString();
         // If it's already a Firestore Timestamp or Date object
         if (currentArticle.publishedAt.seconds) return new Date(currentArticle.publishedAt.seconds * 1000).toISOString();
         return new Date(currentArticle.publishedAt).toISOString();
@@ -1355,7 +1341,7 @@ const AdminDashboard = () => {
       const articleData = {
         ...dataWithoutId,
         status,
-        date: formatInTimeZone(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd'),
+        date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
         tags: currentArticle.tags || '',
@@ -1369,13 +1355,13 @@ const AdminDashboard = () => {
 
       let res;
       if (id) {
-        res = await fetch(`${API_BASE}/api/articles/${id}`, {
+        res = await fetch(`/api/articles/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
         });
       } else {
-        res = await fetch(`${API_BASE}/api/articles`, {
+        res = await fetch('/api/articles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(articleData)
@@ -1394,7 +1380,7 @@ const AdminDashboard = () => {
 
       // Also ensure category exists in categories collection
       if (articleData.category && !categories.includes(articleData.category)) {
-        const catRes = await fetch(`${API_BASE}/api/categories`, {
+        const catRes = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: articleData.category })
@@ -1435,7 +1421,7 @@ const AdminDashboard = () => {
   const handleDelete = async (id: string | number) => {
     if (!window.confirm("ยืนยันการลบตัวเลือกนี้?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/articles/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete article');
       loadData();
     } catch (error: any) {
@@ -1896,7 +1882,7 @@ const AdminDashboard = () => {
                 <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> วันที่เผยแพร่ (Scheduling)</label>
                 <input 
                   type="datetime-local" 
-                  value={currentArticle.publishedAt ? formatInTimeZone(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), 'Asia/Bangkok', "yyyy-MM-dd'T'HH:mm") : ''} 
+                  value={currentArticle.publishedAt ? format(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), "yyyy-MM-dd'T'HH:mm") : ''} 
                   onChange={e => setCurrentArticle({...currentArticle, publishedAt: e.target.value})}
                   className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
                 />
@@ -2037,7 +2023,7 @@ const AdminDashboard = () => {
                       </h1>
                       <div className="flex items-center text-gray-500 text-sm space-x-6">
                         <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {currentArticle.author || 'Baccarat Master'}</span>
-                        <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || formatInTimeZone(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd')}</span>
+                        <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || format(new Date(), 'yyyy-MM-dd')}</span>
                       </div>
                     </div>
                     
@@ -2150,7 +2136,7 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {paginatedArticles.map((article, index) => (
+              {filteredArticles.map((article, index) => (
                 <tr 
                   key={article.id} 
                   className={cn(
@@ -2187,11 +2173,11 @@ const AdminDashboard = () => {
                       ) : article.publishedAt ? (
                         new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt) > new Date() ? (
                           <span className="text-blue-400 flex items-center">
-                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {formatInTimeZone(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'Asia/Bangkok', 'dd/MM/yyyy HH:mm')}
+                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
                           </span>
                         ) : (
                           <span className="text-green-400 flex items-center">
-                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {formatInTimeZone(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'Asia/Bangkok', 'dd/MM/yyyy HH:mm')}
+                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
                           </span>
                         )
                       ) : (
@@ -2221,39 +2207,7 @@ const AdminDashboard = () => {
               ))}
             </tbody>
           </table>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gold/10">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 bg-white/5 text-gray-400 rounded-lg text-xs font-bold hover:bg-gold/10 hover:text-gold transition-all disabled:opacity-50"
-              >
-                ก่อนหน้า
-              </button>
-              <div className="flex items-center gap-2">
-                {Array.from({ length: totalPages }).map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={cn(
-                      "w-8 h-8 rounded-lg text-xs font-bold transition-all",
-                      currentPage === i + 1 ? "bg-gold text-baccarat-black" : "bg-white/5 text-gray-400 hover:bg-gold/10 hover:text-gold"
-                    )}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-white/5 text-gray-400 rounded-lg text-xs font-bold hover:bg-gold/10 hover:text-gold transition-all disabled:opacity-50"
-              >
-                ถัดไป
-              </button>
-            </div>
-          )}
-          {filteredArticles.length === 0 && (
+          {articles.length === 0 && (
             <div className="py-20 text-center text-gray-500">ยังไม่มีบทความในระบบ</div>
           )}
         </div>
