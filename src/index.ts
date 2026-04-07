@@ -146,8 +146,8 @@ export default {
       return json(allUsers);
     }
 
-    // Default route: Return 404 for unknown routes
-    return new Response('Not Found', { status: 404 });
+    // Default route: Serve index.html for SPA
+    return fetch(new Request(new URL('/index.html', request.url).toString(), request));
   },
 
   async queue(batch: MessageBatch<any>, env: Env): Promise<void> {
