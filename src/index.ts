@@ -42,6 +42,9 @@ const categories = sqliteTable('categories', {
 export interface Env {
   DB: D1Database;
   "baccarat-master": Queue;
+  ANALYTICS_ENGINE: AnalyticsEngineDataset;
+  CLOUDFLARE_API_TOKEN: string;
+  CLOUDFLARE_ACCOUNT_ID: string;
 }
 
 // --- Helper Functions ---
@@ -59,6 +62,13 @@ function json(data: any, status = 200) {
 
 export default {
   async fetch(request: Request, env: Env) {
+    // Log analytics data point
+    env.ANALYTICS_ENGINE.writeDataPoint({
+      blobs: ["Bangkok", "TH"],       // ข้อมูล string (dimensions)
+      doubles: [1, 120.5],             // ข้อมูลตัวเลข
+      indexes: ["user_123"]            // ใช้สำหรับ sampling
+    });
+
     const url = new URL(request.url);
     const method = request.method;
 
@@ -85,6 +95,28 @@ export default {
     if (url.pathname === '/api/categories' && request.method === 'GET') {
       const allCategories = await db.select().from(categories).all();
       return json(allCategories);
+    }
+
+    // Route to get analytics visits
+    if (url.pathname === '/api/analytics/visits' && request.method === 'GET') {
+      const query = `
+        SELECT
+          blob1 AS city,
+          SUM(double1) AS total_visits
+        FROM analytic_events
+        WHERE timestamp > NOW() - INTERVAL '1' DAY
+        GROUP BY blob1
+      `;
+      const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/analytics_engine/sql`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+          'Content-Type': 'application/sql',
+        },
+        body: query,
+      });
+      const data = await response.json();
+      return json(data);
     }
 
     // Route to create the users table if it doesn't exist

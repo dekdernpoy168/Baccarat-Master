@@ -457,6 +457,44 @@ const TermsPage = () => (
   </div>
 );
 
+const AnalyticsDashboard = () => {
+  const [data, setData] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/analytics/visits')
+      .then(res => res.json())
+      .then(data => {
+        setData(data.data || []);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <div className="bg-gray-900/50 border border-gold/20 rounded-2xl p-6">
+      <h2 className="text-xl font-bold text-white mb-4">Analytics (Last 24h)</h2>
+      <table className="w-full text-left text-gray-300">
+        <thead>
+          <tr>
+            <th className="pb-2">City</th>
+            <th className="pb-2">Total Visits</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row: any, i: number) => (
+            <tr key={i} className="border-t border-white/10">
+              <td className="py-2">{row.city}</td>
+              <td className="py-2">{row.total_visits}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 // --- Pages ---
 
 const AboutPage = () => {

@@ -26,8 +26,16 @@
     }
   ],
   "vars": {
-    "ENVIRONMENT": "production"
+    "ENVIRONMENT": "production",
+    "CLOUDFLARE_API_TOKEN": "your_api_token",
+    "CLOUDFLARE_ACCOUNT_ID": "your_account_id"
   },
+  "analytics_engine_datasets": [
+    {
+      "binding": "ANALYTICS_ENGINE",
+      "dataset": "analytic_events"
+    }
+  ],
   "queues": {
     "producers": [
       {
