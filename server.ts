@@ -8,8 +8,8 @@ import { Server } from "socket.io";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
-import { exec, query } from './src/db.js';
-import { initSchema } from './src/initSchema.js';
+import { exec, query } from './src/db.ts';
+import { initSchema } from './src/initSchema.ts';
 
 async function startServer() {
   const server = express();
