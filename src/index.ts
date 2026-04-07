@@ -114,8 +114,12 @@ export default {
       return json(allUsers);
     }
 
-    // Default route
-    return new Response('D1 Connected!');
+    // Default route: Proxy to Express server
+    const url = new URL(request.url);
+    url.hostname = 'localhost';
+    url.port = '3000';
+    
+    return fetch(new Request(url.toString(), request));
   },
 
   async queue(batch: MessageBatch<any>, env: Env): Promise<void> {
