@@ -9,6 +9,63 @@ import * as schema from './src/db/schema';
 
 export interface Env {
   DB: D1Database;
+  WEBSOCKET_MANAGER: DurableObjectNamespace;
+}
+
+// --- WebSocket Manager (Durable Object) ---
+export class WebSocketManager {
+  sessions: WebSocket[] = [];
+
+  constructor(state: any, env: Env) {}
+
+  async fetch(request: Request) {
+    const url = new URL(request.url);
+
+    // Internal endpoint to broadcast messages to all connected clients
+    if (url.pathname === '/broadcast' && request.method === 'POST') {
+      const payload = await request.text();
+      // Clean up closed sessions
+      this.sessions = this.sessions.filter(ws => ws.readyState === WebSocket.READY_STATE_OPEN);
+      // Broadcast
+      this.sessions.forEach(ws => {
+        try { ws.send(payload); } catch (e) {}
+      });
+      return new Response('OK');
+    }
+
+    // Handle WebSocket upgrade requests
+    if (request.headers.get('Upgrade') !== 'websocket') {
+      return new Response('Expected websocket', { status: 426 });
+    }
+
+    const webSocketPair = new WebSocketPair();
+    const client = webSocketPair[0];
+    const server = webSocketPair[1];
+
+    server.accept();
+    this.sessions.push(server);
+
+    server.addEventListener('close', () => {
+      this.sessions = this.sessions.filter(s => s !== server);
+    });
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+}
+
+// --- Helper: Broadcast to WebSockets ---
+async function broadcast(env: Env, message: any) {
+  try {
+    if (!env.WEBSOCKET_MANAGER) return;
+    const id = env.WEBSOCKET_MANAGER.idFromName('global');
+    const obj = env.WEBSOCKET_MANAGER.get(id);
+    await obj.fetch(new Request('https://do/broadcast', {
+      method: 'POST',
+      body: JSON.stringify(message)
+    }));
+  } catch (e) {
+    console.error('Broadcast error:', e);
+  }
 }
 
 // --- Helper: JSON Response ---
@@ -46,6 +103,16 @@ export default {
 
     // CORS
     if (method === 'OPTIONS') return handleCORS();
+
+    // GET /api/ws — WebSocket Connection
+    if (path === '/api/ws') {
+      if (!env.WEBSOCKET_MANAGER) {
+        return error('WebSocket Manager not configured', 500);
+      }
+      const id = env.WEBSOCKET_MANAGER.idFromName('global');
+      const obj = env.WEBSOCKET_MANAGER.get(id);
+      return obj.fetch(request);
+    }
 
     // Initialize Drizzle ORM with D1
     const db = drizzle(env.DB, { schema });
@@ -98,6 +165,7 @@ export default {
           updatedAt: now,
         }).returning({ id: schema.articles.id });
 
+        await broadcast(env, { type: 'ARTICLE_CREATED', id: result[0].id });
         return json({ id: result[0].id, message: 'Article created' }, 201);
       }
 
@@ -125,6 +193,7 @@ export default {
           updatedAt: now,
         }).where(eq(schema.articles.id, id));
 
+        await broadcast(env, { type: 'ARTICLE_UPDATED', id });
         return json({ message: 'Article updated' });
       }
 
@@ -132,6 +201,7 @@ export default {
       if (path.match(/^\/api\/articles\/(\d+)$/) && method === 'DELETE') {
         const id = parseInt(path.split('/').pop() || '0', 10);
         await db.delete(schema.articles).where(eq(schema.articles.id, id));
+        await broadcast(env, { type: 'ARTICLE_DELETED', id });
         return json({ message: 'Article deleted' });
       }
 
@@ -160,6 +230,7 @@ export default {
             updatedAt: now,
           });
 
+          await broadcast(env, { type: 'CATEGORY_CREATED', name: body.name });
           return json({ message: 'Category created' }, 201);
         } catch (e: any) {
           if (e.message?.includes('UNIQUE')) {
@@ -184,6 +255,7 @@ export default {
           .set({ category: body.newName })
           .where(eq(schema.articles.category, oldName));
 
+        await broadcast(env, { type: 'CATEGORY_UPDATED', oldName, newName: body.newName });
         return json({ message: 'Category updated' });
       }
 
@@ -191,6 +263,7 @@ export default {
       if (path.match(/^\/api\/categories\/by-name\//) && method === 'DELETE') {
         const name = decodeURIComponent(path.replace('/api/categories/by-name/', ''));
         await db.delete(schema.categories).where(eq(schema.categories.name, name));
+        await broadcast(env, { type: 'CATEGORY_DELETED', name });
         return json({ message: 'Category deleted' });
       }
 

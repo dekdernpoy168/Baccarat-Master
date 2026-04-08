@@ -4,7 +4,7 @@
 # =============================================
 
 name = "baccaratmaster"
-main = "src/worker.ts"
+main = "worker.ts"
 compatibility_date = "2024-12-01"
 
 # =============================================
@@ -14,6 +14,17 @@ compatibility_date = "2024-12-01"
 binding = "DB"
 database_name = "baccarat-master-db"
 database_id = "1ec6974a-786d-44b3-bb06-dcdd738924ed"  # ← ใส่ ID จริงที่ได้จากขั้นตอน 6
+
+# =============================================
+# Durable Objects for WebSockets
+# =============================================
+[[durable_objects.bindings]]
+name = "WEBSOCKET_MANAGER"
+class_name = "WebSocketManager"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WebSocketManager"]
 
 # =============================================
 # Environment Variables (optional)
