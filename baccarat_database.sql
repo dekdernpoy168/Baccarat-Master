@@ -1,55 +1,82 @@
--- Baccarat Master Guide Database Schema
--- Supported for SQLite, SQLite3, SQLiteCloud
+-- =============================================
+-- Cloudflare D1 Database Schema
+-- Baccarat Master Guide
+-- =============================================
 
--- 1. Table: articles
--- Stores all article content, SEO data, and publishing status
-CREATE TABLE IF NOT EXISTS articles (
-    id TEXT PRIMARY KEY,
-    title TEXT,
-    excerpt TEXT,
-    content TEXT,
-    category TEXT,
-    date TEXT,
-    author TEXT,
-    image TEXT,
-    slug TEXT,
-    metaTitle TEXT,
-    metaDescription TEXT,
-    metaKeywords TEXT,
-    publishedAt TEXT,
-    createdAt TEXT,
-    updatedAt TEXT,
-    status TEXT -- 'published' or 'draft'
-);
-
--- 2. Table: categories
--- Stores article categories
+-- 1. CATEGORIES TABLE
 CREATE TABLE IF NOT EXISTS categories (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    slug TEXT,
-    description TEXT,
-    createdAt TEXT
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          TEXT NOT NULL UNIQUE,
+  slug          TEXT,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 3. Seed Data: Default Categories
-INSERT OR IGNORE INTO categories (id, name, slug, description, createdAt) VALUES 
-('cat-1', 'คู่มือการเล่นบาคาร่า', 'baccarat-guide', 'รวมคู่มือการเล่นเบื้องต้น', datetime('now')),
-('cat-2', 'วิธีเล่นเบื้องต้น', 'basic-how-to-play', 'ขั้นตอนการเล่นสำหรับมือใหม่', datetime('now')),
-('cat-3', 'เทคนิคการเดินเงิน', 'money-management', 'สูตรการเดินเงินที่แม่นยำ', datetime('now')),
-('cat-4', 'การอ่านเค้าไพ่', 'card-reading', 'เทคนิคการวิเคราะห์เค้าไพ่', datetime('now')),
-('cat-5', 'ทริคระดับเซียน', 'pro-tricks', 'เทคนิคขั้นสูงจากผู้เชี่ยวชาญ', datetime('now'));
+CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);
 
--- 4. Seed Data: Sample Article
-INSERT OR IGNORE INTO articles (id, title, excerpt, content, category, author, image, slug, status, createdAt, updatedAt) VALUES 
-('baccarat-basics', 
-'พื้นฐานการเล่นบาคาร่าสำหรับมือใหม่', 
-'เรียนรู้วิธีการเล่นบาคาร่าเบื้องต้น กฎกติกา และวิธีการวางเดิมพันที่ถูกต้อง', 
-'<h2>พื้นฐานการเล่นบาคาร่า</h2><p>บาคาร่าเป็นเกมไพ่ที่ได้รับความนิยมอย่างมากในคาสิโนทั่วโลก...</p>', 
-'วิธีเล่นเบื้องต้น', 
-'Admin', 
-'https://picsum.photos/seed/baccarat1/800/600', 
-'baccarat-basics-for-beginners', 
-'published', 
-datetime('now'), 
-datetime('now'));
+-- 2. ARTICLES TABLE
+CREATE TABLE IF NOT EXISTS articles (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  title             TEXT NOT NULL,
+  slug              TEXT NOT NULL UNIQUE,
+  excerpt           TEXT,
+  content           TEXT NOT NULL DEFAULT '',
+  image             TEXT,
+  category          TEXT,
+  tags              TEXT NOT NULL DEFAULT '',
+  meta_title        TEXT,
+  meta_description  TEXT,
+  meta_keywords     TEXT,
+  author            TEXT NOT NULL DEFAULT 'Admin',
+  status            TEXT NOT NULL DEFAULT 'draft',
+  date              TEXT NOT NULL DEFAULT (date('now')),
+  published_at      TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_articles_slug ON articles(slug);
+CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
+CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at);
+CREATE INDEX IF NOT EXISTS idx_articles_category ON articles(category);
+
+-- 3. USERS TABLE
+CREATE TABLE IF NOT EXISTS users (
+  id          TEXT PRIMARY KEY,
+  email       TEXT UNIQUE NOT NULL,
+  password    TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT 'user',
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- 4. SEED DATA: CATEGORIES
+INSERT OR IGNORE INTO categories (name, slug) VALUES
+  ('วิธีเล่นเบื้องต้น', 'basic-guide'),
+  ('เทคนิคการเดินเงิน', 'money-management'),
+  ('การอ่านเค้าไพ่', 'card-pattern-reading'),
+  ('ทริคระดับเซียน', 'expert-tricks'),
+  ('เทคนิคบาคาร่า', 'baccarat-techniques'),
+  ('สูตรบาคาร่าฟรี', 'free-baccarat-formula'),
+  ('วิธีเล่น', 'how-to-play'),
+  ('เทคนิคการเดิมพัน', 'betting-techniques');
+
+-- 5. SEED DATA: ADMIN USER
+-- Note: Password should be hashed in production. This is for reference.
+INSERT OR IGNORE INTO users (id, email, password, role)
+VALUES ('admin-uid', 'admin', 'Bankk2599++', 'admin');
+
+-- 6. SEED DATA: SAMPLE ARTICLE
+INSERT OR IGNORE INTO articles (title, slug, excerpt, content, category, image, author, status, published_at)
+VALUES (
+  'ยินดีต้อนรับสู่คลังบทความบาคาร่า',
+  'welcome-to-baccarat-articles',
+  'เริ่มต้นเรียนรู้เทคนิคและสูตรบาคาร่าที่นี่',
+  '<h2>ยินดีต้อนรับ</h2><p>นี่คือบทความแรกของคุณ</p>',
+  'เทคนิคบาคาร่า',
+  'https://picsum.photos/seed/baccarat/800/600',
+  'Admin',
+  'published',
+  datetime('now')
+);

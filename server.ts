@@ -16,15 +16,13 @@ async function startServer() {
   const httpServer = createServer(server);
   const io = new Server(httpServer, {
     cors: {
-      origin: true, // Allow any origin
-      methods: ["GET", "POST"],
-      credentials: true
+      origin: "*",
+      methods: ["GET", "POST"]
     },
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
-    connectTimeout: 45000,
-    transports: ['polling', 'websocket']
+    connectTimeout: 45000
   });
 
   server.use(cors());

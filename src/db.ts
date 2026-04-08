@@ -10,7 +10,7 @@ if (!ACCOUNT_ID || !API_TOKEN || !DATABASE_ID) {
 
 export type SqlParam = string | number | null | undefined;
 
-export async function query<T = any>(sql: string, params: SqlParam[] = []): Promise<T[]> {
+export async function query<T = any>(sql: string, params: SqlParam[] = [], silent: boolean = false): Promise<T[]> {
   if (!ACCOUNT_ID || !API_TOKEN || !DATABASE_ID) {
     throw new Error('Cloudflare D1 configuration is missing');
   }
@@ -47,11 +47,13 @@ export async function query<T = any>(sql: string, params: SqlParam[] = []): Prom
 
     return Array.isArray(result.results) ? (result.results as T[]) : [];
   } catch (error) {
-    console.error(`Database query error [${sql}]:`, error);
+    if (!silent) {
+      console.error(`Database query error [${sql}]:`, error);
+    }
     throw error;
   }
 }
 
-export async function exec(sql: string, params: SqlParam[] = []): Promise<void> {
-  await query(sql, params);
+export async function exec(sql: string, params: SqlParam[] = [], silent: boolean = false): Promise<void> {
+  await query(sql, params, silent);
 }

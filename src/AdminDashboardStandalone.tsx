@@ -788,7 +788,6 @@ const AdminDashboard = () => {
 
     // Socket.io for real-time updates
     const socket = io({
-      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,

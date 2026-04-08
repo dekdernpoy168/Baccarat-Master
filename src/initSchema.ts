@@ -55,7 +55,7 @@ export async function initSchema() {
 
   for (const col of articleColumns) {
     try {
-      await exec(`ALTER TABLE articles ADD COLUMN ${col};`);
+      await exec(`ALTER TABLE articles ADD COLUMN ${col};`, [], true);
     } catch (e) {
       // Ignore error if column already exists
     }
@@ -71,7 +71,7 @@ export async function initSchema() {
 
   for (const col of categoryColumns) {
     try {
-      await exec(`ALTER TABLE categories ADD COLUMN ${col};`);
+      await exec(`ALTER TABLE categories ADD COLUMN ${col};`, [], true);
     } catch (e) {
       // Ignore error if column already exists
     }

@@ -4133,7 +4133,6 @@ export default function App() {
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
     const socket = io({
-      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,
@@ -4146,10 +4145,6 @@ export default function App() {
 
     socket.on('connect_error', (error) => {
       console.error('Socket.io connection error:', error.message, error);
-      // If websocket fails, try polling explicitly if not already tried
-      if (socket.io.opts.transports[0] === 'websocket') {
-        console.log('Falling back to polling...');
-      }
     });
 
     socket.on('articles_updated', () => {
