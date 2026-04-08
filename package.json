@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch server.ts",
+    "dev:worker": "wrangler dev",
     "build": "tsx generate_sitemap.ts && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -22,6 +23,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
     "firebase": "^12.11.0",
     "jsonwebtoken": "^9.0.3",
@@ -42,6 +45,7 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260408.1",
     "@types/express": "^4.17.21",
     "@types/multer": "^2.1.0",
     "@types/node": "^22.14.0",

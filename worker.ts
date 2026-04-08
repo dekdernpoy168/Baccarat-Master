@@ -1,0 +1,281 @@
+// =============================================
+// Cloudflare Worker API with D1 and Drizzle ORM
+// Project: Baccarat Master Guide
+// =============================================
+
+import { drizzle } from 'drizzle-orm/d1';
+import { eq, desc, asc, min, notInArray } from 'drizzle-orm';
+import * as schema from './src/db/schema';
+
+export interface Env {
+  DB: D1Database;
+}
+
+// --- Helper: JSON Response ---
+function json(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+}
+
+function error(message: string, status = 400) {
+  return json({ error: message }, status);
+}
+
+// --- Helper: CORS Preflight ---
+function handleCORS() {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
+// --- Route Handler ---
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+
+    // CORS
+    if (method === 'OPTIONS') return handleCORS();
+
+    // Initialize Drizzle ORM with D1
+    const db = drizzle(env.DB, { schema });
+
+    try {
+      // =============================================
+      // ARTICLES API
+      // =============================================
+
+      // GET /api/articles — List all articles
+      if (path === '/api/articles' && method === 'GET') {
+        const results = await db.query.articles.findMany({
+          orderBy: [desc(schema.articles.createdAt)],
+        });
+        return json(results);
+      }
+
+      // GET /api/articles/:id — Get single article
+      if (path.match(/^\/api\/articles\/(\d+)$/) && method === 'GET') {
+        const id = parseInt(path.split('/').pop() || '0', 10);
+        const row = await db.query.articles.findFirst({
+          where: eq(schema.articles.id, id),
+        });
+
+        if (!row) return error('Article not found', 404);
+        return json(row);
+      }
+
+      // POST /api/articles — Create article
+      if (path === '/api/articles' && method === 'POST') {
+        const body = await request.json() as any;
+        const now = new Date().toISOString();
+
+        const result = await db.insert(schema.articles).values({
+          title: body.title,
+          slug: body.slug,
+          excerpt: body.excerpt || null,
+          content: body.content || '',
+          image: body.image || null,
+          category: body.category || null,
+          tags: body.tags || '',
+          metaTitle: body.metaTitle || null,
+          metaDescription: body.metaDescription || null,
+          metaKeywords: body.metaKeywords || null,
+          author: body.author || 'Admin',
+          status: body.status || 'draft',
+          date: body.date || now.split('T')[0],
+          publishedAt: body.publishedAt || null,
+          createdAt: now,
+          updatedAt: now,
+        }).returning({ id: schema.articles.id });
+
+        return json({ id: result[0].id, message: 'Article created' }, 201);
+      }
+
+      // PUT /api/articles/:id — Update article
+      if (path.match(/^\/api\/articles\/(\d+)$/) && method === 'PUT') {
+        const id = parseInt(path.split('/').pop() || '0', 10);
+        const body = await request.json() as any;
+        const now = new Date().toISOString();
+
+        await db.update(schema.articles).set({
+          title: body.title,
+          slug: body.slug,
+          excerpt: body.excerpt || null,
+          content: body.content || '',
+          image: body.image || null,
+          category: body.category || null,
+          tags: body.tags || '',
+          metaTitle: body.metaTitle || null,
+          metaDescription: body.metaDescription || null,
+          metaKeywords: body.metaKeywords || null,
+          author: body.author || 'Admin',
+          status: body.status || 'draft',
+          date: body.date || now.split('T')[0],
+          publishedAt: body.publishedAt || null,
+          updatedAt: now,
+        }).where(eq(schema.articles.id, id));
+
+        return json({ message: 'Article updated' });
+      }
+
+      // DELETE /api/articles/:id — Delete article
+      if (path.match(/^\/api\/articles\/(\d+)$/) && method === 'DELETE') {
+        const id = parseInt(path.split('/').pop() || '0', 10);
+        await db.delete(schema.articles).where(eq(schema.articles.id, id));
+        return json({ message: 'Article deleted' });
+      }
+
+      // =============================================
+      // CATEGORIES API
+      // =============================================
+
+      // GET /api/categories — List all categories
+      if (path === '/api/categories' && method === 'GET') {
+        const results = await db.query.categories.findMany({
+          orderBy: [asc(schema.categories.name)],
+        });
+        return json(results);
+      }
+
+      // POST /api/categories — Create category
+      if (path === '/api/categories' && method === 'POST') {
+        const body = await request.json() as any;
+        const now = new Date().toISOString();
+
+        try {
+          await db.insert(schema.categories).values({
+            name: body.name,
+            slug: body.slug || body.name.toLowerCase().replace(/\s+/g, '-'),
+            createdAt: now,
+            updatedAt: now,
+          });
+
+          return json({ message: 'Category created' }, 201);
+        } catch (e: any) {
+          if (e.message?.includes('UNIQUE')) {
+            return json({ message: 'Category already exists' });
+          }
+          throw e;
+        }
+      }
+
+      // PUT /api/categories/by-name/:name — Update category by name
+      if (path.match(/^\/api\/categories\/by-name\//) && method === 'PUT') {
+        const oldName = decodeURIComponent(path.replace('/api/categories/by-name/', ''));
+        const body = await request.json() as any;
+        const now = new Date().toISOString();
+
+        await db.update(schema.categories)
+          .set({ name: body.newName, updatedAt: now })
+          .where(eq(schema.categories.name, oldName));
+
+        // Also update articles that reference this category
+        await db.update(schema.articles)
+          .set({ category: body.newName })
+          .where(eq(schema.articles.category, oldName));
+
+        return json({ message: 'Category updated' });
+      }
+
+      // DELETE /api/categories/by-name/:name — Delete category by name
+      if (path.match(/^\/api\/categories\/by-name\//) && method === 'DELETE') {
+        const name = decodeURIComponent(path.replace('/api/categories/by-name/', ''));
+        await db.delete(schema.categories).where(eq(schema.categories.name, name));
+        return json({ message: 'Category deleted' });
+      }
+
+      // POST /api/categories/reset — Reset to default categories
+      if (path === '/api/categories/reset' && method === 'POST') {
+        await db.delete(schema.categories);
+
+        const defaults = [
+          'วิธีเล่นเบื้องต้น', 'เทคนิคการเดินเงิน', 'การอ่านเค้าไพ่',
+          'ทริคระดับเซียน', 'เทคนิคบาคาร่า', 'สูตรบาคาร่าฟรี',
+          'วิธีเล่น', 'เทคนิคการเดิมพัน'
+        ];
+
+        const now = new Date().toISOString();
+        
+        await db.insert(schema.categories).values(
+          defaults.map(name => ({
+            name,
+            slug: name.toLowerCase().replace(/\s+/g, '-'),
+            createdAt: now,
+            updatedAt: now,
+          }))
+        );
+
+        return json({ message: 'Categories reset' });
+      }
+
+      // POST /api/categories/clean-duplicates — Remove duplicate categories
+      if (path === '/api/categories/clean-duplicates' && method === 'POST') {
+        // SQLite doesn't support complex DELETE with NOT IN easily in Drizzle without raw SQL
+        // So we'll use raw SQL for this specific complex query
+        await env.DB.prepare(`
+          DELETE FROM categories
+          WHERE id NOT IN (
+            SELECT MIN(id) FROM categories GROUP BY name
+          )
+        `).run();
+
+        return json({ message: 'Duplicates cleaned' });
+      }
+
+      // =============================================
+      // AUTH API
+      // =============================================
+
+      // POST /api/auth/login
+      if (path === '/api/auth/login' && method === 'POST') {
+        const body = await request.json() as any;
+
+        const user = await db.query.users.findFirst({
+          where: (users, { eq, and }) => and(
+            eq(users.email, body.email),
+            eq(users.password, body.password)
+          ),
+        });
+
+        if (!user) return error('Invalid credentials', 401);
+
+        // ในโปรดักชันควรใช้ JWT จริง
+        const token = btoa(JSON.stringify({ id: user.id, email: user.email, role: user.role }));
+        return json({ token, user: { id: user.id, email: user.email, role: user.role } });
+      }
+
+      // GET /api/auth/me
+      if (path === '/api/auth/me' && method === 'GET') {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) return error('Unauthorized', 401);
+
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const payload = JSON.parse(atob(token));
+          return json(payload);
+        } catch {
+          return error('Invalid token', 401);
+        }
+      }
+
+      // =============================================
+      // 404
+      // =============================================
+      return error('Not found', 404);
+
+    } catch (e: any) {
+      console.error('Worker error:', e);
+      return error(e.message || 'Internal server error', 500);
+    }
+  },
+};
