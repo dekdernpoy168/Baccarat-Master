@@ -104,8 +104,8 @@ export default {
     // CORS
     if (method === 'OPTIONS') return handleCORS();
 
-    // GET /api/ws — WebSocket Connection
-    if (path === '/api/ws') {
+    // GET /ws — WebSocket Connection
+    if (path === '/ws') {
       if (!env.WEBSOCKET_MANAGER) {
         return error('WebSocket Manager not configured', 500);
       }
@@ -122,16 +122,16 @@ export default {
       // ARTICLES API
       // =============================================
 
-      // GET /api/articles — List all articles
-      if (path === '/api/articles' && method === 'GET') {
+      // GET /articles — List all articles
+      if (path === '/articles' && method === 'GET') {
         const results = await db.query.articles.findMany({
           orderBy: [desc(schema.articles.createdAt)],
         });
         return json(results);
       }
 
-      // GET /api/articles/:id — Get single article
-      if (path.match(/^\/api\/articles\/(\d+)$/) && method === 'GET') {
+      // GET /articles/:id — Get single article
+      if (path.match(/^\/articles\/(\d+)$/) && method === 'GET') {
         const id = parseInt(path.split('/').pop() || '0', 10);
         const row = await db.query.articles.findFirst({
           where: eq(schema.articles.id, id),
@@ -141,8 +141,8 @@ export default {
         return json(row);
       }
 
-      // POST /api/articles — Create article
-      if (path === '/api/articles' && method === 'POST') {
+      // POST /articles — Create article
+      if (path === '/articles' && method === 'POST') {
         const body = await request.json() as any;
         const now = new Date().toISOString();
 
@@ -169,8 +169,8 @@ export default {
         return json({ id: result[0].id, message: 'Article created' }, 201);
       }
 
-      // PUT /api/articles/:id — Update article
-      if (path.match(/^\/api\/articles\/(\d+)$/) && method === 'PUT') {
+      // PUT /articles/:id — Update article
+      if (path.match(/^\/articles\/(\d+)$/) && method === 'PUT') {
         const id = parseInt(path.split('/').pop() || '0', 10);
         const body = await request.json() as any;
         const now = new Date().toISOString();
@@ -197,8 +197,8 @@ export default {
         return json({ message: 'Article updated' });
       }
 
-      // DELETE /api/articles/:id — Delete article
-      if (path.match(/^\/api\/articles\/(\d+)$/) && method === 'DELETE') {
+      // DELETE /articles/:id — Delete article
+      if (path.match(/^\/articles\/(\d+)$/) && method === 'DELETE') {
         const id = parseInt(path.split('/').pop() || '0', 10);
         await db.delete(schema.articles).where(eq(schema.articles.id, id));
         await broadcast(env, { type: 'ARTICLE_DELETED', id });
@@ -209,16 +209,16 @@ export default {
       // CATEGORIES API
       // =============================================
 
-      // GET /api/categories — List all categories
-      if (path === '/api/categories' && method === 'GET') {
+      // GET /categories — List all categories
+      if (path === '/categories' && method === 'GET') {
         const results = await db.query.categories.findMany({
           orderBy: [asc(schema.categories.name)],
         });
         return json(results);
       }
 
-      // POST /api/categories — Create category
-      if (path === '/api/categories' && method === 'POST') {
+      // POST /categories — Create category
+      if (path === '/categories' && method === 'POST') {
         const body = await request.json() as any;
         const now = new Date().toISOString();
 
@@ -240,9 +240,9 @@ export default {
         }
       }
 
-      // PUT /api/categories/by-name/:name — Update category by name
-      if (path.match(/^\/api\/categories\/by-name\//) && method === 'PUT') {
-        const oldName = decodeURIComponent(path.replace('/api/categories/by-name/', ''));
+      // PUT /categories/by-name/:name — Update category by name
+      if (path.match(/^\/categories\/by-name\//) && method === 'PUT') {
+        const oldName = decodeURIComponent(path.replace('/categories/by-name/', ''));
         const body = await request.json() as any;
         const now = new Date().toISOString();
 
@@ -259,16 +259,16 @@ export default {
         return json({ message: 'Category updated' });
       }
 
-      // DELETE /api/categories/by-name/:name — Delete category by name
-      if (path.match(/^\/api\/categories\/by-name\//) && method === 'DELETE') {
-        const name = decodeURIComponent(path.replace('/api/categories/by-name/', ''));
+      // DELETE /categories/by-name/:name — Delete category by name
+      if (path.match(/^\/categories\/by-name\//) && method === 'DELETE') {
+        const name = decodeURIComponent(path.replace('/categories/by-name/', ''));
         await db.delete(schema.categories).where(eq(schema.categories.name, name));
         await broadcast(env, { type: 'CATEGORY_DELETED', name });
         return json({ message: 'Category deleted' });
       }
 
-      // POST /api/categories/reset — Reset to default categories
-      if (path === '/api/categories/reset' && method === 'POST') {
+      // POST /categories/reset — Reset to default categories
+      if (path === '/categories/reset' && method === 'POST') {
         await db.delete(schema.categories);
 
         const defaults = [
@@ -291,8 +291,8 @@ export default {
         return json({ message: 'Categories reset' });
       }
 
-      // POST /api/categories/clean-duplicates — Remove duplicate categories
-      if (path === '/api/categories/clean-duplicates' && method === 'POST') {
+      // POST /categories/clean-duplicates — Remove duplicate categories
+      if (path === '/categories/clean-duplicates' && method === 'POST') {
         // SQLite doesn't support complex DELETE with NOT IN easily in Drizzle without raw SQL
         // So we'll use raw SQL for this specific complex query
         await env.DB.prepare(`
@@ -309,8 +309,8 @@ export default {
       // AUTH API
       // =============================================
 
-      // POST /api/auth/login
-      if (path === '/api/auth/login' && method === 'POST') {
+      // POST /auth/login
+      if (path === '/auth/login' && method === 'POST') {
         const body = await request.json() as any;
 
         const user = await db.query.users.findFirst({
@@ -327,8 +327,8 @@ export default {
         return json({ token, user: { id: user.id, email: user.email, role: user.role } });
       }
 
-      // GET /api/auth/me
-      if (path === '/api/auth/me' && method === 'GET') {
+      // GET /auth/me
+      if (path === '/auth/me' && method === 'GET') {
         const authHeader = request.headers.get('Authorization');
         if (!authHeader?.startsWith('Bearer ')) return error('Unauthorized', 401);
 
@@ -339,6 +339,13 @@ export default {
         } catch {
           return error('Invalid token', 401);
         }
+      }
+
+      // =============================================
+      // ROOT / HEALTH CHECK
+      // =============================================
+      if (path === '/' && method === 'GET') {
+        return json({ status: 'ok', message: 'Baccarat Master API is running. Access endpoints directly (e.g., /articles, /categories)' });
       }
 
       // =============================================
