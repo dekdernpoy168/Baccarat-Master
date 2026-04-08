@@ -1445,7 +1445,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
 
       if (!response.ok) throw new Error('Failed to fetch keywords');
       
-      const data = await response.json();
+      const data: any = await response.json();
       if (data.data && data.data.length > 0) {
         const kwList = data.data.map((item: any) => item.keyword).join(', ');
         setKeywords(prev => prev ? `${prev}, ${kwList}` : kwList);
@@ -1996,7 +1996,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       const response = await fetch('/api/articles');
       if (response.ok) {
         const docs = await response.json();
-        setArticles(docs);
+        setArticles(docs as Article[]);
       }
       
       alert('เพิ่มบทความเริ่มต้นเรียบร้อยแล้ว');
@@ -2293,7 +2293,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       // Update categories state
       const catsRes = await fetch('/api/categories');
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData: any = await catsRes.json();
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2319,7 +2319,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       // Update categories state
       const catsRes = await fetch('/api/categories');
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData: any = await catsRes.json();
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2342,7 +2342,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       // Update categories state
       const catsRes = await fetch('/api/categories');
       if (catsRes.ok) {
-        const catsData = await catsRes.json();
+        const catsData: any = await catsRes.json();
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -2533,10 +2533,10 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       ]);
       if (articlesRes.ok) {
         const docs = await articlesRes.json();
-        setArticles(docs);
+        setArticles(docs as Article[]);
       }
       if (categoriesRes.ok) {
-        const catsData = await categoriesRes.json();
+        const catsData: any = await categoriesRes.json();
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       }
@@ -4102,11 +4102,11 @@ export default function App() {
       try {
         const response = await fetch('/api/articles');
         if (!response.ok) throw new Error('Failed to fetch articles');
-        const docs = await response.json();
+        const docs: any = await response.json();
         console.log(`Fetched ${docs.length} articles from API`);
         
         // Only use articles from the database
-        setArticles(docs);
+        setArticles(docs as Article[]);
       } catch (error) {
         console.error("API Error (Articles):", error);
         // Set to empty array on error instead of static articles
@@ -4119,7 +4119,7 @@ export default function App() {
       try {
         const response = await fetch('/api/categories');
         if (!response.ok) throw new Error('Failed to fetch categories');
-        const catsData = await response.json();
+        const catsData: any = await response.json();
         const cats = catsData.map((cat: any) => cat.name);
         setCategories(cats);
       } catch (error) {

@@ -15,6 +15,8 @@ import { db } from './src/db/index.js';
 import { users } from './src/db/schema.js';
 import { initSchema } from './src/initSchema.js';
 import usersApi from './src/api/users.js';
+import { GoogleGenAI, Type } from "@google/genai";
+import OpenAI from 'openai';
 
 // Configure R2 Client
 const r2Client = new S3Client({
@@ -50,6 +52,194 @@ async function startServer() {
   server.use(cors());
   server.use(express.json({ limit: '50mb' }));
   server.use('/api/users', usersApi);
+
+  // AI Proxy Routes
+  server.post("/api/ai/generate-keywords", async (req, res) => {
+    try {
+      const { primaryKeyword, count } = req.body;
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      const prompt = `Generate ${count || 10} secondary keywords (คีย์รอง) related to the primary keyword: "${primaryKeyword}". 
+      Return ONLY the keywords as a comma-separated list. No other text.`;
+      
+      const result = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+      const text = result.text || "";
+      res.json({ text });
+    } catch (error: any) {
+      console.error("AI Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-slug", async (req, res) => {
+    try {
+      const { title } = req.body;
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      const prompt = `Generate 3 SEO-friendly URL slug options in English for this Thai article title: "${title}". Use only lowercase letters and hyphens.`;
+      const result = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              options: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["options"]
+          }
+        }
+      });
+      res.json(JSON.parse(result.text || "{}"));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/brainstorm", async (req, res) => {
+    try {
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      const prompt = `คุณคือผู้เชี่ยวชาญด้าน Content Strategy สำหรับเว็บไซต์บาคาร่าและคาสิโนออนไลน์ ช่วยคิดหัวข้อบทความที่น่าสนใจและมีโอกาสติดอันดับ SEO สูงมาให้ 10 หัวข้อ โดยเน้นเทคนิคใหม่ๆ สูตรที่คนสนใจ หรือข่าวสารที่เกี่ยวข้อง
+      ตอบกลับมาเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด: { "topics": ["หัวข้อที่ 1", "หัวข้อที่ 2", ...] }`;
+      
+      const result = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              topics: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["topics"]
+          }
+        }
+      });
+      res.json(JSON.parse(result.text || "{}"));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-seo", async (req, res) => {
+    try {
+      const { keyword, topic } = req.body;
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      const prompt = `คุณคือผู้เชี่ยวชาญด้าน SEO เขียน Meta Title และ Meta Description โดยอิงจากคีย์เวิร์ดหลักและหัวข้อที่กำหนดให้
+      คีย์เวิร์ดหลัก: ${keyword}
+      หัวข้อ: ${topic}
+      ข้อกำหนด: Meta Title ห้ามเกิน 60 ตัวอักษร, Meta Description ห้ามเกิน 160 ตัวอักษร`;
+      
+      const result = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              metaTitle: { type: Type.STRING },
+              metaDescription: { type: Type.STRING }
+            },
+            required: ["metaTitle", "metaDescription"]
+          }
+        }
+      });
+      res.json(JSON.parse(result.text || "{}"));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/keywords-everywhere", async (req, res) => {
+    try {
+      const { topic } = req.body;
+      const apiKey = process.env.KEYWORDS_EVERYWHERE_API_KEY;
+      if (!apiKey) throw new Error("API Key missing");
+
+      const formData = new URLSearchParams();
+      formData.append('dataSource', 'gsc');
+      formData.append('country', 'th');
+      formData.append('currency', 'THB');
+      formData.append('kw[]', topic);
+
+      const response = await fetch('https://api.keywordseverywhere.com/v1/get_keyword_data', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json'
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-image", async (req, res) => {
+    try {
+      const { title, type } = req.body;
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      let prompt = "";
+      if (type === 'logo') {
+        prompt = "A professional and luxurious logo for a website named 'Baccarat Master Guide'. The design should feature a combination of playing cards, a golden crown, and elegant typography. The color palette should be gold, black, and deep red. High-end, minimalist but authoritative. Square aspect ratio.";
+      } else {
+        prompt = `A high-quality, professional, and visually striking featured image for a blog post titled: "${title}". The theme is online baccarat, luxury casino, gambling strategy, and professional gaming. The style should be realistic but with a cinematic, high-end feel. Use a color palette of gold, black, and deep red. No text in the image. 16:9 aspect ratio.`;
+      }
+
+      const result = await genAI.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+      const parts = result.candidates?.[0]?.content?.parts || [];
+      let base64 = null;
+      for (const part of parts) {
+        if (part.inlineData) {
+          base64 = `data:image/png;base64,${part.inlineData.data}`;
+          break;
+        }
+      }
+      
+      if (base64) {
+        res.json({ image: base64 });
+      } else {
+        throw new Error("No image generated");
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/execute-prompt", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      const result = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+      res.json({ text: result.text });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
   
   // Request logging middleware
   server.use((req, res, next) => {
