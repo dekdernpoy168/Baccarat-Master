@@ -2204,7 +2204,7 @@ const AdminDashboard = () => {
                     <div className="flex items-center">
                       <div className="relative w-12 h-12 mr-4 flex-shrink-0">
                         <img 
-                          src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/100/100`} 
+                          src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/100/100`)} 
                           className="w-full h-full rounded-lg object-cover border border-white/10" 
                           alt="" 
                           referrerPolicy="no-referrer"
