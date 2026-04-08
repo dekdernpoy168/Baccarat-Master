@@ -1,13 +1,27 @@
 {
-  "name": "baccarat-master-worker",
+  "name": "baccaratmaster",
   "main": "src/index.ts",
   "compatibility_date": "2024-04-08",
   "kv_namespaces": [
     {
       "binding": "KV",
       "id": "d44f93119c2249928ecc528314da655d",
-      // Optional: preview_id used when running `wrangler dev` for local dev
       "preview_id": "d44f93119c2249928ecc528314da655d"
     }
-  ]
+  ],
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  }
 }
