@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
-import * as schema from './schema';
-import { query } from '../db';
+import * as schema from './schema.js';
+import { query } from '../db.js';
 
 export const db = drizzle(
   async (sql, params, method) => {

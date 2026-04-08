@@ -1,4 +1,4 @@
-import { exec } from './db';
+import { exec } from './db.js';
 
 export async function initSchema() {
   await exec(`

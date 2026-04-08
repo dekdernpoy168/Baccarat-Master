@@ -25,7 +25,7 @@ export class WebSocketManager {
     if (url.pathname === '/broadcast' && request.method === 'POST') {
       const payload = await request.text();
       // Clean up closed sessions
-      this.sessions = this.sessions.filter(ws => ws.readyState === WebSocket.READY_STATE_OPEN);
+      this.sessions = this.sessions.filter(ws => ws.readyState === WebSocket.OPEN);
       // Broadcast
       this.sessions.forEach(ws => {
         try { ws.send(payload); } catch (e) {}

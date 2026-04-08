@@ -10,11 +10,11 @@ import jwt from "jsonwebtoken";
 import cors from "cors";
 import multer from "multer";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { exec, query } from './src/db';
-import { db } from './src/db/index';
-import { users } from './src/db/schema';
-import { initSchema } from './src/initSchema';
-import usersApi from './src/api/users';
+import { exec, query } from './src/db.js';
+import { db } from './src/db/index.js';
+import { users } from './src/db/schema.js';
+import { initSchema } from './src/initSchema.js';
+import usersApi from './src/api/users.js';
 
 // Configure R2 Client
 const r2Client = new S3Client({

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { db } from '../db/index';
-import { users } from '../db/schema';
+import { db } from '../db/index.js';
+import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 
 const router = Router();
@@ -11,8 +11,8 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, email } = req.body;
-  await db.insert(users).values({ name, email });
+  const { email, password } = req.body;
+  await db.insert(users).values({ email, password: password || 'default_password' });
   res.status(201).json({ message: 'User created' });
 });
 
