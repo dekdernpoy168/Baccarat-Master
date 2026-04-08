@@ -1,5 +1,5 @@
 {
-  "name": "baccarat-master-worker",
+  "name": "baccaratmaster",
   "main": "src/index.ts",
   "compatibility_date": "2024-04-08",
   "kv_namespaces": [
