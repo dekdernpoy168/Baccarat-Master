@@ -11,10 +11,7 @@ import cors from "cors";
 import multer from "multer";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { exec, query } from './src/db';
-import { db } from './src/db/index';
-import { users } from './src/db/schema';
 import { initSchema } from './src/initSchema';
-import usersApi from './src/api/users';
 
 // Configure R2 Client
 const r2Client = new S3Client({
@@ -48,7 +45,6 @@ async function startServer() {
   });
 
   server.use(cors());
-  server.use('/api/users', usersApi);
   server.use(express.json({ limit: '50mb' }));
   
   // Request logging middleware
@@ -69,12 +65,6 @@ async function startServer() {
 
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
-    
-    socket.on("get_users", async () => {
-      const allUsers = await db.select().from(users);
-      socket.emit("users_updated", allUsers);
-    });
-
     socket.on("error", (err) => {
       console.error("Socket error:", err);
     });
@@ -165,7 +155,11 @@ async function startServer() {
     return rows[0] || null;
   }
 
-  
+  // API routes
+  server.get("/api/health", (req, res) => {
+    res.json({ status: "ok", uptime: process.uptime() });
+  });
+
   server.get("/api/socket-status", (req, res) => {
     const clients = io.sockets.sockets.size;
     res.json({ connectedClients: clients });
