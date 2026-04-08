@@ -314,7 +314,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
       <Link to={`/articles/${article.slug}`}>
         <div className="relative h-56 overflow-hidden">
           <img 
-            src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`} 
+            src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`)} 
             alt={article.title} 
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             referrerPolicy="no-referrer"
@@ -3229,7 +3229,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                     <div className="flex items-center">
                       <div className="relative w-12 h-12 mr-4 flex-shrink-0">
                         <img 
-                          src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/100/100`} 
+                          src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/100/100`)} 
                           className="w-full h-full rounded-lg object-cover border border-white/10" 
                           alt="" 
                           referrerPolicy="no-referrer"
@@ -4132,7 +4132,9 @@ export default function App() {
 
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
-    const socket = io({
+    const socket = io(window.location.origin, {
+      path: '/socket.io',
+      transports: ['polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,

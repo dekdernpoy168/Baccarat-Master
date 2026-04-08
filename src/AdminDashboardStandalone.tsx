@@ -746,7 +746,44 @@ const AdminDashboard = () => {
   const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
   const [isGeneratingArticleImage, setIsGeneratingArticleImage] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("ขนาดไฟล์ต้องไม่เกิน 5MB");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to upload image");
+      }
+
+      const data = await response.json();
+      setCurrentArticle(prev => ({ ...prev, image: data.url }));
+      alert("อัปโหลดรูปภาพสำเร็จ");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      alert("เกิดข้อผิดพลาดในการอัปโหลด: " + error.message);
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
+  };
   const [brainstormResults, setBrainstormResults] = useState<string[]>([]);
   const [showBrainstormModal, setShowBrainstormModal] = useState(false);
   const [generatedLogo, setGeneratedLogo] = useState<string | null>(localStorage.getItem('baccarat_master_logo'));
@@ -787,7 +824,9 @@ const AdminDashboard = () => {
     loadData();
 
     // Socket.io for real-time updates
-    const socket = io({
+    const socket = io(window.location.origin, {
+      path: '/socket.io',
+      transports: ['polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,
@@ -1855,19 +1894,36 @@ const AdminDashboard = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-gold text-sm font-bold flex items-center"><ImageIcon size={16} className="mr-2" /> URL รูปภาพหน้าปก</label>
-                  <button 
-                    type="button"
-                    onClick={generateArticleImage}
-                    disabled={isGeneratingArticleImage || !currentArticle.title?.trim()}
-                    className="text-gold hover:text-white text-[10px] font-bold flex items-center transition-all disabled:opacity-50"
-                  >
-                    {isGeneratingArticleImage ? (
-                      <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-1"></div>
-                    ) : (
-                      <Sparkles size={12} className="mr-1" />
-                    )}
-                    AI สร้างรูป
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer text-gold hover:text-white text-[10px] font-bold flex items-center transition-all disabled:opacity-50">
+                      {isUploadingImage ? (
+                        <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-1"></div>
+                      ) : (
+                        <Upload size={12} className="mr-1" />
+                      )}
+                      อัปโหลดรูป
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleImageUpload}
+                        disabled={isUploadingImage}
+                      />
+                    </label>
+                    <button 
+                      type="button"
+                      onClick={generateArticleImage}
+                      disabled={isGeneratingArticleImage || !currentArticle.title?.trim()}
+                      className="text-gold hover:text-white text-[10px] font-bold flex items-center transition-all disabled:opacity-50"
+                    >
+                      {isGeneratingArticleImage ? (
+                        <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-1"></div>
+                      ) : (
+                        <Sparkles size={12} className="mr-1" />
+                      )}
+                      AI สร้างรูป
+                    </button>
+                  </div>
                 </div>
                 <input 
                   type="text" 
@@ -2148,7 +2204,7 @@ const AdminDashboard = () => {
                     <div className="flex items-center">
                       <div className="relative w-12 h-12 mr-4 flex-shrink-0">
                         <img 
-                          src={article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/100/100`} 
+                          src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/100/100`)} 
                           className="w-full h-full rounded-lg object-cover border border-white/10" 
                           alt="" 
                           referrerPolicy="no-referrer"

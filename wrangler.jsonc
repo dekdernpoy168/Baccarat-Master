@@ -1,0 +1,13 @@
+{
+  "name": "baccarat-master-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-04-08",
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "d44f93119c2249928ecc528314da655d",
+      // Optional: preview_id used when running `wrangler dev` for local dev
+      "preview_id": "d44f93119c2249928ecc528314da655d"
+    }
+  ]
+}

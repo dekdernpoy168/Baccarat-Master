@@ -8,8 +8,28 @@ import { Server } from "socket.io";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
+import multer from "multer";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { exec, query } from './src/db';
 import { initSchema } from './src/initSchema';
+
+// Configure R2 Client
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+  },
+});
+
+// Configure Multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+});
 
 async function startServer() {
   const server = express();
@@ -19,7 +39,6 @@ async function startServer() {
       origin: "*",
       methods: ["GET", "POST"]
     },
-    allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
     connectTimeout: 45000
@@ -30,17 +49,25 @@ async function startServer() {
   
   // Request logging middleware
   server.use((req, res, next) => {
-    if (!req.url.startsWith('/socket.io')) {
-      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    }
+    const start = Date.now();
+    res.on('finish', () => {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} ${res.statusCode} ${Date.now() - start}ms`);
+    });
     next();
   });
 
   const PORT = Number(process.env.PORT || 3000);
 
   // Socket.io connection
+  io.engine.on("connection_error", (err) => {
+    console.log("Connection error:", err.req ? err.req.url : 'unknown', err.code, err.message, err.context);
+  });
+
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
+    socket.on("error", (err) => {
+      console.error("Socket error:", err);
+    });
     socket.on("disconnect", (reason) => {
       console.log("Client disconnected:", socket.id, "Reason:", reason);
     });
@@ -130,12 +157,46 @@ async function startServer() {
 
   // API routes
   server.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", uptime: process.uptime() });
   });
 
   server.get("/api/socket-status", (req, res) => {
     const clients = io.sockets.sockets.size;
     res.json({ connectedClients: clients });
+  });
+
+  // --- Image Upload (Cloudflare R2) ---
+  server.post("/api/upload", upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      const file = req.file;
+      const fileExtension = path.extname(file.originalname);
+      const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+      const bucketName = process.env.R2_BUCKET_NAME || "baccaratmaster";
+
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileName,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      });
+
+      await r2Client.send(command);
+
+      // Return the public URL for the uploaded image
+      // If R2_PUBLIC_DEV_URL is set (e.g., https://pub-xxx.r2.dev), use it.
+      // Otherwise, fallback to a relative path or a custom domain if configured.
+      const publicUrlBase = process.env.R2_PUBLIC_DEV_URL || `https://${bucketName}.r2.dev`;
+      const imageUrl = `${publicUrlBase}/${fileName}`;
+
+      res.json({ url: imageUrl, success: true });
+    } catch (error: any) {
+      console.error("Error uploading image to R2:", error);
+      res.status(500).json({ error: error.message || "Failed to upload image" });
+    }
   });
 
   // --- Articles ---
@@ -668,6 +729,20 @@ Sitemap: https://huisache.com/sitemap.xml`;
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  server.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Express error:", err);
+    res.status(500).send("Internal Server Error");
+  });
+
+  httpServer.on('request', (req, res) => {
+    if (req.url?.startsWith('/socket.io')) {
+      const start = Date.now();
+      res.on('finish', () => {
+        console.log(`[RAW] ${req.method} ${req.url} ${res.statusCode} ${Date.now() - start}ms`);
+      });
+    }
+  });
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
