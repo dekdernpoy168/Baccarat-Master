@@ -117,13 +117,31 @@ export default {
     // Initialize Drizzle ORM with D1
     const db = drizzle(env.DB, { schema });
 
+    // Normalize path: remove trailing slash and optional /api prefix
+    let normalizedPath = path.replace(/\/$/, "");
+    if (normalizedPath.startsWith("/api")) {
+      normalizedPath = normalizedPath.replace("/api", "");
+    }
+    if (normalizedPath === "") normalizedPath = "/";
+
     try {
+      // =============================================
+      // ROOT / HEALTH CHECK
+      // =============================================
+      if (normalizedPath === '/' && method === 'GET') {
+        return json({ 
+          status: 'ok', 
+          message: 'Baccarat Master API is running.',
+          endpoints: ['/articles', '/categories', '/auth/me']
+        });
+      }
+
       // =============================================
       // ARTICLES API
       // =============================================
 
       // GET /articles — List all articles
-      if (path === '/articles' && method === 'GET') {
+      if (normalizedPath === '/articles' && method === 'GET') {
         const results = await db.query.articles.findMany({
           orderBy: [desc(schema.articles.createdAt)],
         });
@@ -131,8 +149,9 @@ export default {
       }
 
       // GET /articles/:id — Get single article
-      if (path.match(/^\/articles\/(\d+)$/) && method === 'GET') {
-        const id = parseInt(path.split('/').pop() || '0', 10);
+      const articleIdMatch = normalizedPath.match(/^\/articles\/(\d+)$/);
+      if (articleIdMatch && method === 'GET') {
+        const id = parseInt(articleIdMatch[1], 10);
         const row = await db.query.articles.findFirst({
           where: eq(schema.articles.id, id),
         });
@@ -142,7 +161,7 @@ export default {
       }
 
       // POST /articles — Create article
-      if (path === '/articles' && method === 'POST') {
+      if (normalizedPath === '/articles' && method === 'POST') {
         const body = await request.json() as any;
         const now = new Date().toISOString();
 
@@ -170,8 +189,8 @@ export default {
       }
 
       // PUT /articles/:id — Update article
-      if (path.match(/^\/articles\/(\d+)$/) && method === 'PUT') {
-        const id = parseInt(path.split('/').pop() || '0', 10);
+      if (articleIdMatch && method === 'PUT') {
+        const id = parseInt(articleIdMatch[1], 10);
         const body = await request.json() as any;
         const now = new Date().toISOString();
 
@@ -198,8 +217,8 @@ export default {
       }
 
       // DELETE /articles/:id — Delete article
-      if (path.match(/^\/articles\/(\d+)$/) && method === 'DELETE') {
-        const id = parseInt(path.split('/').pop() || '0', 10);
+      if (articleIdMatch && method === 'DELETE') {
+        const id = parseInt(articleIdMatch[1], 10);
         await db.delete(schema.articles).where(eq(schema.articles.id, id));
         await broadcast(env, { type: 'ARTICLE_DELETED', id });
         return json({ message: 'Article deleted' });
@@ -210,7 +229,7 @@ export default {
       // =============================================
 
       // GET /categories — List all categories
-      if (path === '/categories' && method === 'GET') {
+      if (normalizedPath === '/categories' && method === 'GET') {
         const results = await db.query.categories.findMany({
           orderBy: [asc(schema.categories.name)],
         });
@@ -218,7 +237,7 @@ export default {
       }
 
       // POST /categories — Create category
-      if (path === '/categories' && method === 'POST') {
+      if (normalizedPath === '/categories' && method === 'POST') {
         const body = await request.json() as any;
         const now = new Date().toISOString();
 
@@ -241,8 +260,9 @@ export default {
       }
 
       // PUT /categories/by-name/:name — Update category by name
-      if (path.match(/^\/categories\/by-name\//) && method === 'PUT') {
-        const oldName = decodeURIComponent(path.replace('/categories/by-name/', ''));
+      const categoryByNameMatch = normalizedPath.match(/^\/categories\/by-name\/(.+)$/);
+      if (categoryByNameMatch && method === 'PUT') {
+        const oldName = decodeURIComponent(categoryByNameMatch[1]);
         const body = await request.json() as any;
         const now = new Date().toISOString();
 
@@ -260,15 +280,15 @@ export default {
       }
 
       // DELETE /categories/by-name/:name — Delete category by name
-      if (path.match(/^\/categories\/by-name\//) && method === 'DELETE') {
-        const name = decodeURIComponent(path.replace('/categories/by-name/', ''));
+      if (categoryByNameMatch && method === 'DELETE') {
+        const name = decodeURIComponent(categoryByNameMatch[1]);
         await db.delete(schema.categories).where(eq(schema.categories.name, name));
         await broadcast(env, { type: 'CATEGORY_DELETED', name });
         return json({ message: 'Category deleted' });
       }
 
       // POST /categories/reset — Reset to default categories
-      if (path === '/categories/reset' && method === 'POST') {
+      if (normalizedPath === '/categories/reset' && method === 'POST') {
         await db.delete(schema.categories);
 
         const defaults = [
@@ -292,9 +312,7 @@ export default {
       }
 
       // POST /categories/clean-duplicates — Remove duplicate categories
-      if (path === '/categories/clean-duplicates' && method === 'POST') {
-        // SQLite doesn't support complex DELETE with NOT IN easily in Drizzle without raw SQL
-        // So we'll use raw SQL for this specific complex query
+      if (normalizedPath === '/categories/clean-duplicates' && method === 'POST') {
         await env.DB.prepare(`
           DELETE FROM categories
           WHERE id NOT IN (
@@ -310,7 +328,7 @@ export default {
       // =============================================
 
       // POST /auth/login
-      if (path === '/auth/login' && method === 'POST') {
+      if (normalizedPath === '/auth/login' && method === 'POST') {
         const body = await request.json() as any;
 
         const user = await db.query.users.findFirst({
@@ -322,13 +340,12 @@ export default {
 
         if (!user) return error('Invalid credentials', 401);
 
-        // ในโปรดักชันควรใช้ JWT จริง
         const token = btoa(JSON.stringify({ id: user.id, email: user.email, role: user.role }));
         return json({ token, user: { id: user.id, email: user.email, role: user.role } });
       }
 
       // GET /auth/me
-      if (path === '/auth/me' && method === 'GET') {
+      if (normalizedPath === '/auth/me' && method === 'GET') {
         const authHeader = request.headers.get('Authorization');
         if (!authHeader?.startsWith('Bearer ')) return error('Unauthorized', 401);
 
@@ -339,13 +356,6 @@ export default {
         } catch {
           return error('Invalid token', 401);
         }
-      }
-
-      // =============================================
-      // ROOT / HEALTH CHECK
-      // =============================================
-      if (path === '/' && method === 'GET') {
-        return json({ status: 'ok', message: 'Baccarat Master API is running. Access endpoints directly (e.g., /articles, /categories)' });
       }
 
       // =============================================
