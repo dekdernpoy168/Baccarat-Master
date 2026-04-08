@@ -827,11 +827,12 @@ const AdminDashboard = () => {
     // Socket.io for real-time updates
     const socket = io(window.location.origin, {
       path: '/socket.io',
-      transports: ['polling'],
+      transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,
-      autoConnect: true
+      autoConnect: true,
+      forceNew: true
     });
     
     socket.on('connect', () => {

@@ -48,8 +48,8 @@ async function startServer() {
   });
 
   server.use(cors());
-  server.use('/api/users', usersApi);
   server.use(express.json({ limit: '50mb' }));
+  server.use('/api/users', usersApi);
   
   // Request logging middleware
   server.use((req, res, next) => {
@@ -94,9 +94,20 @@ async function startServer() {
   };
 
   // Initialize Cloudflare D1 tables
+  const hasCloudflareConfig = process.env.CLOUDFLARE_ACCOUNT_ID && 
+                             process.env.CLOUDFLARE_API_TOKEN && 
+                             process.env.CLOUDFLARE_D1_DATABASE_ID;
+
+  if (!hasCloudflareConfig) {
+    console.error("CRITICAL: Cloudflare D1 configuration is missing! Database operations will fail.");
+    console.error("Please set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and CLOUDFLARE_D1_DATABASE_ID in environment variables.");
+  }
+
   try {
-    await initSchema();
-    console.log("Cloudflare D1 tables initialized successfully.");
+    if (hasCloudflareConfig) {
+      await initSchema();
+      console.log("Cloudflare D1 tables initialized successfully.");
+    }
   } catch (error) {
     console.error("Error initializing Cloudflare D1 tables:", error);
   }
