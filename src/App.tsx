@@ -307,43 +307,50 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
   return (
     <motion.div 
       whileHover={{ y: -10 }}
-      className="bg-gray-900/50 border border-gold/10 rounded-2xl overflow-hidden article-card group"
+      className="bg-gray-900/50 border border-gold/10 rounded-2xl overflow-hidden article-card group flex flex-col h-full"
     >
-      <Link to={`/articles/${article.slug}`}>
-        <div className="relative h-56 overflow-hidden">
-          <img 
-            src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`)} 
-            alt={article.title} 
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute top-4 left-4 flex flex-col gap-2">
-            <span className="bg-baccarat-red text-white text-xs font-bold px-3 py-1 rounded-full border border-gold/50">
-              {article.category}
+      <Link to={`/articles/${article.slug}`} className="relative h-56 overflow-hidden block">
+        <img 
+          src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`)} 
+          alt={article.title} 
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute top-4 left-4 flex flex-col gap-2">
+          <span className="bg-baccarat-red text-white text-xs font-bold px-3 py-1 rounded-full border border-gold/50">
+            {article.category}
+          </span>
+          {isDraft && (
+            <span className="bg-yellow-500/90 text-black text-[10px] font-black px-3 py-1 rounded-full border border-black/20 flex items-center shadow-lg">
+              <FileText size={10} className="mr-1" /> ฉบับร่าง
             </span>
-            {isDraft && (
-              <span className="bg-yellow-500/90 text-black text-[10px] font-black px-3 py-1 rounded-full border border-black/20 flex items-center shadow-lg">
-                <FileText size={10} className="mr-1" /> ฉบับร่าง
-              </span>
-            )}
-          </div>
+          )}
         </div>
-        <div className="p-6">
+      </Link>
+      <div className="p-6 flex flex-col flex-grow">
+        <Link to={`/articles/${article.slug}`}>
           <h3 className="text-xl font-bold text-white mb-3 group-hover:text-gold transition-colors line-clamp-2">
             {article.title}
           </h3>
-          <p className="text-gray-400 text-sm mb-6 line-clamp-3 leading-relaxed">
-            {article.excerpt}
-          </p>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs">{article.date}</span>
-            <span className="text-gray-500 text-xs flex items-center"><Clock size={12} className="mr-1" /> {calculateReadTime(article.content)}</span>
-            <span className="text-gold text-sm font-bold flex items-center">
-              อ่านต่อ <ChevronRight size={16} className="ml-1" />
+        </Link>
+        <p className="text-gray-400 text-sm mb-6 line-clamp-3 leading-relaxed flex-grow">
+          {article.excerpt}
+        </p>
+        <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-auto">
+          <div className="flex flex-col gap-1">
+            <span className="text-gray-500 text-[10px] uppercase tracking-widest">{article.date}</span>
+            <span className="text-gray-500 text-[10px] flex items-center font-medium">
+              <Clock size={10} className="mr-1 text-gold/50" /> {calculateReadTime(article.content)}
             </span>
           </div>
+          <Link 
+            to={`/articles/${article.slug}`}
+            className="gold-bg-gradient text-baccarat-black px-5 py-2 rounded-xl text-xs font-black flex items-center shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-all hover:scale-105"
+          >
+            อ่านต่อ <ChevronRight size={14} className="ml-1.5" />
+          </Link>
         </div>
-      </Link>
+      </div>
     </motion.div>
   );
 };
