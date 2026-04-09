@@ -1046,7 +1046,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
                 เข้าใช้งานสูตร AI ฟรี
               </Link>
               <a 
-                href="https://your-target-site.com" 
+                href="https://inlnk.co/registerbocker168" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="bg-white/10 text-white border border-white/20 px-10 py-4 rounded-full font-black text-center hover:bg-white/20 transition-colors"
@@ -1120,7 +1120,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-6 px-4">
                 <a 
-                  href="https://your-target-site.com" 
+                  href="https://inlnk.co/registerbocker168" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="bg-white text-baccarat-red px-8 md:px-16 py-4 md:py-6 rounded-full font-black text-lg md:text-2xl hover:scale-105 transition-transform shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-center w-full sm:w-auto"
@@ -1298,7 +1298,7 @@ const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User
           <h3 className="text-2xl font-bold text-white mb-4">สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
           <p className="text-gray-400 mb-8">เราขอแนะนำเว็บไซต์ที่ได้มาตรฐานสากล มั่นคง และปลอดภัยที่สุดในขณะนี้</p>
           <a 
-            href="https://your-target-site.com" 
+            href="https://inlnk.co/registerbocker168" 
             target="_blank" 
             rel="noopener noreferrer"
             className="inline-flex items-center gold-bg-gradient text-baccarat-black px-10 py-4 rounded-full font-black text-lg hover:scale-105 transition-transform"

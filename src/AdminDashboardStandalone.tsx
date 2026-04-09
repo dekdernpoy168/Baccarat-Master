@@ -1962,9 +1962,9 @@ const AdminDashboard = () => {
                     <div className="mt-20 p-8 bg-gray-900 border border-gold/30 rounded-3xl text-center">
                       <h3 className="text-2xl font-bold text-white mb-4">สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
                       <p className="text-gray-400 mb-8">เราขอแนะนำเว็บไซต์ที่ได้มาตรฐานสากล มั่นคง และปลอดภัยที่สุดในขณะนี้</p>
-                      <button className="bg-white text-baccarat-red px-12 py-5 rounded-full font-black text-xl shadow-2xl">
+                      <a href="https://inlnk.co/registerbocker168" target="_blank" rel="noopener noreferrer" className="bg-white text-baccarat-red px-12 py-5 rounded-full font-black text-xl shadow-2xl">
                         สมัครสมาชิกตอนนี้
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </motion.div>
