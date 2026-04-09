@@ -37,8 +37,10 @@ import {
   Tag,
   RefreshCw,
   Database,
-  Clock
+  Clock,
+  Copy
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import ReactQuill from 'react-quill-new';
 import { calculateReadTime } from './lib/readTime';
 import { format } from 'date-fns';
@@ -2004,6 +2006,88 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     return true;
   });
 
+  const exportArticles = (format: 'xlsx' | 'txt' | 'html') => {
+    const data = articles.map(article => ({
+      Title: article.title,
+      Slug: article.slug,
+      Category: article.category,
+      Status: article.status,
+      PublishedAt: article.publishedAt,
+      MetaTitle: article.metaTitle,
+      MetaDescription: article.metaDescription,
+      Image: article.image,
+      URL: `${window.location.origin}/articles/${article.slug}`
+    }));
+
+    if (format === 'xlsx') {
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Articles");
+      XLSX.writeFile(wb, "articles_report.xlsx");
+    } else if (format === 'txt') {
+      const textContent = data.map(a => JSON.stringify(a, null, 2)).join('\n\n---\n\n');
+      const blob = new Blob([textContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'articles_report.txt';
+      a.click();
+    } else if (format === 'html') {
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              table { border-collapse: collapse; width: 100%; }
+              th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+              th { background-color: #f2f2f2; }
+              img { max-width: 100px; height: auto; border-radius: 4px; }
+              .url { color: #0066cc; text-decoration: none; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <h1>Articles Report</h1>
+            <table>
+              <thead>
+                <tr>
+                  <th>Image</th>
+                  <th>Title</th>
+                  <th>Slug</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Meta Title</th>
+                  <th>Meta Description</th>
+                  <th>URL</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.map(a => `
+                  <tr>
+                    <td><img src="${a.Image}" alt=""></td>
+                    <td><strong>${a.Title}</strong></td>
+                    <td>${a.Slug}</td>
+                    <td>${a.Category}</td>
+                    <td>${a.Status}</td>
+                    <td>${a.MetaTitle || '-'}</td>
+                    <td>${a.MetaDescription || '-'}</td>
+                    <td><a href="${a.URL}" class="url">${a.URL}</a></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'articles_report.html';
+      a.click();
+    }
+  };
+
   const generateSlugFromTitle = async () => {
     if (!currentArticle.title?.trim()) {
       alert('กรุณาใส่หัวข้อบทความก่อน');
@@ -2357,6 +2441,19 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
         publishedAt: getPublishedAt(),
       };
 
+      // Ensure slug exists
+      if (!articleData.slug) {
+        articleData.slug = articleData.title?.toLowerCase()
+          .replace(/[^a-z0-9ก-๙\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .trim();
+      }
+
+      if (!articleData.slug) {
+        throw new Error('กรุณาระบุ Slug หรือใส่หัวข้อบทความเพื่อสร้าง Slug อัตโนมัติ');
+      }
+
       // Check document size (SQLite limit is higher, but keep reasonable)
       const estimatedSize = JSON.stringify(articleData).length;
       if (estimatedSize > 5000000) {
@@ -2545,7 +2642,27 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
           <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
           <p className="text-gray-400">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex gap-2">
+            <button 
+              onClick={() => exportArticles('xlsx')}
+              className="bg-green-500/10 text-green-500 px-4 py-2 rounded-full font-bold hover:bg-green-500/20 border border-green-500/30 transition-all flex items-center text-sm"
+            >
+              <Download size={18} className="mr-2" /> Excel
+            </button>
+            <button 
+              onClick={() => exportArticles('html')}
+              className="bg-blue-500/10 text-blue-500 px-4 py-2 rounded-full font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex items-center text-sm"
+            >
+              <Download size={18} className="mr-2" /> Word/Docs
+            </button>
+            <button 
+              onClick={() => exportArticles('txt')}
+              className="bg-gray-500/10 text-gray-500 px-4 py-2 rounded-full font-bold hover:bg-gray-500/20 border border-gray-500/30 transition-all flex items-center text-sm"
+            >
+              <Download size={18} className="mr-2" /> Text
+            </button>
+          </div>
           <button 
             onClick={() => setIsManagingCategories(true)}
             className="bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center"
@@ -2668,6 +2785,24 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                   className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
                   placeholder="เช่น how-to-play-baccarat"
                 />
+                {currentArticle.slug && (
+                  <div className="flex items-center gap-2 mt-2 p-2 bg-gold/5 border border-gold/20 rounded-lg">
+                    <span className="text-[10px] text-gray-500 truncate flex-grow">
+                      {window.location.origin}/articles/{currentArticle.slug}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/articles/${currentArticle.slug}`);
+                        alert('คัดลอก URL เรียบร้อยแล้ว');
+                      }}
+                      className="text-gold hover:text-white transition-colors"
+                      title="คัดลอก URL"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3089,6 +3224,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">บทความ</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">หมวดหมู่</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">สถานะ / วันที่เผยแพร่</th>
+                <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">URL</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">จัดการ</th>
               </tr>
             </thead>
@@ -3141,6 +3277,19 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                         <span className="text-gray-500">{article.date}</span>
                       )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = `${window.location.origin}/articles/${article.slug}`;
+                        navigator.clipboard.writeText(url);
+                        alert('คัดลอก URL เรียบร้อยแล้ว');
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all text-xs"
+                    >
+                      <Copy size={14} /> คัดลอก URL
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-3">

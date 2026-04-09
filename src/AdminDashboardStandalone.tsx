@@ -1230,7 +1230,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const exportArticles = () => {
+  const exportArticles = (format: 'xlsx' | 'txt' | 'html') => {
     const data = articles.map(article => ({
       Title: article.title,
       Slug: article.slug,
@@ -1243,10 +1243,73 @@ const AdminDashboard = () => {
       URL: `${window.location.origin}/article/${article.slug}`
     }));
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Articles");
-    XLSX.writeFile(wb, "articles_report.xlsx");
+    if (format === 'xlsx') {
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Articles");
+      XLSX.writeFile(wb, "articles_report.xlsx");
+    } else if (format === 'txt') {
+      const textContent = data.map(a => JSON.stringify(a, null, 2)).join('\n\n---\n\n');
+      const blob = new Blob([textContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'articles_report.txt';
+      a.click();
+    } else if (format === 'html') {
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              table { border-collapse: collapse; width: 100%; }
+              th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+              th { background-color: #f2f2f2; }
+              img { max-width: 100px; height: auto; border-radius: 4px; }
+              .url { color: #0066cc; text-decoration: none; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <h1>Articles Report</h1>
+            <table>
+              <thead>
+                <tr>
+                  <th>Image</th>
+                  <th>Title</th>
+                  <th>Slug</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Meta Title</th>
+                  <th>Meta Description</th>
+                  <th>URL</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.map(a => `
+                  <tr>
+                    <td><img src="${a.Image}" alt="${a.Title}" /></td>
+                    <td><strong>${a.Title}</strong></td>
+                    <td>${a.Slug}</td>
+                    <td>${a.Category}</td>
+                    <td>${a.Status}</td>
+                    <td>${a.MetaTitle || '-'}</td>
+                    <td>${a.MetaDescription || '-'}</td>
+                    <td><a href="${a.URL}" class="url">${a.URL}</a></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'articles_report.html';
+      a.click();
+    }
   };
 
   const handleSave = async (e: React.FormEvent, status: 'published' | 'draft' = 'published') => {
@@ -1269,12 +1332,17 @@ const AdminDashboard = () => {
 
       const articleData = {
         ...dataWithoutId,
+        slug: dataWithoutId.slug || dataWithoutId.title.replace(/\s+/g, '-').toLowerCase(),
         status,
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
         tags: currentArticle.tags || '',
       };
+
+      if (!articleData.slug) {
+        throw new Error('กรุณาระบุ Slug หรือชื่อบทความ');
+      }
 
       // Check document size (SQLite limit is higher, but keep reasonable)
       const estimatedSize = JSON.stringify(articleData).length;
@@ -1466,12 +1534,26 @@ const AdminDashboard = () => {
           <p className="text-gray-400 text-sm md:text-base">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
         </div>
         <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
-          <button 
-            onClick={exportArticles}
-            className="flex-1 md:flex-none bg-blue-500/10 text-blue-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex items-center justify-center text-sm md:text-base"
-          >
-            <Download size={18} className="mr-2" /> Export
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => exportArticles('xlsx')}
+              className="bg-green-500/10 text-green-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-green-500/20 border border-green-500/30 transition-all flex items-center justify-center text-sm md:text-base"
+            >
+              <Download size={18} className="mr-2" /> Excel
+            </button>
+            <button 
+              onClick={() => exportArticles('html')}
+              className="bg-blue-500/10 text-blue-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex items-center justify-center text-sm md:text-base"
+            >
+              <Download size={18} className="mr-2" /> Word/Docs
+            </button>
+            <button 
+              onClick={() => exportArticles('txt')}
+              className="bg-gray-500/10 text-gray-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-500/20 border border-gray-500/30 transition-all flex items-center justify-center text-sm md:text-base"
+            >
+              <Download size={18} className="mr-2" /> Text
+            </button>
+          </div>
           <button 
             onClick={brainstormTopics}
             disabled={isBrainstorming}
@@ -2084,6 +2166,7 @@ const AdminDashboard = () => {
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">บทความ</th>
                 <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">หมวดหมู่</th>
                 <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">สถานะ / วันที่เผยแพร่</th>
+                <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">URL</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">จัดการ</th>
               </tr>
             </thead>
@@ -2138,19 +2221,20 @@ const AdminDashboard = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = `${window.location.origin}/article/${article.slug}`;
+                        navigator.clipboard.writeText(url);
+                        alert('คัดลอก URL เรียบร้อยแล้ว');
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all text-xs"
+                    >
+                      <Copy size={14} /> คัดลอก URL
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-3">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const url = `${window.location.origin}/article/${article.slug}`;
-                          navigator.clipboard.writeText(url);
-                          alert('คัดลอก URL เรียบร้อยแล้ว');
-                        }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all hover:scale-110 active:scale-95"
-                        title="คัดลอก URL"
-                      >
-                        <Copy size={18} />
-                      </button>
                       <button 
                         onClick={() => { setIsEditing(true); setCurrentArticle(article); }}
                         className="p-2 text-gold hover:bg-gold/10 rounded-lg transition-all hover:scale-110 active:scale-95"
