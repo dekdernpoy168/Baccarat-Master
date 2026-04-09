@@ -34,7 +34,8 @@ import {
   Type as TypeIcon,
   Eye,
   Calendar,
-  Tag
+  Tag,
+  Copy
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { calculateReadTime } from './lib/readTime';
