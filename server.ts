@@ -62,11 +62,11 @@ async function startServer() {
       const prompt = `Generate ${count || 10} secondary keywords (คีย์รอง) related to the primary keyword: "${primaryKeyword}". 
       Return ONLY the keywords as a comma-separated list. No other text.`;
       
-      const result = await genAI.models.generateContent({
+      const result: any = await genAI.models.generateContent({
         model: "gemini-1.5-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
-      const text = result.text || "";
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
       res.json({ text });
     } catch (error: any) {
       console.error("AI Error:", error);
@@ -80,7 +80,7 @@ async function startServer() {
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
       
       const prompt = `Generate 3 SEO-friendly URL slug options in English for this Thai article title: "${title}". Use only lowercase letters and hyphens.`;
-      const result = await genAI.models.generateContent({
+      const result: any = await genAI.models.generateContent({
         model: "gemini-1.5-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
@@ -97,8 +97,91 @@ async function startServer() {
           }
         }
       });
-      res.json(JSON.parse(result.text || "{}"));
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      res.json(JSON.parse(text));
     } catch (error: any) {
+      console.error("Slug Gen Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-excerpt", async (req, res) => {
+    try {
+      const { title } = req.body;
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      const prompt = `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยค จำนวน 3 ตัวเลือก สำหรับบทความหัวข้อ: "${title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`;
+      const result: any = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              options: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["options"]
+          }
+        }
+      });
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      res.json(JSON.parse(text));
+    } catch (error: any) {
+      console.error("Excerpt Gen Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-article", async (req, res) => {
+    try {
+      const { prompt: userAiPrompt } = req.body;
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      const systemPrompt = `คุณคือผู้เชี่ยวชาญด้านการเขียนบทความ SEO และการพนันออนไลน์ (บาคาร่า) ที่มีประสบการณ์จริง เขียนด้วยภาษาที่อ่านง่าย สื่อสารได้ใจความ ไม่ซับซ้อน มีความเป็นมนุษย์ มีมุมมองเฉพาะตัวเหมือนคนเขียนจริงๆ ไม่ใช่หุ่นยนต์`;
+      const fullPrompt = `${systemPrompt}\n\nโจทย์/คีย์เวิร์ด: ${userAiPrompt}
+
+ข้อกำหนด:
+- เขียนเนื้อหาบทความในรูปแบบ HTML (ใช้ <h2>, <p>, <ul>, <li>, <strong>)
+- **ความยาวของเนื้อหาบทความต้องอยู่ระหว่าง 1000 - 1500 คำ** (เน้นเนื้อหาที่เจาะลึกและมีประโยชน์)
+- นำคีย์เวิร์ดที่เกี่ยวข้องมาแทรกในเนื้อหาและติดตัวหนา (<strong>) ไว้ด้วย
+- เน้นความแม่นยำของข้อมูล
+- **Meta Title: ห้ามเกิน 60 ตัวอักษร**
+- **Meta Description: ห้ามเกิน 160 ตัวอักษร**
+- **URL Slug: ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง**
+
+สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON:
+{
+  "content": "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ",
+  "metaTitle": "Meta Title สำหรับ SEO",
+  "metaDescription": "Meta Description สำหรับ SEO",
+  "slug": "URL Slug ภาษาอังกฤษ"
+}`;
+
+      const result: any = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              content: { type: Type.STRING },
+              metaTitle: { type: Type.STRING },
+              metaDescription: { type: Type.STRING },
+              slug: { type: Type.STRING }
+            },
+            required: ["content", "metaTitle", "metaDescription", "slug"]
+          }
+        }
+      });
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      res.json(JSON.parse(text));
+    } catch (error: any) {
+      console.error("Article Gen Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -204,11 +287,14 @@ async function startServer() {
         prompt = `A high-quality, professional, and visually striking featured image for a blog post titled: "${title}". The theme is online baccarat, luxury casino, gambling strategy, and professional gaming. The style should be realistic but with a cinematic, high-end feel. Use a color palette of gold, black, and deep red. No text in the image. 16:9 aspect ratio.`;
       }
 
-      const result = await genAI.models.generateContent({
+      const result: any = await genAI.models.generateContent({
         model: "gemini-2.0-flash-exp",
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
-      const parts = result.candidates?.[0]?.content?.parts || [];
+      
+      // Handle image generation response
+      const candidates = result.candidates || [];
+      const parts = candidates[0]?.content?.parts || [];
       let base64 = null;
       for (const part of parts) {
         if (part.inlineData) {
@@ -220,9 +306,11 @@ async function startServer() {
       if (base64) {
         res.json({ image: base64 });
       } else {
-        throw new Error("No image generated");
+        // Fallback if no image generated directly
+        res.json({ error: "No image generated" });
       }
     } catch (error: any) {
+      console.error("Image Gen Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -231,11 +319,11 @@ async function startServer() {
     try {
       const { prompt } = req.body;
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      const result = await genAI.models.generateContent({
+      const result: any = await genAI.models.generateContent({
         model: "gemini-1.5-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
-      res.json({ text: result.text });
+      res.json({ text: result.candidates?.[0]?.content?.parts?.[0]?.text || "" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -931,10 +1019,19 @@ Sitemap: ${process.env.VITE_APP_URL || 'https://huisache.com'}/sitemap.xml`;
     server.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    server.use(express.static(distPath));
-    server.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    const indexPath = path.join(distPath, "index.html");
+    
+    if (fs.existsSync(indexPath)) {
+      server.use(express.static(distPath));
+      server.get("*", (req, res) => {
+        res.sendFile(indexPath);
+      });
+    } else {
+      console.error(`Production build not found at ${indexPath}. Please run 'npm run build' first.`);
+      server.get("*", (req, res) => {
+        res.status(404).send("Production build not found. Please run 'npm run build' first.");
+      });
+    }
   }
 
   server.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

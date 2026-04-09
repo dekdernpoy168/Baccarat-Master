@@ -44,8 +44,6 @@ import { calculateReadTime } from './lib/readTime';
 import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
-import { GoogleGenAI, Type } from "@google/genai";
-import OpenAI from 'openai';
 import { io } from 'socket.io-client';
 
 // Initialize PDF.js worker
@@ -1465,14 +1463,19 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
     }
     setIsGeneratingSecondaryKeywords(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate ${secondaryKeywordCount} secondary keywords (คีย์รอง) related to the primary keyword: "${primaryKeyword}". 
-        Return ONLY the keywords as a comma-separated list. No other text.`,
+      const response = await fetch('/api/ai/generate-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          primaryKeyword: primaryKeyword,
+          count: secondaryKeywordCount
+        })
       });
       
-      const text = response.text || '';
+      if (!response.ok) throw new Error('Failed to generate keywords');
+      const data = await response.json() as any;
+      
+      const text = data.text || '';
       const generatedKeywords = text.trim().replace(/\s*,\s*/g, ',');
       if (generatedKeywords) {
         setKeywords(prev => prev ? `${prev},${generatedKeywords}` : generatedKeywords);
@@ -1834,36 +1837,14 @@ const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '
     }
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `คุณคือผู้เชี่ยวชาญด้าน SEO เขียน Meta Title และ Meta Description โดยอิงจากคีย์เวิร์ดหลักและหัวข้อที่กำหนดให้
-        
-        คีย์เวิร์ดหลัก: ${keyword}
-        หัวข้อ: ${topic}
-        
-        ข้อกำหนดที่สำคัญมาก:
-        - Meta Title: **ห้ามเกิน 60 ตัวอักษร** ต้องมีคีย์เวิร์ดหลักอยู่ด้วย
-        - Meta Description: **ห้ามเกิน 160 ตัวอักษร** ต้องมีคีย์เวิร์ดหลักและสรุปเนื้อหาที่น่าดึงดูด
-        
-        ให้ตอบกลับเป็น JSON เท่านั้น`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              metaTitle: { type: Type.STRING },
-              metaDescription: { type: Type.STRING }
-            },
-            required: ["metaTitle", "metaDescription"]
-          }
-        }
+      const response = await fetch('/api/ai/generate-seo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword, topic })
       });
       
-      const text = response.text || '{}';
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : text;
-      const result = JSON.parse(jsonStr);
+      if (!response.ok) throw new Error('Failed to generate SEO');
+      const result = await response.json() as any;
       onExecute(result);
     } catch (err) {
       console.error(err);
@@ -2023,28 +2004,15 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     }
     setIsGeneratingSlug(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate 3 SEO-friendly URL slug options in English for this Thai article title: "${currentArticle.title}". Use only lowercase letters and hyphens.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              options: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            },
-            required: ["options"]
-          }
-        }
+      const response = await fetch('/api/ai/generate-slug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: currentArticle.title })
       });
-      const text = response.text || '{}';
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : text;
-      const data = JSON.parse(jsonStr);
+      
+      if (!response.ok) throw new Error('Failed to generate slug');
+      const data = await response.json() as any;
+      
       const cleanedOptions = (data.options || []).map((s: string) => 
         s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       );
@@ -2054,6 +2022,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       }
     } catch (err) {
       console.error(err);
+      alert('เกิดข้อผิดพลาดในการสร้าง Slug');
     } finally {
       setIsGeneratingSlug(false);
     }
@@ -2062,30 +2031,20 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
   const generateLogo = async () => {
     setIsGeneratingLogo(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [
-            {
-              text: "A professional and luxurious logo for a website named 'Baccarat Master Guide'. The design should feature a combination of playing cards, a golden crown, and elegant typography. The color palette should be gold, black, and deep red. High-end, minimalist but authoritative. Square aspect ratio.",
-            },
-          ],
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: "1:1",
-          },
-        },
+      const response = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'logo' })
       });
-
-      const parts = response.candidates?.[0]?.content?.parts || [];
-      for (const part of parts) {
-        if (part.inlineData) {
-          const base64 = `data:image/png;base64,${part.inlineData.data}`;
-          setGeneratedLogo(base64);
-          localStorage.setItem('baccarat_master_logo', base64);
-        }
+      
+      if (!response.ok) throw new Error('Failed to generate logo');
+      const data = await response.json() as any;
+      
+      if (data.image) {
+        setGeneratedLogo(data.image);
+        localStorage.setItem('baccarat_master_logo', data.image);
+      } else if (data.error) {
+        throw new Error(data.error);
       }
     } catch (err) {
       console.error(err);
@@ -2102,19 +2061,19 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     }
     setIsGeneratingKeywords(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `คุณคือผู้เชี่ยวชาญด้าน SEO วิเคราะห์ข้อมูลบทความต่อไปนี้ แล้วสร้าง Keywords Meta Tag ที่เหมาะสมที่สุด 5-8 คำ (คั่นด้วยลูกน้ำ) โดยอิงจากคำที่ใช้และเนื้อหาที่ควรจะเป็น
-        
-        หัวข้อบทความ (Title): ${currentArticle.title || '-'}
-        Meta Title: ${currentArticle.metaTitle || '-'}
-        Meta Description: ${currentArticle.metaDescription || '-'}
-        
-        ตอบกลับมาเฉพาะคำคีย์เวิร์ดที่คั่นด้วยลูกน้ำ (,) เท่านั้น ห้ามมีข้อความอื่น`,
+      const response = await fetch('/api/ai/generate-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          primaryKeyword: currentArticle.title || currentArticle.metaTitle || '',
+          count: 8
+        })
       });
       
-      const keywords = response.text?.trim();
+      if (!response.ok) throw new Error('Failed to generate keywords');
+      const data = await response.json() as any;
+      
+      const keywords = data.text?.trim();
       if (keywords) {
         setCurrentArticle(prev => ({ ...prev, metaKeywords: keywords }));
       }
@@ -2133,34 +2092,22 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     }
     setIsGeneratingExcerpt(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยค จำนวน 3 ตัวเลือก สำหรับบทความหัวข้อ: "${currentArticle.title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              options: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            },
-            required: ["options"]
-          }
-        }
+      const response = await fetch('/api/ai/generate-excerpt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: currentArticle.title })
       });
-      const text = response.text || '{}';
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : text;
-      const data = JSON.parse(jsonStr);
+      
+      if (!response.ok) throw new Error('Failed to generate excerpt');
+      const data = await response.json() as any;
+      
       if (data.options && data.options.length > 0) {
         setExcerptOptions(data.options);
         setShowExcerptSelection(true);
       }
     } catch (err) {
       console.error(err);
+      alert('เกิดข้อผิดพลาดในการสร้าง Excerpt');
     } finally {
       setIsGeneratingExcerpt(false);
     }
@@ -2171,108 +2118,31 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     setIsGeneratingAI(true);
     setError(null);
 
-    const systemPrompt = `คุณคือผู้เชี่ยวชาญด้านการเขียนบทความ SEO และการพนันออนไลน์ (บาคาร่า) ที่มีประสบการณ์จริง เขียนด้วยภาษาที่อ่านง่าย สื่อสารได้ใจความ ไม่ซับซ้อน มีความเป็นมนุษย์ มีมุมมองเฉพาะตัวเหมือนคนเขียนจริงๆ ไม่ใช่หุ่นยนต์`;
-    const userPrompt = `โจทย์/คีย์เวิร์ด: ${aiPrompt}
-
-ข้อกำหนด:
-- เขียนเนื้อหาบทความในรูปแบบ HTML (ใช้ <h2>, <p>, <ul>, <li>, <strong>)
-- **ความยาวของเนื้อหาบทความต้องอยู่ระหว่าง 1000 - 1500 คำ** (เน้นเนื้อหาที่เจาะลึกและมีประโยชน์)
-- นำคีย์เวิร์ดที่เกี่ยวข้องมาแทรกในเนื้อหาและติดตัวหนา (<strong>) ไว้ด้วย
-- เน้นความแม่นยำของข้อมูล
-- **Meta Title: ห้ามเกิน 60 ตัวอักษร**
-- **Meta Description: ห้ามเกิน 160 ตัวอักษร**
-- **URL Slug: ภาษาอังกฤษเท่านั้น ใช้ - แทนช่องว่าง**
-
-สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON:
-{
-  "content": "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ",
-  "metaTitle": "Meta Title สำหรับ SEO",
-  "metaDescription": "Meta Description สำหรับ SEO",
-  "slug": "URL Slug ภาษาอังกฤษ"
-}`;
-
     try {
-      let result: any = null;
-      let rawResponse = '';
-
-      // Try Gemini first
-      try {
-        console.log('Attempting generation with Gemini...');
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: `${systemPrompt}\n\n${userPrompt}`,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                content: { type: Type.STRING, description: "เนื้อหาบทความ HTML ความยาว 1000-1500 คำ" },
-                metaTitle: { type: Type.STRING, description: "Meta Title สำหรับ SEO" },
-                metaDescription: { type: Type.STRING, description: "Meta Description สำหรับ SEO" },
-                slug: { type: Type.STRING, description: "URL Slug ภาษาอังกฤษ" }
-              },
-              required: ["content", "metaTitle", "metaDescription", "slug"]
-            }
-          }
-        });
-        rawResponse = response.text || '';
-      } catch (geminiErr) {
-        console.error('Gemini failed, falling back to OpenAI:', geminiErr);
-        
-        // Fallback to OpenAI
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-          dangerouslyAllowBrowser: true
-        });
-
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          response_format: { type: "json_object" }
-        });
-
-        rawResponse = completion.choices[0].message.content || '';
-      }
-
-      console.log('AI Raw Response:', rawResponse);
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : rawResponse;
+      const response = await fetch('/api/ai/generate-article', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt })
+      });
       
-      try {
-        result = JSON.parse(jsonStr || '{}');
-        console.log('AI Parsed Result:', result);
-        
-        if (result && result.content) {
-          setCurrentArticle(prev => {
-            const updated = {
-              ...prev,
-              content: (prev.content || '') + (result.content || ''),
-              metaTitle: result.metaTitle || prev.metaTitle || '',
-              metaDescription: result.metaDescription || prev.metaDescription || '',
-              slug: result.slug || prev.slug || ''
-            };
-            console.log('Updating Article State:', updated);
-            return updated;
-          });
-          setAiPrompt('');
-        } else {
-          throw new Error('Invalid AI response structure');
-        }
-      } catch (parseErr) {
-        console.error('JSON Parse Error:', parseErr);
-        // Fallback: if JSON parse fails, just use the raw text as content
+      if (!response.ok) throw new Error('Failed to generate article');
+      const result = await response.json() as any;
+      
+      if (result && result.content) {
         setCurrentArticle(prev => ({
           ...prev,
-          content: (prev.content || '') + rawResponse
+          content: (prev.content || '') + (result.content || ''),
+          metaTitle: result.metaTitle || prev.metaTitle || '',
+          metaDescription: result.metaDescription || prev.metaDescription || '',
+          slug: result.slug || prev.slug || ''
         }));
+        setAiPrompt('');
+      } else {
+        throw new Error('Invalid AI response structure');
       }
     } catch (err: any) {
       console.error('AI Generation Error:', err);
-      setError('ไม่สามารถเชื่อมต่อกับ AI ทั้ง Gemini และ ChatGPT ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
+      setError('ไม่สามารถเชื่อมต่อกับ AI ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsGeneratingAI(false);
     }

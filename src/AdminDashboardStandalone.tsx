@@ -41,8 +41,6 @@ import { calculateReadTime } from './lib/readTime';
 import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
-import { Type } from "@google/genai";
-import OpenAI from 'openai';
 import { io } from 'socket.io-client';
 
 // Initialize PDF.js worker
