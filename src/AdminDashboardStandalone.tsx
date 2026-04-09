@@ -58,6 +58,7 @@ import {
 import { auth } from './firebase';
 import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
 import { cn } from './lib/utils';
+import * as XLSX from 'xlsx';
 
 // --- Types & Constants ---
 
@@ -1228,6 +1229,25 @@ const AdminDashboard = () => {
     }
   };
 
+  const exportArticles = () => {
+    const data = articles.map(article => ({
+      Title: article.title,
+      Slug: article.slug,
+      Category: article.category,
+      Status: article.status,
+      PublishedAt: article.publishedAt,
+      MetaTitle: article.metaTitle,
+      MetaDescription: article.metaDescription,
+      Image: article.image,
+      URL: `${window.location.origin}/article/${article.slug}`
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Articles");
+    XLSX.writeFile(wb, "articles_report.xlsx");
+  };
+
   const handleSave = async (e: React.FormEvent, status: 'published' | 'draft' = 'published') => {
     e.preventDefault();
     setLoading(true);
@@ -1445,6 +1465,12 @@ const AdminDashboard = () => {
           <p className="text-gray-400 text-sm md:text-base">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
         </div>
         <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
+          <button 
+            onClick={exportArticles}
+            className="flex-1 md:flex-none bg-blue-500/10 text-blue-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex items-center justify-center text-sm md:text-base"
+          >
+            <Download size={18} className="mr-2" /> Export
+          </button>
           <button 
             onClick={brainstormTopics}
             disabled={isBrainstorming}
@@ -2112,6 +2138,17 @@ const AdminDashboard = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-3">
+                      <button 
+                        onClick={() => {
+                          const url = `${window.location.origin}/article/${article.slug}`;
+                          navigator.clipboard.writeText(url);
+                          alert('คัดลอก URL เรียบร้อยแล้ว');
+                        }}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all hover:scale-110 active:scale-95"
+                        title="คัดลอก URL"
+                      >
+                        <Copy size={18} />
+                      </button>
                       <button 
                         onClick={() => { setIsEditing(true); setCurrentArticle(article); }}
                         className="p-2 text-gold hover:bg-gold/10 rounded-lg transition-all hover:scale-110 active:scale-95"
