@@ -1,15 +1,17 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import * as fs from 'fs';
+import OpenAI from 'openai';
 
 async function generate() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error("GEMINI_API_KEY is not set");
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  if (!geminiKey && !openaiKey) {
+    console.error("Neither GEMINI_API_KEY nor OPENAI_API_KEY is set");
     process.exit(1);
   }
 
-  const ai = new GoogleGenAI({ apiKey });
   const prompt = `Generate an extremely detailed and comprehensive article about 'Baccarat Strategies for Beginners' in Thai.
 The article MUST be between 1000-1500 words long.
 Focus on:
@@ -37,6 +39,8 @@ Include:
 Return the result as a JSON object.`;
 
   try {
+    console.log("Attempting to generate with Gemini...");
+    const ai = new GoogleGenAI({ apiKey: geminiKey || "" });
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-lite-preview",
       contents: prompt,
@@ -62,10 +66,30 @@ Return the result as a JSON object.`;
 
     const result = response.text;
     fs.writeFileSync('generated_article.json', result);
-    console.log("Article generated successfully and saved to generated_article.json");
-  } catch (error) {
-    console.error("Error generating article:", error);
-    process.exit(1);
+    console.log("Article generated successfully with Gemini and saved to generated_article.json");
+  } catch (geminiError: any) {
+    console.warn("Gemini failed, trying OpenAI:", geminiError.message);
+    
+    if (!openaiKey) {
+      console.error("OpenAI API Key not set, cannot fallback.");
+      process.exit(1);
+    }
+
+    try {
+      const openai = new OpenAI({ apiKey: openaiKey });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+
+      const result = response.choices[0].message.content || "{}";
+      fs.writeFileSync('generated_article.json', result);
+      console.log("Article generated successfully with OpenAI and saved to generated_article.json");
+    } catch (openaiError: any) {
+      console.error("OpenAI also failed:", openaiError.message);
+      process.exit(1);
+    }
   }
 }
 

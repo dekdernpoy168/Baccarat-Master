@@ -36,6 +36,47 @@ const upload = multer({
   },
 });
 
+// Configure OpenAI Client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "dummy",
+});
+
+async function callAI(prompt: string, options: { json?: boolean, schema?: any } = {}) {
+  try {
+    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    const modelParams: any = {
+      model: "gemini-3-flash-preview",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    };
+    
+    if (options.json) {
+      modelParams.config = {
+        responseMimeType: "application/json",
+        responseSchema: options.schema
+      };
+    }
+
+    const result: any = await genAI.models.generateContent(modelParams);
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
+    return options.json ? JSON.parse(text) : text;
+  } catch (error: any) {
+    console.warn("Gemini Error, falling back to OpenAI:", error.message);
+    
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("Gemini failed and OPENAI_API_KEY is not set.");
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: options.json ? { type: "json_object" } : { type: "text" },
+    });
+
+    const text = response.choices[0].message.content || (options.json ? "{}" : "");
+    return options.json ? JSON.parse(text) : text;
+  }
+}
+
 async function startServer() {
   const server = express();
   const httpServer = createServer(server);
@@ -57,16 +98,10 @@ async function startServer() {
   server.post("/api/ai/generate-keywords", async (req, res) => {
     try {
       const { primaryKeyword, count } = req.body;
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      
       const prompt = `Generate ${count || 10} secondary keywords (คีย์รอง) related to the primary keyword: "${primaryKeyword}". 
       Return ONLY the keywords as a comma-separated list. No other text.`;
       
-      const result: any = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-      });
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const text = await callAI(prompt);
       res.json({ text });
     } catch (error: any) {
       console.error("AI Error:", error);
@@ -77,28 +112,21 @@ async function startServer() {
   server.post("/api/ai/generate-slug", async (req, res) => {
     try {
       const { title } = req.body;
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      
       const prompt = `Generate 3 SEO-friendly URL slug options in English for this Thai article title: "${title}". Use only lowercase letters and hyphens.`;
-      const result: any = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              options: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            },
-            required: ["options"]
-          }
+      const data = await callAI(prompt, {
+        json: true,
+        schema: {
+          type: Type.OBJECT,
+          properties: {
+            options: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["options"]
         }
       });
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      res.json(JSON.parse(text));
+      res.json(data);
     } catch (error: any) {
       console.error("Slug Gen Error:", error);
       res.status(500).json({ error: error.message });
@@ -108,28 +136,21 @@ async function startServer() {
   server.post("/api/ai/generate-excerpt", async (req, res) => {
     try {
       const { title } = req.body;
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      
       const prompt = `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยค จำนวน 3 ตัวเลือก สำหรับบทความหัวข้อ: "${title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`;
-      const result: any = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              options: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            },
-            required: ["options"]
-          }
+      const data = await callAI(prompt, {
+        json: true,
+        schema: {
+          type: Type.OBJECT,
+          properties: {
+            options: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["options"]
         }
       });
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      res.json(JSON.parse(text));
+      res.json(data);
     } catch (error: any) {
       console.error("Excerpt Gen Error:", error);
       res.status(500).json({ error: error.message });
@@ -139,8 +160,6 @@ async function startServer() {
   server.post("/api/ai/generate-article", async (req, res) => {
     try {
       const { prompt: userAiPrompt } = req.body;
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      
       const systemPrompt = `คุณคือผู้เชี่ยวชาญด้านการเขียนบทความ SEO และการพนันออนไลน์ (บาคาร่า) ที่มีประสบการณ์จริง เขียนด้วยภาษาที่อ่านง่าย สื่อสารได้ใจความ ไม่ซับซ้อน มีความเป็นมนุษย์ มีมุมมองเฉพาะตัวเหมือนคนเขียนจริงๆ ไม่ใช่หุ่นยนต์`;
       const fullPrompt = `${systemPrompt}\n\nโจทย์/คีย์เวิร์ด: ${userAiPrompt}
 
@@ -161,25 +180,20 @@ async function startServer() {
   "slug": "URL Slug ภาษาอังกฤษ"
 }`;
 
-      const result: any = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              content: { type: Type.STRING },
-              metaTitle: { type: Type.STRING },
-              metaDescription: { type: Type.STRING },
-              slug: { type: Type.STRING }
-            },
-            required: ["content", "metaTitle", "metaDescription", "slug"]
-          }
+      const data = await callAI(fullPrompt, {
+        json: true,
+        schema: {
+          type: Type.OBJECT,
+          properties: {
+            content: { type: Type.STRING },
+            metaTitle: { type: Type.STRING },
+            metaDescription: { type: Type.STRING },
+            slug: { type: Type.STRING }
+          },
+          required: ["content", "metaTitle", "metaDescription", "slug"]
         }
       });
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      res.json(JSON.parse(text));
+      res.json(data);
     } catch (error: any) {
       console.error("Article Gen Error:", error);
       res.status(500).json({ error: error.message });
@@ -188,29 +202,23 @@ async function startServer() {
 
   server.post("/api/ai/brainstorm", async (req, res) => {
     try {
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      
       const prompt = `คุณคือผู้เชี่ยวชาญด้าน Content Strategy สำหรับเว็บไซต์บาคาร่าและคาสิโนออนไลน์ ช่วยคิดหัวข้อบทความที่น่าสนใจและมีโอกาสติดอันดับ SEO สูงมาให้ 10 หัวข้อ โดยเน้นเทคนิคใหม่ๆ สูตรที่คนสนใจ หรือข่าวสารที่เกี่ยวข้อง
       ตอบกลับมาเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด: { "topics": ["หัวข้อที่ 1", "หัวข้อที่ 2", ...] }`;
       
-      const result = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              topics: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            },
-            required: ["topics"]
-          }
+      const data = await callAI(prompt, {
+        json: true,
+        schema: {
+          type: Type.OBJECT,
+          properties: {
+            topics: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["topics"]
         }
       });
-      res.json(JSON.parse(result.text || "{}"));
+      res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -219,30 +227,23 @@ async function startServer() {
   server.post("/api/ai/generate-seo", async (req, res) => {
     try {
       const { keyword, topic } = req.body;
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      
       const prompt = `คุณคือผู้เชี่ยวชาญด้าน SEO เขียน Meta Title และ Meta Description โดยอิงจากคีย์เวิร์ดหลักและหัวข้อที่กำหนดให้
       คีย์เวิร์ดหลัก: ${keyword}
       หัวข้อ: ${topic}
       ข้อกำหนด: Meta Title ห้ามเกิน 60 ตัวอักษร, Meta Description ห้ามเกิน 160 ตัวอักษร`;
       
-      const result: any = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              metaTitle: { type: Type.STRING },
-              metaDescription: { type: Type.STRING }
-            },
-            required: ["metaTitle", "metaDescription"]
-          }
+      const data = await callAI(prompt, {
+        json: true,
+        schema: {
+          type: Type.OBJECT,
+          properties: {
+            metaTitle: { type: Type.STRING },
+            metaDescription: { type: Type.STRING }
+          },
+          required: ["metaTitle", "metaDescription"]
         }
       });
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      res.json(JSON.parse(text));
+      res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -279,8 +280,6 @@ async function startServer() {
   server.post("/api/ai/generate-image", async (req, res) => {
     try {
       const { title, type } = req.body;
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      
       let prompt = "";
       if (type === 'logo') {
         prompt = "A professional and luxurious logo for a website named 'Baccarat Master Guide'. The design should feature a combination of playing cards, a golden crown, and elegant typography. The color palette should be gold, black, and deep red. High-end, minimalist but authoritative. Square aspect ratio.";
@@ -288,27 +287,44 @@ async function startServer() {
         prompt = `A high-quality, professional, and visually striking featured image for a blog post titled: "${title}". The theme is online baccarat, luxury casino, gambling strategy, and professional gaming. The style should be realistic but with a cinematic, high-end feel. Use a color palette of gold, black, and deep red. No text in the image. 16:9 aspect ratio.`;
       }
 
-      const result: any = await genAI.models.generateContent({
-        model: "gemini-2.5-flash-image",
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-      });
-      
-      // Handle image generation response
-      const candidates = result.candidates || [];
-      const parts = candidates[0]?.content?.parts || [];
-      let base64 = null;
-      for (const part of parts) {
-        if (part.inlineData) {
-          base64 = `data:image/png;base64,${part.inlineData.data}`;
-          break;
+      try {
+        const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+        const result: any = await genAI.models.generateContent({
+          model: "gemini-2.5-flash-image",
+          contents: [{ role: "user", parts: [{ text: prompt }] }]
+        });
+        
+        const candidates = result.candidates || [];
+        const parts = candidates[0]?.content?.parts || [];
+        let base64 = null;
+        for (const part of parts) {
+          if (part.inlineData) {
+            base64 = `data:image/png;base64,${part.inlineData.data}`;
+            break;
+          }
         }
-      }
-      
-      if (base64) {
+        
+        if (base64) {
+          return res.json({ image: base64 });
+        }
+        throw new Error("No image data in Gemini response");
+      } catch (geminiError: any) {
+        console.warn("Gemini Image Gen Error, falling back to DALL-E:", geminiError.message);
+        
+        if (!process.env.OPENAI_API_KEY) {
+          throw new Error("Gemini failed and OPENAI_API_KEY is not set.");
+        }
+
+        const response = await openai.images.generate({
+          model: "dall-e-3",
+          prompt: prompt,
+          n: 1,
+          size: type === 'logo' ? "1024x1024" : "1024x1024", // DALL-E 3 supports 1024x1024, 1792x1024, 1024x1792
+          response_format: "b64_json",
+        });
+
+        const base64 = `data:image/png;base64,${response.data[0].b64_json}`;
         res.json({ image: base64 });
-      } else {
-        // Fallback if no image generated directly
-        res.json({ error: "No image generated" });
       }
     } catch (error: any) {
       console.error("Image Gen Error:", error);
@@ -319,12 +335,8 @@ async function startServer() {
   server.post("/api/ai/execute-prompt", async (req, res) => {
     try {
       const { prompt } = req.body;
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-      const result: any = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-      });
-      res.json({ text: result.candidates?.[0]?.content?.parts?.[0]?.text || "" });
+      const text = await callAI(prompt);
+      res.json({ text });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
