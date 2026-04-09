@@ -26,6 +26,18 @@ Focus on:
 9. Conclusion and final advice.
 
 Format: HTML with h2, h3, p, ul, li, strong tags. Use h3 for sub-sections.
+**Important Rules:**
+- DO NOT put links (<a>) inside headings (h2, h3). Put them only inside paragraphs (p).
+- At the end of the article, ALWAYS include this exact CTA block:
+  <div class="cta-block">
+    <h3>สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
+    <p>เราขอแนะนำเว็บไซต์ที่ได้มาตรฐานสากล มั่นคง และปลอดภัยที่สุดในขณะนี้</p>
+    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+      <a href="https://inlnk.co/registerbocker168" class="cta-btn">สมัครสมาชิกตอนนี้</a>
+      <a href="https://inlnk.co/registerbocker168" class="cta-btn">ไปที่หน้าเดิมพัน</a>
+    </div>
+  </div>
+
 Include:
 - title: A catchy and professional Thai title.
 - excerpt: A compelling summary in Thai (approx 100-150 words).
