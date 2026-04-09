@@ -28,12 +28,6 @@ Focus on:
 Format: HTML with h2, h3, p, ul, li, strong tags. Use h3 for sub-sections.
 **Important Rules:**
 - DO NOT put links (<a>) inside headings (h2, h3). Put them only inside paragraphs (p).
-- At the end of the article, ALWAYS include this exact CTA block:
-  <div class="cta-block">
-    <h3>สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
-    <p>เราขอแนะนำเว็บไซต์ที่ได้มาตรฐานสากล มั่นคง และปลอดภัยที่สุดในขณะนี้</p>
-    <a href="https://inlnk.co/registerbocker168" class="cta-btn">ไปที่หน้าเดิมพัน ↗</a>
-  </div>
 
 Include:
 - title: A catchy and professional Thai title.
@@ -45,6 +39,7 @@ Include:
 - metaDescription: SEO optimized description (max 160 chars).
 - author: 'Baccarat Master'
 - date: '9 เมษายน 2569'
+- **Internal Linking Rule:** When you insert an internal link (<a> tag), you MUST apply the following inline style to the <a> tag: style="color: green; font-weight: bold;".
 Return the result as a JSON object.`;
 
   try {
