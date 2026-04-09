@@ -2139,7 +2139,8 @@ const AdminDashboard = () => {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-3">
                       <button 
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           const url = `${window.location.origin}/article/${article.slug}`;
                           navigator.clipboard.writeText(url);
                           alert('คัดลอก URL เรียบร้อยแล้ว');
