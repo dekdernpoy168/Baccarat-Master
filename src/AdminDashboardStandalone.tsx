@@ -1435,37 +1435,37 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <SEO title="Admin Dashboard" description="จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์" />
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12">
-        <div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
-          <p className="text-gray-400">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 md:mb-12">
+        <div className="w-full md:w-auto">
+          <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
+          <p className="text-gray-400 text-sm md:text-base">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
           <button 
             onClick={brainstormTopics}
             disabled={isBrainstorming}
-            className="bg-gold/10 text-gold px-6 py-3 rounded-full font-bold hover:bg-gold/20 border border-gold/30 transition-all flex items-center disabled:opacity-50"
+            className="flex-1 md:flex-none bg-gold/10 text-gold px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gold/20 border border-gold/30 transition-all flex items-center justify-center text-sm md:text-base disabled:opacity-50"
           >
             {isBrainstorming ? (
-              <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
+              <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
             ) : (
-              <Sparkles size={20} className="mr-2" />
+              <Sparkles size={18} className="mr-2" />
             )}
-            ระดมสมอง AI
+            ระดมสมอง
           </button>
           <button 
             onClick={() => setIsManagingCategories(true)}
-            className="bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center"
+            className="flex-1 md:flex-none bg-gray-800 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center text-sm md:text-base"
           >
-            <Target size={20} className="mr-2 text-gold" /> จัดการหมวดหมู่
+            <Target size={18} className="mr-2 text-gold" /> หมวดหมู่
           </button>
           <button 
             onClick={() => { setIsEditing(true); setCurrentArticle({}); }}
-            className="gold-bg-gradient text-baccarat-black px-8 py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center"
+            className="flex-1 md:flex-none gold-bg-gradient text-baccarat-black px-6 py-2 md:px-8 md:py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center justify-center text-sm md:text-base shadow-lg shadow-gold/10"
           >
-            <Plus size={20} className="mr-2" /> เพิ่มบทความใหม่
+            <Plus size={18} className="mr-2" /> เพิ่มบทความ
           </button>
         </div>
       </div>
@@ -2053,8 +2053,8 @@ const AdminDashboard = () => {
             <thead>
               <tr className="bg-black/50 border-b border-gold/20">
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">บทความ</th>
-                <th className="px-6 py-4 text-gold font-bold uppercase text-xs">หมวดหมู่</th>
-                <th className="px-6 py-4 text-gold font-bold uppercase text-xs">สถานะ / วันที่เผยแพร่</th>
+                <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">หมวดหมู่</th>
+                <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">สถานะ / วันที่เผยแพร่</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">จัดการ</th>
               </tr>
             </thead>
@@ -2082,7 +2082,7 @@ const AdminDashboard = () => {
                       <span className="text-white font-bold line-clamp-1 group-hover:text-gold transition-colors">{article.title}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="hidden md:table-cell px-6 py-4">
                     <span className="px-2 py-1 text-[10px] font-bold bg-white/5 text-gray-400 rounded-md border border-white/5 group-hover:border-gold/20 group-hover:text-gold transition-all">
                       {article.category}
                     </span>
