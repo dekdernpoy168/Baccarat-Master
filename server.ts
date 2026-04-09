@@ -226,7 +226,7 @@ async function startServer() {
       หัวข้อ: ${topic}
       ข้อกำหนด: Meta Title ห้ามเกิน 60 ตัวอักษร, Meta Description ห้ามเกิน 160 ตัวอักษร`;
       
-      const result = await genAI.models.generateContent({
+      const result: any = await genAI.models.generateContent({
         model: "gemini-1.5-flash",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
@@ -241,7 +241,8 @@ async function startServer() {
           }
         }
       });
-      res.json(JSON.parse(result.text || "{}"));
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      res.json(JSON.parse(text));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
