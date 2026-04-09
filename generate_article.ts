@@ -32,10 +32,7 @@ Format: HTML with h2, h3, p, ul, li, strong tags. Use h3 for sub-sections.
   <div class="cta-block">
     <h3>สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
     <p>เราขอแนะนำเว็บไซต์ที่ได้มาตรฐานสากล มั่นคง และปลอดภัยที่สุดในขณะนี้</p>
-    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-      <a href="https://inlnk.co/registerbocker168" class="cta-btn">สมัครสมาชิกตอนนี้</a>
-      <a href="https://inlnk.co/registerbocker168" class="cta-btn">ไปที่หน้าเดิมพัน</a>
-    </div>
+    <a href="https://inlnk.co/registerbocker168" class="cta-btn">ไปที่หน้าเดิมพัน ↗</a>
   </div>
 
 Include:

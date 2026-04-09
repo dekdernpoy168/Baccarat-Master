@@ -104,15 +104,18 @@ body {
 }
 
 .cta-btn {
-  display: inline-block;
-  background: #FFFFFF !important;
-  color: #8B0000 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #996515 0%, #D4AF37 50%, #F9E272 100%) !important;
+  color: #000000 !important;
   font-weight: 800 !important;
-  padding: 1rem 2.5rem !important;
+  padding: 1rem 3rem !important;
   border-radius: 9999px !important;
   text-decoration: none !important;
   transition: all 0.3s ease !important;
-  margin: 0.5rem;
+  font-size: 1.25rem !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
 }
 
 .cta-btn:hover {
