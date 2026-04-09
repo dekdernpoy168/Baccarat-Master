@@ -838,6 +838,7 @@ const AdminDashboard = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: currentArticle.title })
       });
+      if (!response.ok) throw new Error('Failed to generate slug');
       const data: any = await response.json();
       const cleanedOptions = (data.options || []).map((s: string) => 
         s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
@@ -848,6 +849,7 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       console.error(err);
+      alert('เกิดข้อผิดพลาดในการสร้าง Slug');
     } finally {
       setIsGeneratingSlug(false);
     }

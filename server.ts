@@ -63,7 +63,7 @@ async function startServer() {
       Return ONLY the keywords as a comma-separated list. No other text.`;
       
       const result: any = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -81,7 +81,7 @@ async function startServer() {
       
       const prompt = `Generate 3 SEO-friendly URL slug options in English for this Thai article title: "${title}". Use only lowercase letters and hyphens.`;
       const result: any = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json",
@@ -112,7 +112,7 @@ async function startServer() {
       
       const prompt = `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยค จำนวน 3 ตัวเลือก สำหรับบทความหัวข้อ: "${title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`;
       const result: any = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json",
@@ -162,7 +162,7 @@ async function startServer() {
 }`;
 
       const result: any = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
         config: {
           responseMimeType: "application/json",
@@ -194,7 +194,7 @@ async function startServer() {
       ตอบกลับมาเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด: { "topics": ["หัวข้อที่ 1", "หัวข้อที่ 2", ...] }`;
       
       const result = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json",
@@ -227,7 +227,7 @@ async function startServer() {
       ข้อกำหนด: Meta Title ห้ามเกิน 60 ตัวอักษร, Meta Description ห้ามเกิน 160 ตัวอักษร`;
       
       const result: any = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json",
@@ -289,7 +289,7 @@ async function startServer() {
       }
 
       const result: any = await genAI.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.5-flash-image",
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
       
@@ -321,7 +321,7 @@ async function startServer() {
       const { prompt } = req.body;
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
       const result: any = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
       res.json({ text: result.candidates?.[0]?.content?.parts?.[0]?.text || "" });
