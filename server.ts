@@ -1029,7 +1029,21 @@ Sitemap: ${process.env.VITE_APP_URL || 'https://huisache.com'}/sitemap.xml`;
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  const isProduction = process.env.NODE_ENV === "production";
+  const distPath = path.join(process.cwd(), "dist");
+  const indexPath = path.join(distPath, "index.html");
+  const hasBuild = fs.existsSync(indexPath);
+
+  if (isProduction && hasBuild) {
+    console.log("Serving production build from:", distPath);
+    server.use(express.static(distPath));
+    server.get("*", (req, res) => {
+      res.sendFile(indexPath);
+    });
+  } else {
+    if (isProduction && !hasBuild) {
+      console.warn(`Production build not found at ${indexPath}. Falling back to Vite middleware.`);
+    }
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
@@ -1037,21 +1051,6 @@ Sitemap: ${process.env.VITE_APP_URL || 'https://huisache.com'}/sitemap.xml`;
       appType: "spa",
     });
     server.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    const indexPath = path.join(distPath, "index.html");
-    
-    if (fs.existsSync(indexPath)) {
-      server.use(express.static(distPath));
-      server.get("*", (req, res) => {
-        res.sendFile(indexPath);
-      });
-    } else {
-      console.error(`Production build not found at ${indexPath}. Please run 'npm run build' first.`);
-      server.get("*", (req, res) => {
-        res.status(404).send("Production build not found. Please run 'npm run build' first.");
-      });
-    }
   }
 
   server.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
