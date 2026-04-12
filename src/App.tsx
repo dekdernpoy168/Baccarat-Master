@@ -91,6 +91,10 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
   const defaultImage = localStorage.getItem('baccarat_master_logo') || "https://img2.pic.in.th/LOGO1-Baccarat-Master.png";
   const ogImage = image || defaultImage;
+  const location = useLocation();
+  
+  // Auto-generate canonical URL if not provided
+  const currentUrl = canonicalUrl || `${window.location.origin}${location.pathname}${location.search}`;
   
   const faqSchema = schema?.faqs ? {
     "@context": "https://schema.org",
@@ -110,13 +114,15 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
       {keywords && <meta name="keywords" content={keywords} />}
+      <link rel="canonical" href={currentUrl} />
       
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={ogImage} />
-      {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+      <meta property="og:url" content={currentUrl} />
+      <meta property="og:site_name" content={siteName} />
       
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
@@ -124,8 +130,6 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={ogImage} />
       
-      {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-
       {/* Schema.org */}
       {schema && (
         <script type="application/ld+json">
