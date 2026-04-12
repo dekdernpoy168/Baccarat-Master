@@ -18,6 +18,7 @@ export interface Article {
   updatedAt?: any;
   status?: string;
   tags?: string;
+  faqs?: string; // JSON string of { question: string, answer: string }[]
 }
 
 export const ARTICLES: Article[] = [

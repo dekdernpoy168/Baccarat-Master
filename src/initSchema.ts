@@ -45,6 +45,7 @@ export async function initSchema() {
     'meta_title TEXT',
     'meta_description TEXT',
     'meta_keywords TEXT',
+    'faqs TEXT',
     'author TEXT NOT NULL DEFAULT \'Admin\'',
     'status TEXT NOT NULL DEFAULT \'draft\'',
     'date TEXT NOT NULL DEFAULT (date(\'now\'))',

@@ -27,6 +27,7 @@ export const articles = sqliteTable('articles', {
   metaTitle: text('meta_title'),
   metaDescription: text('meta_description'),
   metaKeywords: text('meta_keywords'),
+  faqs: text('faqs'),
   author: text('author').notNull().default('Admin'),
   status: text('status').notNull().default('draft'),
   date: text('date').notNull(),

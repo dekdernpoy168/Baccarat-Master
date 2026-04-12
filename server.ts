@@ -436,6 +436,7 @@ async function startServer() {
       metaTitle: body.metaTitle ?? '',
       metaDescription: body.metaDescription ?? '',
       metaKeywords: body.metaKeywords ?? '',
+      faqs: body.faqs ?? '[]',
       author: body.author ?? 'Admin',
       status: body.status === 'published' ? 'published' : 'draft',
       date: body.date ?? today(),
@@ -458,6 +459,7 @@ async function startServer() {
         meta_title AS metaTitle,
         meta_description AS metaDescription,
         meta_keywords AS metaKeywords,
+        faqs,
         author,
         status,
         date,
@@ -531,6 +533,7 @@ async function startServer() {
           meta_title AS metaTitle,
           meta_description AS metaDescription,
           meta_keywords AS metaKeywords,
+          faqs,
           author,
           status,
           date,
@@ -588,12 +591,13 @@ async function startServer() {
           meta_title,
           meta_description,
           meta_keywords,
+          faqs,
           author,
           status,
           date,
           published_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
         `,
         [
@@ -607,6 +611,7 @@ async function startServer() {
           data.metaTitle,
           data.metaDescription,
           data.metaKeywords,
+          data.faqs,
           data.author,
           data.status,
           data.date,
@@ -650,6 +655,7 @@ async function startServer() {
           meta_title = ?,
           meta_description = ?,
           meta_keywords = ?,
+          faqs = ?,
           author = ?,
           status = ?,
           date = ?,
@@ -668,6 +674,7 @@ async function startServer() {
           data.metaTitle,
           data.metaDescription,
           data.metaKeywords,
+          data.faqs,
           data.author,
           data.status,
           data.date,

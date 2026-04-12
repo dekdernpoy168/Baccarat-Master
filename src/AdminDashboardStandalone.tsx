@@ -16,6 +16,7 @@ import {
   Zap,
   Target,
   Plus,
+  RefreshCw,
   Edit,
   Trash2,
   Save,
@@ -88,6 +89,19 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
   const defaultImage = localStorage.getItem('baccarat_master_logo') || "https://img2.pic.in.th/LOGO1-Baccarat-Master.png";
   const ogImage = image || defaultImage;
   
+  const faqSchema = schema?.faqs ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": JSON.parse(schema.faqs).map((faq: any) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  } : null;
+
   return (
     <Helmet>
       <title>{fullTitle}</title>
@@ -98,14 +112,14 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
       <meta property="og:type" content={type} />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
-      <meta property="og:image" content={image || defaultImage} />
+      <meta property="og:image" content={ogImage} />
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
       
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image || defaultImage} />
+      <meta name="twitter:image" content={ogImage} />
       
       {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
 
@@ -113,6 +127,11 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
       {schema && (
         <script type="application/ld+json">
           {JSON.stringify(schema)}
+        </script>
+      )}
+      {faqSchema && (
+        <script type="application/ld+json">
+          {JSON.stringify(faqSchema)}
         </script>
       )}
     </Helmet>
@@ -1239,6 +1258,7 @@ const AdminDashboard = () => {
       PublishedAt: article.publishedAt,
       MetaTitle: article.metaTitle,
       MetaDescription: article.metaDescription,
+      FAQs: article.faqs,
       Image: article.image,
       URL: `${window.location.origin}/article/${article.slug}`
     }));
@@ -1969,6 +1989,88 @@ const AdminDashboard = () => {
                 onChange={val => setCurrentArticle({...currentArticle, content: val})}
                 modules={modules}
               />
+            </div>
+
+            <div className="space-y-4 p-6 bg-gray-900/50 border border-gold/10 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-gold font-bold flex items-center"><Plus size={18} className="mr-2" /> คำถามที่พบบ่อย (FAQs)</h3>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const faqs = JSON.parse(currentArticle.faqs || '[]');
+                    faqs.push({ question: '', answer: '' });
+                    setCurrentArticle({...currentArticle, faqs: JSON.stringify(faqs)});
+                  }}
+                  className="text-xs bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full transition-all flex items-center gap-1"
+                >
+                  <Plus size={14} /> เพิ่มคำถาม
+                </button>
+              </div>
+              <div className="space-y-4">
+                {JSON.parse(currentArticle.faqs || '[]').map((faq: any, index: number) => (
+                  <div key={index} className="p-4 bg-black/40 border border-white/5 rounded-xl space-y-3 relative group">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const faqs = JSON.parse(currentArticle.faqs || '[]');
+                        faqs.splice(index, 1);
+                        setCurrentArticle({...currentArticle, faqs: JSON.stringify(faqs)});
+                      }}
+                      className="absolute top-2 right-2 text-gray-500 hover:text-baccarat-red opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={16} />
+                    </button>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">คำถาม (Question)</label>
+                      <input 
+                        type="text"
+                        value={faq.question}
+                        onChange={e => {
+                          const faqs = JSON.parse(currentArticle.faqs || '[]');
+                          faqs[index].question = e.target.value;
+                          setCurrentArticle({...currentArticle, faqs: JSON.stringify(faqs)});
+                        }}
+                        className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-1 text-white text-sm"
+                        placeholder="เช่น บาคาร่าเล่นยังไง?"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">คำตอบ (Answer)</label>
+                      <textarea 
+                        value={faq.answer}
+                        onChange={e => {
+                          const faqs = JSON.parse(currentArticle.faqs || '[]');
+                          faqs[index].answer = e.target.value;
+                          setCurrentArticle({...currentArticle, faqs: JSON.stringify(faqs)});
+                        }}
+                        className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-1 text-white text-sm min-h-[60px] resize-none"
+                        placeholder="ใส่คำตอบที่นี่..."
+                      />
+                    </div>
+                  </div>
+                ))}
+                {JSON.parse(currentArticle.faqs || '[]').length === 0 && (
+                  <p className="text-center text-gray-500 text-xs py-4 italic">ยังไม่มีคำถามที่พบบ่อย</p>
+                )}
+              </div>
+              <div className="pt-4 border-t border-white/5">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (!currentArticle.content) return;
+                    const cleanedContent = currentArticle.content.replace(/<script type="application\/ld\+json">[\s\S]*?FAQPage[\s\S]*?<\/script>/gi, '');
+                    if (cleanedContent !== currentArticle.content) {
+                      setCurrentArticle({...currentArticle, content: cleanedContent});
+                      alert('ลบ FAQ Schema เก่าออกจากเนื้อหาเรียบร้อยแล้ว');
+                    } else {
+                      alert('ไม่พบ FAQ Schema ในเนื้อหา');
+                    }
+                  }}
+                  className="text-[10px] text-gray-500 hover:text-gold transition-colors flex items-center gap-1"
+                >
+                  <RefreshCw size={10} /> ล้าง FAQ Schema เก่าออกจากเนื้อหา (เพื่อแก้ปัญหาข้อมูลซ้ำ)
+                </button>
+              </div>
             </div>
 
             <PromptBuilderModal 
