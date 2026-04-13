@@ -616,7 +616,7 @@ const AboutPage = () => {
 
 const HomePage = ({ articles, user }: { articles: Article[], user: User | null }) => {
   const isAdmin = user?.email === ADMIN_EMAIL;
-  const publishedArticles = articles.filter(a => isAdmin || isPublished(a));
+  const publishedArticles = articles.filter(a => (isAdmin || isPublished(a)) && (a.type === 'post' || !a.type));
   const guideArticle = publishedArticles.find(a => a.title.includes('คู่มือฉบับสมบูรณ์'));
   const guideLink = guideArticle ? `/articles/${guideArticle.slug}` : '/articles';
 
@@ -1167,7 +1167,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
 
 const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | null }) => {
   const isAdmin = user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
-  const publishedArticles = articles.filter(a => isAdmin || isPublished(a));
+  const publishedArticles = articles.filter(a => (isAdmin || isPublished(a)) && (a.type === 'post' || !a.type));
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const categoryFilter = searchParams.get('category');
@@ -1965,6 +1965,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
+  const [filterType, setFilterType] = useState<'post' | 'page'>('post');
 
   const [isSeeding, setIsSeeding] = useState(false);
 
@@ -2022,6 +2023,10 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
   };
 
   const filteredArticles = articles.filter(a => {
+    // Filter by type (default to 'post' if missing)
+    const itemType = a.type || 'post';
+    if (itemType !== filterType) return false;
+
     if (filterStatus === 'all') return true;
     if (filterStatus === 'draft') return a.status === 'draft';
     if (filterStatus === 'published') return a.status !== 'draft' && (!a.publishedAt || new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) <= new Date());
@@ -2030,7 +2035,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
   });
 
   const exportArticles = (format: 'xlsx' | 'txt' | 'html') => {
-    const data = articles.map(article => ({
+    const data = filteredArticles.map(article => ({
       Title: article.title,
       Slug: article.slug,
       Category: article.category,
@@ -2460,6 +2465,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       const articleData = {
         ...dataWithoutId,
         status,
+        type: currentArticle.type || filterType,
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
@@ -2694,10 +2700,10 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
             <Target size={20} className="mr-2 text-gold" /> จัดการหมวดหมู่
           </button>
           <button 
-            onClick={() => { setIsEditing(true); setCurrentArticle({}); }}
+            onClick={() => { setIsEditing(true); setCurrentArticle({ type: filterType }); }}
             className="gold-bg-gradient text-baccarat-black px-8 py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center"
           >
-            <Plus size={20} className="mr-2" /> เพิ่มบทความใหม่
+            <Plus size={20} className="mr-2" /> {filterType === 'post' ? 'เพิ่มบทความใหม่' : 'เพิ่มหน้าใหม่'}
           </button>
           <button 
             onClick={handleSeedArticles}
@@ -2709,6 +2715,29 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
         </div>
       </div>
 
+      <div className="flex bg-gray-900/50 p-1 rounded-2xl border border-gold/10 w-fit mb-8">
+        <button
+          onClick={() => setFilterType('post')}
+          className={cn(
+            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+            filterType === 'post' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
+          )}
+        >
+          <FileText size={18} />
+          บทความ (Posts)
+        </button>
+        <button
+          onClick={() => setFilterType('page')}
+          className={cn(
+            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+            filterType === 'page' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
+          )}
+        >
+          <Copy size={18} />
+          หน้าเพจ (Pages)
+        </button>
+      </div>
+
       {isEditing ? (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -2718,7 +2747,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-gold/10 pb-6">
             <div className="flex flex-col gap-1">
               <h2 className="text-2xl font-bold text-gold uppercase tracking-tight">
-                {currentArticle.id ? 'แก้ไขบทความ' : 'สร้างบทความใหม่'}
+                {currentArticle.id ? `แก้ไข${currentArticle.type === 'page' ? 'หน้า' : 'บทความ'}` : `สร้าง${currentArticle.type === 'page' ? 'หน้า' : 'บทความ'}ใหม่`}
               </h2>
               <p className="text-gray-500 text-xs">จัดการเนื้อหาและสถานะการเผยแพร่</p>
             </div>
@@ -2737,7 +2766,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                 onClick={(e) => handleSave(e, 'published')}
                 className="gold-bg-gradient text-baccarat-black px-8 py-2.5 rounded-full font-black hover:scale-105 transition-all flex items-center disabled:opacity-50 text-sm shadow-lg shadow-gold/10"
               >
-                {loading ? '...' : <><Save size={18} className="mr-2" /> เผยแพร่บทความ</>}
+                {loading ? '...' : <><Save size={18} className="mr-2" /> {currentArticle.type === 'page' ? 'เผยแพร่หน้าเพจ' : 'เผยแพร่บทความ'}</>}
               </button>
               <button onClick={() => setIsEditing(false)} className="ml-2 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-all"><X size={24} /></button>
             </div>
@@ -3389,7 +3418,9 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        const url = `${window.location.origin}/articles/${article.slug}`;
+                        const url = article.type === 'page' 
+                          ? `${window.location.origin}/${article.slug}`
+                          : `${window.location.origin}/articles/${article.slug}`;
                         navigator.clipboard.writeText(url);
                         alert('คัดลอก URL เรียบร้อยแล้ว');
                       }}
@@ -4267,7 +4298,7 @@ export default function App() {
     console.log('Initializing socket.io client...');
     const socket = io(window.location.origin, {
       path: '/socket.io',
-      transports: ['polling'],
+      transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,
@@ -4341,6 +4372,7 @@ export default function App() {
                 )
               } 
             />
+            <Route path="/:slug" element={<ArticleDetailPage articles={articles} user={user} />} />
           </Routes>
         </main>
         <Footer />

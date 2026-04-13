@@ -48,6 +48,7 @@ export async function initSchema() {
     'faqs TEXT',
     'author TEXT NOT NULL DEFAULT \'Admin\'',
     'status TEXT NOT NULL DEFAULT \'draft\'',
+    'type TEXT NOT NULL DEFAULT \'post\'',
     'date TEXT NOT NULL DEFAULT (date(\'now\'))',
     'published_at TEXT',
     'created_at TEXT NOT NULL DEFAULT (datetime(\'now\'))',

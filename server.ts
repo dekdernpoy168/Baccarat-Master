@@ -439,6 +439,7 @@ async function startServer() {
       faqs: body.faqs ?? '[]',
       author: body.author ?? 'Admin',
       status: body.status === 'published' ? 'published' : 'draft',
+      type: body.type === 'page' ? 'page' : 'post',
       date: body.date ?? today(),
       publishedAt: body.publishedAt ?? null,
     };
@@ -462,6 +463,7 @@ async function startServer() {
         faqs,
         author,
         status,
+        type,
         date,
         published_at AS publishedAt,
         created_at AS createdAt,
@@ -536,6 +538,7 @@ async function startServer() {
           faqs,
           author,
           status,
+          type,
           date,
           published_at AS publishedAt,
           created_at AS createdAt,
@@ -594,10 +597,11 @@ async function startServer() {
           faqs,
           author,
           status,
+          type,
           date,
           published_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
         `,
         [
@@ -614,6 +618,7 @@ async function startServer() {
           data.faqs,
           data.author,
           data.status,
+          data.type,
           data.date,
           data.publishedAt,
         ]
@@ -658,6 +663,7 @@ async function startServer() {
           faqs = ?,
           author = ?,
           status = ?,
+          type = ?,
           date = ?,
           published_at = ?,
           updated_at = datetime('now')
@@ -677,6 +683,7 @@ async function startServer() {
           data.faqs,
           data.author,
           data.status,
+          data.type,
           data.date,
           data.publishedAt,
           id,

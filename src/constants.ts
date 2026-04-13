@@ -17,6 +17,7 @@ export interface Article {
   createdAt?: any;
   updatedAt?: any;
   status?: string;
+  type?: string; // 'post' or 'page'
   tags?: string;
   faqs?: string; // JSON string of { question: string, answer: string }[]
 }

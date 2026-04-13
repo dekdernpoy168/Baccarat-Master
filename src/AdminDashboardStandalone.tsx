@@ -780,6 +780,7 @@ const AdminDashboard = () => {
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
+  const [filterType, setFilterType] = useState<'post' | 'page'>('post');
 
   // Fetch data on mount
   const loadData = async () => {
@@ -844,6 +845,10 @@ const AdminDashboard = () => {
   }, []);
 
   const filteredArticles = articles.filter(a => {
+    // Filter by type (default to 'post' if missing)
+    const itemType = a.type || 'post';
+    if (itemType !== filterType) return false;
+
     if (filterStatus === 'all') return true;
     if (filterStatus === 'draft') return a.status === 'draft';
     if (filterStatus === 'published') return a.status !== 'draft' && (!a.publishedAt || new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) <= new Date());
@@ -1254,7 +1259,7 @@ const AdminDashboard = () => {
   };
 
   const exportArticles = (format: 'xlsx' | 'txt' | 'html') => {
-    const data = articles.map(article => ({
+    const data = filteredArticles.map(article => ({
       Title: article.title,
       Slug: article.slug,
       Category: article.category,
@@ -1358,6 +1363,7 @@ const AdminDashboard = () => {
         ...dataWithoutId,
         slug: dataWithoutId.slug || dataWithoutId.title.replace(/\s+/g, '-').toLowerCase(),
         status,
+        type: currentArticle.type || filterType,
         date: format(new Date(), 'yyyy-MM-dd'),
         author: auth.currentUser?.displayName || 'Admin',
         publishedAt: getPublishedAt(),
@@ -1597,12 +1603,35 @@ const AdminDashboard = () => {
             <Target size={18} className="mr-2 text-gold" /> หมวดหมู่
           </button>
           <button 
-            onClick={() => { setIsEditing(true); setCurrentArticle({}); }}
+            onClick={() => { setIsEditing(true); setCurrentArticle({ type: filterType }); }}
             className="flex-1 md:flex-none gold-bg-gradient text-baccarat-black px-6 py-2 md:px-8 md:py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center justify-center text-sm md:text-base shadow-lg shadow-gold/10"
           >
-            <Plus size={18} className="mr-2" /> เพิ่มบทความ
+            <Plus size={18} className="mr-2" /> {filterType === 'post' ? 'เพิ่มบทความ' : 'เพิ่มหน้าเพจ'}
           </button>
         </div>
+      </div>
+
+      <div className="flex bg-gray-900/50 p-1 rounded-2xl border border-gold/10 w-fit mb-8">
+        <button
+          onClick={() => setFilterType('post')}
+          className={cn(
+            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+            filterType === 'post' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
+          )}
+        >
+          <FileText size={18} />
+          บทความ (Posts)
+        </button>
+        <button
+          onClick={() => setFilterType('page')}
+          className={cn(
+            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+            filterType === 'page' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
+          )}
+        >
+          <Copy size={18} />
+          หน้าเพจ (Pages)
+        </button>
       </div>
 
       {isEditing ? (
@@ -1614,7 +1643,7 @@ const AdminDashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-gold/10 pb-6">
             <div className="flex flex-col gap-1">
               <h2 className="text-2xl font-bold text-gold uppercase tracking-tight">
-                {currentArticle.id ? 'แก้ไขบทความ' : 'สร้างบทความใหม่'}
+                {currentArticle.id ? `แก้ไข${currentArticle.type === 'page' ? 'หน้า' : 'บทความ'}` : `สร้าง${currentArticle.type === 'page' ? 'หน้า' : 'บทความ'}ใหม่`}
               </h2>
               <p className="text-gray-500 text-xs">จัดการเนื้อหาและสถานะการเผยแพร่</p>
             </div>
@@ -1633,7 +1662,7 @@ const AdminDashboard = () => {
                 onClick={(e) => handleSave(e, 'published')}
                 className="gold-bg-gradient text-baccarat-black px-8 py-2.5 rounded-full font-black hover:scale-105 transition-all flex items-center disabled:opacity-50 text-sm shadow-lg shadow-gold/10"
               >
-                {loading ? '...' : <><Save size={18} className="mr-2" /> เผยแพร่บทความ</>}
+                {loading ? '...' : <><Save size={18} className="mr-2" /> {currentArticle.type === 'page' ? 'เผยแพร่หน้าเพจ' : 'เผยแพร่บทความ'}</>}
               </button>
               <button onClick={() => setIsEditing(false)} className="ml-2 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-all"><X size={24} /></button>
             </div>
@@ -2330,7 +2359,9 @@ const AdminDashboard = () => {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        const url = `${window.location.origin}/article/${article.slug}`;
+                        const url = article.type === 'page' 
+                          ? `${window.location.origin}/${article.slug}`
+                          : `${window.location.origin}/articles/${article.slug}`;
                         navigator.clipboard.writeText(url);
                         alert('คัดลอก URL เรียบร้อยแล้ว');
                       }}
