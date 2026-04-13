@@ -1378,10 +1378,16 @@ const LoginPage = ({ user, setUser }: { user: User | null, setUser: (u: User | n
   const [password, setPassword] = useState('');
 
   useEffect(() => {
+    // If logged in with the old mock 'admin' email, clear it to allow fresh login
+    if (user && user.email !== ADMIN_EMAIL && (user.email === 'admin' || user.uid === 'admin-uid')) {
+      setUser(null);
+      localStorage.removeItem('custom_admin_user');
+    }
+
     if (user?.email === ADMIN_EMAIL) {
       navigate('/admin');
     }
-  }, [user, navigate]);
+  }, [user, navigate, setUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
