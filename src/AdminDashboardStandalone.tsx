@@ -814,7 +814,7 @@ const AdminDashboard = () => {
     // Socket.io for real-time updates
     const socket = io(window.location.origin, {
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,

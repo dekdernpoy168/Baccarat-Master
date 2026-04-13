@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1168,7 +1168,16 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
   );
 };
 
-const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | null }) => {
+const ArticlesPage = ({ articles, user, loading }: { articles: Article[], user: User | null, loading: boolean }) => {
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-gold/20 border-t-gold rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-400 animate-pulse">กำลังโหลดบทความ...</p>
+      </div>
+    );
+  }
+
   const isAdmin = user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
   const publishedArticles = articles.filter(a => (isAdmin || isPublished(a)) && (a.type === 'post' || !a.type));
   const location = useLocation();
@@ -1254,9 +1263,19 @@ const ArticlesPage = ({ articles, user }: { articles: Article[], user: User | nu
   );
 };
 
-const ArticleDetailPage = ({ articles, user }: { articles: Article[], user: User | null }) => {
+const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], user: User | null, loading: boolean }) => {
   const { slug } = useParams();
   const isAdmin = user?.email === ADMIN_EMAIL;
+  
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-gold/20 border-t-gold rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-400 animate-pulse">กำลังโหลดเนื้อหา...</p>
+      </div>
+    );
+  }
+
   const article = articles.find(a => a.slug === slug);
 
   if (!article || (!isAdmin && !isPublished(article))) return <div className="text-center py-20 text-white">ไม่พบเนื้อหาที่ต้องการ หรือบทความยังไม่ถึงเวลาเผยแพร่</div>;
@@ -1943,13 +1962,13 @@ const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '
   );
 };
 
-const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { articles: Article[], categories: string[], setArticles: (articles: Article[]) => void, setCategories: (categories: string[]) => void }) => {
+const AdminDashboard = ({ articles, categories, setArticles, setCategories, loading, fetchArticles }: { articles: Article[], categories: string[], setArticles: (articles: Article[]) => void, setCategories: (categories: string[]) => void, loading: boolean, fetchArticles: () => void }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState<{old: string, new: string} | null>(null);
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
-  const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -2273,7 +2292,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
 
   const handleSaveCategory = async () => {
     if (!newCategoryName.trim()) return;
-    setLoading(true);
+    setIsSaving(true);
     try {
       const res = await fetch('/api/categories', {
         method: 'POST',
@@ -2293,13 +2312,13 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
   const handleUpdateCategory = async () => {
     if (!editingCategory || !editingCategory.new.trim()) return;
-    setLoading(true);
+    setIsSaving(true);
     try {
       const res = await fetch(`/api/categories/by-name/${encodeURIComponent(editingCategory.old)}`, {
         method: 'PUT',
@@ -2319,13 +2338,13 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
   const handleDeleteCategory = async (catName: string) => {
     // Removed window.confirm as it is blocked in the sandboxed environment
-    setLoading(true);
+    setIsSaving(true);
     try {
       const res = await fetch(`/api/categories/by-name/${encodeURIComponent(catName)}`, {
         method: 'DELETE'
@@ -2342,7 +2361,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -2351,7 +2370,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
     if (!file) return;
 
     const extension = file.name.split('.').pop()?.toLowerCase();
-    setLoading(true);
+    setIsSaving(true);
     setError(null);
 
     try {
@@ -2365,7 +2384,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
             
             if (content.length > 1000000) {
               setError(`เนื้อหาจากไฟล์ Word มีขนาดใหญ่เกินไป (${(content.length / 1024 / 1024).toFixed(2)} MB) กรุณาลดขนาดรูปภาพในไฟล์ Word ก่อนอัปโหลด`);
-              setLoading(false);
+              setIsSaving(false);
               return;
             }
 
@@ -2374,11 +2393,11 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
               title: currentArticle.title || file.name.replace('.docx', ''),
               content: content
             });
-            setLoading(false);
+            setIsSaving(false);
           } catch (err) {
             console.error('Mammoth error:', err);
             setError('ไม่สามารถอ่านไฟล์ Word ได้');
-            setLoading(false);
+            setIsSaving(false);
           }
         };
         reader.readAsArrayBuffer(file);
@@ -2400,7 +2419,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
             const content = fullText.replace(/\n/g, '<br>');
             if (content.length > 1000000) {
               setError(`เนื้อหาจากไฟล์ PDF มีขนาดใหญ่เกินไป (${(content.length / 1024 / 1024).toFixed(2)} MB) กรุณาลดจำนวนหน้าหรือเนื้อหา`);
-              setLoading(false);
+              setIsSaving(false);
               return;
             }
 
@@ -2409,11 +2428,11 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
               title: currentArticle.title || file.name.replace('.pdf', ''),
               content: content
             });
-            setLoading(false);
+            setIsSaving(false);
           } catch (err) {
             console.error('PDF.js error:', err);
             setError('ไม่สามารถอ่านไฟล์ PDF ได้');
-            setLoading(false);
+            setIsSaving(false);
           }
         };
         reader.readAsArrayBuffer(file);
@@ -2424,7 +2443,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
           
           if (text.length > 1000000) {
             setError(`เนื้อหาไฟล์มีขนาดใหญ่เกินไป (${(text.length / 1024 / 1024).toFixed(2)} MB)`);
-            setLoading(false);
+            setIsSaving(false);
             return;
           }
 
@@ -2433,23 +2452,23 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
             title: currentArticle.title || file.name.split('.')[0],
             content: extension === 'html' ? text : text.replace(/\n/g, '<br>')
           });
-          setLoading(false);
+          setIsSaving(false);
         };
         reader.readAsText(file);
       } else {
         setError('รูปแบบไฟล์ไม่รองรับในขณะนี้');
-        setLoading(false);
+        setIsSaving(false);
       }
     } catch (err) {
       console.error('File upload error:', err);
       setError('เกิดข้อผิดพลาดในการอัปโหลดไฟล์');
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
   const handleSave = async (e: React.FormEvent, status: 'published' | 'draft' = 'published') => {
     e.preventDefault();
-    setLoading(true);
+    setIsSaving(true);
     setError(null);
     try {
       // Remove id from data object to avoid saving it as a field
@@ -2568,7 +2587,7 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
       setError(message);
       console.error("Save Error:", err);
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -2702,6 +2721,14 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
           >
             <Target size={20} className="mr-2 text-gold" /> จัดการหมวดหมู่
           </button>
+          <button 
+            onClick={fetchArticles}
+            disabled={loading}
+            className="bg-gray-800 text-white p-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center border border-white/5 disabled:opacity-50"
+            title="รีเฟรชข้อมูล"
+          >
+            <RefreshCw size={20} className={cn(loading && "animate-spin")} />
+          </button>
           <Link 
             to="/admin/batch-seo"
             className="bg-purple-600/20 text-purple-400 px-6 py-3 rounded-full font-bold hover:bg-purple-600/30 border border-purple-600/30 transition-all flex items-center"
@@ -2768,20 +2795,22 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <button 
-                disabled={loading}
+                disabled={isSaving}
                 type="button"
                 onClick={(e) => handleSave(e, 'draft')}
                 className="bg-gray-800 text-white px-6 py-2.5 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center disabled:opacity-50 text-sm border border-white/5"
               >
-                {loading ? '...' : <><FileText size={18} className="mr-2 text-gold" /> บันทึกฉบับร่าง</>}
+                {isSaving ? <RefreshCw size={18} className="animate-spin mr-2" /> : <FileText size={18} className="mr-2 text-gold" />}
+                บันทึกฉบับร่าง
               </button>
               <button 
-                disabled={loading}
+                disabled={isSaving}
                 type="button"
                 onClick={(e) => handleSave(e, 'published')}
                 className="gold-bg-gradient text-baccarat-black px-8 py-2.5 rounded-full font-black hover:scale-105 transition-all flex items-center disabled:opacity-50 text-sm shadow-lg shadow-gold/10"
               >
-                {loading ? '...' : <><Save size={18} className="mr-2" /> {currentArticle.type === 'page' ? 'เผยแพร่หน้าเพจ' : 'เผยแพร่บทความ'}</>}
+                {isSaving ? <RefreshCw size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
+                {currentArticle.type === 'page' ? 'เผยแพร่หน้าเพจ' : 'เผยแพร่บทความ'}
               </button>
               <button onClick={() => setIsEditing(false)} className="ml-2 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-all"><X size={24} /></button>
             </div>
@@ -3380,7 +3409,26 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredArticles.map((article, index) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <RefreshCw className="w-8 h-8 text-gold animate-spin mb-4" />
+                      <p className="text-gray-400 font-medium">กำลังโหลดบทความ...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredArticles.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <FileText className="w-8 h-8 text-gray-600 mb-4" />
+                      <p className="text-gray-400 font-medium">ไม่พบเนื้อหาที่ต้องการ</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredArticles.map((article, index) => (
                 <tr 
                   key={article.id} 
                   className={cn(
@@ -3463,10 +3511,11 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
-          {articles.length === 0 && (
+          {!loading && articles.length === 0 && (
             <div className="py-20 text-center text-gray-500">ยังไม่มีบทความในระบบ</div>
           )}
         </div>
@@ -4245,10 +4294,49 @@ const FormulaPage = () => {
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' } | null>(null);
+
+  // Fetch Articles
+  const fetchArticles = useCallback(async () => {
+    console.log('Fetching articles from API...');
+    setArticlesLoading(true);
+    try {
+      const response = await fetch('/api/articles');
+      if (!response.ok) throw new Error('Failed to fetch articles');
+      const docs: any = await response.json();
+      console.log(`Fetched ${docs.length} articles from API`);
+      
+      if (docs.length > 0) {
+        setArticles(docs as Article[]);
+      } else {
+        console.log('No articles in database, using static fallback');
+        setArticles(ARTICLES);
+      }
+    } catch (error) {
+      console.error("API Error (Articles):", error);
+      // Fallback to static articles on error
+      setArticles(ARTICLES);
+    } finally {
+      setArticlesLoading(false);
+    }
+  }, []);
+
+  // Fetch Categories
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      const catsData: any = await response.json();
+      const cats = catsData.map((cat: any) => cat.name);
+      setCategories(cats);
+    } catch (error) {
+      console.error("API Error (Categories):", error);
+    }
+  }, []);
 
   useEffect(() => {
     if (notification) {
@@ -4275,41 +4363,6 @@ export default function App() {
       setAuthReady(true);
     });
 
-    // Fetch Articles
-    const fetchArticles = async () => {
-      console.log('Fetching articles from API...');
-      try {
-        const response = await fetch('/api/articles');
-        if (!response.ok) throw new Error('Failed to fetch articles');
-        const docs: any = await response.json();
-        console.log(`Fetched ${docs.length} articles from API`);
-        
-        if (docs.length > 0) {
-          setArticles(docs as Article[]);
-        } else {
-          console.log('No articles in database, using static fallback');
-          setArticles(ARTICLES);
-        }
-      } catch (error) {
-        console.error("API Error (Articles):", error);
-        // Fallback to static articles on error
-        setArticles(ARTICLES);
-      }
-    };
-
-    // Fetch Categories
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/categories');
-        if (!response.ok) throw new Error('Failed to fetch categories');
-        const catsData: any = await response.json();
-        const cats = catsData.map((cat: any) => cat.name);
-        setCategories(cats);
-      } catch (error) {
-        console.error("API Error (Categories):", error);
-      }
-    };
-
     fetchArticles();
     fetchCategories();
 
@@ -4317,7 +4370,7 @@ export default function App() {
     console.log('Initializing socket.io client...');
     const socket = io(window.location.origin, {
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 30000,
@@ -4347,7 +4400,7 @@ export default function App() {
       unsubscribeAuth();
       socket.disconnect();
     };
-  }, []);
+  }, [fetchArticles, fetchCategories]);
 
   if (!authReady) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
 
@@ -4374,8 +4427,8 @@ export default function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<HomePage articles={articles} user={user} />} />
-            <Route path="/articles" element={<ArticlesPage articles={articles} user={user} />} />
-            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} />} />
+            <Route path="/articles" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -4385,7 +4438,7 @@ export default function App() {
               path="/admin" 
               element={
                 user?.email === ADMIN_EMAIL ? (
-                  <AdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} />
+                  <AdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} loading={articlesLoading} fetchArticles={fetchArticles} />
                 ) : (
                   <Navigate to="/login" />
                 )
@@ -4411,7 +4464,7 @@ export default function App() {
                 )
               } 
             />
-            <Route path="/:slug" element={<ArticleDetailPage articles={articles} user={user} />} />
+            <Route path="/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
           </Routes>
         </main>
         <Footer />
