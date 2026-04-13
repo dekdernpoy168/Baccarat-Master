@@ -792,7 +792,7 @@ const AdminDashboard = () => {
       
       if (articlesRes.ok) {
         const docs = await articlesRes.json();
-        setArticles(docs);
+        setArticles(docs as Article[]);
       } else {
         setError("ไม่สามารถดึงข้อมูลบทความได้");
       }
@@ -1028,15 +1028,47 @@ const AdminDashboard = () => {
 
 สำคัญ: ให้ตอบกลับเป็น JSON เท่านั้นตามโครงสร้างที่กำหนด ห้ามมีข้อความอื่นนอกเหนือจาก JSON`;
 
-      const response = await fetch('/api/ai/execute-prompt', {
+      const response = await fetch('/api/ai/stream-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       });
-      const data: any = await response.json();
-      if (data.text) {
-        const jsonMatch = data.text.match(/\{[\s\S]*\}/);
-        const jsonStr = jsonMatch ? jsonMatch[0] : data.text;
+
+      if (!response.ok) throw new Error('Failed to start stream');
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === '[DONE]') break;
+              
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.chunk) {
+                  fullText += parsed.chunk;
+                }
+              } catch (e) {
+                console.error('Error parsing stream chunk:', e);
+              }
+            }
+          }
+        }
+      }
+
+      if (fullText) {
+        const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : fullText;
         
         try {
           const result = JSON.parse(jsonStr || '{}');
@@ -1052,10 +1084,9 @@ const AdminDashboard = () => {
           }
         } catch (parseErr) {
           console.error('JSON Parse Error:', parseErr);
-          // Fallback: if JSON parse fails, just use the raw text as content
           setCurrentArticle(prev => ({
             ...prev,
-            content: (prev.content || '') + data.text
+            content: (prev.content || '') + fullText
           }));
         }
       }

@@ -38,7 +38,8 @@ import {
   RefreshCw,
   Database,
   Clock,
-  Copy
+  Copy,
+  Settings2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ReactQuill from 'react-quill-new';
@@ -64,6 +65,8 @@ import { auth } from './firebase';
 import { Article } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
+import { BatchSeoDashboard } from './components/BatchSeoDashboard';
+import { McpSettings } from './components/McpSettings';
 
 // --- Types & Constants ---
 
@@ -2699,6 +2702,18 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories }: { 
           >
             <Target size={20} className="mr-2 text-gold" /> จัดการหมวดหมู่
           </button>
+          <Link 
+            to="/admin/batch-seo"
+            className="bg-purple-600/20 text-purple-400 px-6 py-3 rounded-full font-bold hover:bg-purple-600/30 border border-purple-600/30 transition-all flex items-center"
+          >
+            <Sparkles size={20} className="mr-2" /> Batch SEO
+          </Link>
+          <Link 
+            to="/admin/mcp-settings"
+            className="bg-indigo-600/20 text-indigo-400 px-6 py-3 rounded-full font-bold hover:bg-indigo-600/30 border border-indigo-600/30 transition-all flex items-center"
+          >
+            <Settings2 size={20} className="mr-2" /> MCP Settings
+          </Link>
           <button 
             onClick={() => { setIsEditing(true); setCurrentArticle({ type: filterType }); }}
             className="gold-bg-gradient text-baccarat-black px-8 py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center"
@@ -4367,6 +4382,26 @@ export default function App() {
               element={
                 user?.email === ADMIN_EMAIL ? (
                   <AdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
+            />
+            <Route 
+              path="/admin/batch-seo" 
+              element={
+                user?.email === ADMIN_EMAIL ? (
+                  <BatchSeoDashboard />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
+            />
+            <Route 
+              path="/admin/mcp-settings" 
+              element={
+                user?.email === ADMIN_EMAIL ? (
+                  <McpSettings />
                 ) : (
                   <Navigate to="/login" />
                 )

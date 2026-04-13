@@ -19,12 +19,28 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "content", "slug", "category"]
+    },
+    "McpServer": {
+      "title": "MCP Server",
+      "description": "Configuration for remote MCP servers",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Unique name for the server" },
+        "url": { "type": "string", "description": "SSE or HTTP URL of the MCP server" },
+        "token": { "type": "string", "description": "Authorization token (optional)" },
+        "enabled": { "type": "boolean", "description": "Whether the server is active" }
+      },
+      "required": ["name", "url"]
     }
   },
   "firestore": {
     "/articles/{articleId}": {
       "schema": "Article",
       "description": "คอลเลกชันบทความทั้งหมด"
+    },
+    "/mcp_servers/{serverId}": {
+      "schema": "McpServer",
+      "description": "คอลเลกชันการตั้งค่า MCP Servers"
     }
   }
 }

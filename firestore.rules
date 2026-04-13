@@ -46,6 +46,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /mcp_servers/{serverId} {
+      allow read, write: if isAdmin();
+    }
+
     match /users/{userId} {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }

@@ -17,6 +17,9 @@ import { initSchema } from './src/initSchema.js';
 import usersApi from './src/api/users.js';
 import { GoogleGenAI, Type } from "@google/genai";
 import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { z } from "zod";
+import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 
 // Configure R2 Client
 const r2Client = new S3Client({
@@ -41,11 +44,131 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "dummy",
 });
 
-async function callAI(prompt: string, options: { json?: boolean, schema?: any } = {}) {
+// Configure Anthropic Client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || "dummy",
+  defaultHeaders: {
+    "anthropic-beta": "mcp-client-2025-11-20"
+  }
+});
+
+// Define AI Tools
+const keywordTool = betaZodTool({
+  name: "get_keywords",
+  description: "Get SEO keywords and search volume for a given topic using Keywords Everywhere API",
+  inputSchema: z.object({
+    keyword: z.string().describe("The main keyword to research"),
+    country: z.string().optional().default("th").describe("Country code (e.g., th, us)"),
+  }),
+  run: async ({ keyword, country }) => {
+    if (!process.env.KEYWORDS_EVERYWHERE_API_KEY) {
+      return "Keywords Everywhere API key is not configured.";
+    }
+    try {
+      const response = await fetch(`https://api.keywordseverywhere.com/v1/get_keyword_data`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.KEYWORDS_EVERYWHERE_API_KEY}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          'dataSource': 'gkp',
+          'country': country,
+          'currency': 'THB',
+          'kw[]': keyword
+        })
+      });
+      const data = await response.json();
+      return JSON.stringify(data);
+    } catch (error: any) {
+      return `Error fetching keywords: ${error.message}`;
+    }
+  }
+});
+
+const articleCheckTool = betaZodTool({
+  name: "check_existing_articles",
+  description: "Check if articles with similar titles already exist in the database",
+  inputSchema: z.object({
+    query: z.string().describe("Search query for article titles"),
+  }),
+  run: async ({ query: searchQuery }) => {
+    try {
+      const results = await query(`SELECT id, title, slug FROM articles WHERE title LIKE ? LIMIT 5`, [`%${searchQuery}%`]);
+      return JSON.stringify(results);
+    } catch (error: any) {
+      return `Error checking articles: ${error.message}`;
+    }
+  }
+});
+
+interface McpServerConfig {
+  name: string;
+  url: string;
+  token?: string;
+}
+
+async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[] } = {}) {
   try {
+    // Try Anthropic first if key is provided
+    if (process.env.ANTHROPIC_API_KEY) {
+      const systemPrompt = options.json ? "Return ONLY a valid JSON object. No other text." : "";
+      const anthropicParams: any = {
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: "user", content: prompt }],
+        model: "claude-3-opus-20240229",
+      };
+
+      if (options.mcpServers && options.mcpServers.length > 0) {
+        anthropicParams.mcp_servers = options.mcpServers.map(s => ({
+          type: "url",
+          url: s.url,
+          name: s.name,
+          authorization_token: s.token
+        }));
+        
+        anthropicParams.tools = options.mcpServers.map(s => ({
+          type: "mcp_toolset",
+          mcp_server_name: s.name
+        }));
+      }
+
+      if (options.useTools && !options.mcpServers) {
+        const finalMessage = await anthropic.beta.messages.toolRunner({
+          model: "claude-3-opus-20240229",
+          max_tokens: 4096,
+          messages: [{ role: "user", content: prompt }],
+          tools: [keywordTool, articleCheckTool],
+        });
+        console.log("Anthropic Tool Usage:", finalMessage.usage);
+        const text = finalMessage.content[0].type === 'text' ? finalMessage.content[0].text : "";
+        return options.json ? JSON.parse(text) : text;
+      }
+
+      const message = await anthropic.messages.create(anthropicParams);
+      
+      console.log("Anthropic Usage:", message.usage);
+      const text = message.content[0].type === 'text' ? message.content[0].text : "";
+      if (options.json) {
+        // Claude doesn't have a native JSON mode like OpenAI/Gemini in the same way, 
+        // so we might need to parse it manually or use a system prompt.
+        // For now, we'll try to parse the text.
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          // Fallback to Gemini if JSON parsing fails
+          console.warn("Anthropic JSON parse failed, falling back to Gemini");
+        }
+      } else {
+        return text;
+      }
+    }
+
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
     const modelParams: any = {
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     };
     
@@ -57,6 +180,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any } 
     }
 
     const result: any = await genAI.models.generateContent(modelParams);
+    console.log("Gemini Usage:", result.usageMetadata);
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
     return options.json ? JSON.parse(text) : text;
   } catch (error: any) {
@@ -72,8 +196,54 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any } 
       response_format: options.json ? { type: "json_object" } : { type: "text" },
     });
 
+    console.log("OpenAI Usage:", response.usage);
     const text = response.choices[0].message.content || (options.json ? "{}" : "");
     return options.json ? JSON.parse(text) : text;
+  }
+}
+
+async function* streamAI(prompt: string) {
+  try {
+    if (process.env.ANTHROPIC_API_KEY) {
+      const stream = anthropic.messages.stream({
+        max_tokens: 4096,
+        messages: [{ role: "user", content: prompt }],
+        model: "claude-3-opus-20240229",
+      });
+
+      for await (const chunk of stream) {
+        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+          yield chunk.delta.text;
+        }
+      }
+      return;
+    }
+
+    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    const result: any = await genAI.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    });
+
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    yield text;
+  } catch (error: any) {
+    console.warn("Streaming AI Error, falling back to OpenAI:", error.message);
+    
+    if (process.env.OPENAI_API_KEY) {
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        yield content;
+      }
+    } else {
+      throw error;
+    }
   }
 }
 
@@ -189,6 +359,7 @@ async function startServer() {
 
       const data = await callAI(fullPrompt, {
         json: true,
+        useTools: true,
         schema: {
           type: Type.OBJECT,
           properties: {
@@ -339,6 +510,75 @@ async function startServer() {
     }
   });
 
+  server.post("/api/ai/batch-seo", async (req, res) => {
+    try {
+      const { titles, mcpServers } = req.body; // Array of titles and optional MCP servers
+      if (!Array.isArray(titles)) {
+        return res.status(400).json({ error: "titles must be an array" });
+      }
+
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return res.status(501).json({ error: "Anthropic API key required for batch processing" });
+      }
+
+      const requests: any[] = titles.map((title, index) => {
+        const params: any = {
+          model: "claude-3-opus-20240229",
+          max_tokens: 500,
+          messages: [{ 
+            role: "user" as const, 
+            content: `Generate SEO meta title and description for: "${title}". Return as JSON: { "metaTitle": "...", "metaDescription": "..." }` 
+          }]
+        };
+
+        if (mcpServers && mcpServers.length > 0) {
+          params.mcp_servers = mcpServers.map((s: any) => ({
+            type: "url",
+            url: s.url,
+            name: s.name,
+            authorization_token: s.token
+          }));
+          
+          params.tools = mcpServers.map((s: any) => ({
+            type: "mcp_toolset",
+            mcp_server_name: s.name
+          }));
+        }
+
+        return {
+          custom_id: `seo-req-${index}`,
+          params
+        };
+      });
+
+      const batch = await anthropic.messages.batches.create({ requests });
+      res.json({ batchId: batch.id, status: batch.processing_status });
+    } catch (error: any) {
+      console.error("Batch SEO Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.get("/api/ai/batch-results/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const batch = await anthropic.messages.batches.retrieve(id);
+      
+      if (batch.processing_status === 'ended') {
+        const results = [];
+        const iter = await anthropic.messages.batches.results(id);
+        for await (const entry of iter) {
+          results.push(entry);
+        }
+        res.json({ status: 'ended', results });
+      } else {
+        res.json({ status: batch.processing_status });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   server.post("/api/ai/execute-prompt", async (req, res) => {
     try {
       const { prompt } = req.body;
@@ -346,6 +586,31 @@ async function startServer() {
       res.json({ text });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/stream-prompt", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      for await (const chunk of streamAI(prompt)) {
+        res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      }
+      
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (error: any) {
+      console.error("Streaming Error:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+        res.end();
+      }
     }
   });
   
