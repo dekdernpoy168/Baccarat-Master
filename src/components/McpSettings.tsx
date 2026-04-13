@@ -25,7 +25,8 @@ import {
   query, 
   where 
 } from 'firebase/firestore';
-import { db, auth } from '../firebase'; // Assuming Firestore is exported from firebase.ts
+import { signInWithPopup } from 'firebase/auth';
+import { db, auth, googleProvider } from '../firebase'; // Assuming Firestore is exported from firebase.ts
 
 interface McpServer {
   id: string;
@@ -221,9 +222,27 @@ export const McpSettings: React.FC = () => {
                       <p className="text-gray-600">Operation: {errObj.operationType} on {errObj.path}</p>
                       <p className="text-gray-600">User: {errObj.authInfo.email || 'Not logged in'}</p>
                       {errObj.error.includes('permission') && (
-                        <p className="mt-2 text-blue-600 font-medium">
-                          Tip: Only the administrator (dekdernpoy168@gmail.com) can manage MCP settings.
-                        </p>
+                        <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                          <p className="text-blue-700 font-medium text-xs mb-2">
+                            Tip: Only the administrator (dekdernpoy168@gmail.com) can manage MCP settings.
+                          </p>
+                          {!errObj.authInfo.userId && (
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  await signInWithPopup(auth, googleProvider);
+                                  window.location.reload();
+                                } catch (e: any) {
+                                  setError(e.message);
+                                }
+                              }}
+                              className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            >
+                              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-3 h-3 brightness-0 invert" />
+                              Login with Google
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   );

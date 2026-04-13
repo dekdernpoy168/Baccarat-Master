@@ -61,7 +61,7 @@ import {
   signOut,
   User
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, googleProvider } from './firebase';
 import { Article, ARTICLES } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
@@ -1404,6 +1404,21 @@ const LoginPage = ({ user, setUser }: { user: User | null, setUser: (u: User | n
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user.email === ADMIN_EMAIL) {
+        setUser(result.user);
+        navigate('/admin');
+      } else {
+        await signOut(auth);
+        setError("คุณไม่มีสิทธิ์เข้าถึงส่วนนี้");
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
       <SEO 
@@ -1453,6 +1468,25 @@ const LoginPage = ({ user, setUser }: { user: User | null, setUser: (u: User | n
             เข้าสู่ระบบ
           </button>
         </form>
+
+        <div className="mt-8 flex flex-col gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gold/10"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-gray-900 px-2 text-gray-500">หรือ</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleGoogleLogin}
+            className="w-full bg-white text-gray-900 font-bold py-4 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center gap-3"
+          >
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+            เข้าสู่ระบบด้วย Google
+          </button>
+        </div>
       </div>
     </div>
   );
