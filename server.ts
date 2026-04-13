@@ -1208,7 +1208,7 @@ async function startServer() {
     try {
       const articles = await query(`SELECT * FROM articles;`);
 
-      const baseUrl = process.env.VITE_APP_URL || "https://huisache.com";
+      const baseUrl = "https://huisache.com";
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
       xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       
@@ -1260,7 +1260,7 @@ async function startServer() {
 Allow: /
 Disallow: /login
 Disallow: /admin
-Sitemap: ${process.env.VITE_APP_URL || 'https://huisache.com'}/sitemap.xml`;
+Sitemap: https://huisache.com/sitemap.xml`;
     res.header("Content-Type", "text/plain");
     res.send(robots);
   });

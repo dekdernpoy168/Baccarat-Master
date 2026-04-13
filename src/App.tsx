@@ -97,7 +97,8 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
   const location = useLocation();
   
   // Auto-generate canonical URL if not provided
-  const currentUrl = canonicalUrl || `${window.location.origin}${location.pathname}${location.search}`;
+  const baseUrl = "https://huisache.com";
+  const currentUrl = canonicalUrl || `${baseUrl}${location.pathname}${location.search}`;
   
   const faqSchema = schema?.faqs ? {
     "@context": "https://schema.org",
@@ -1388,7 +1389,7 @@ const LoginPage = ({ user, setUser }: { user: User | null, setUser: (u: User | n
     
     // Check for the requested credentials
     if (username === 'admin' && password === 'Bankk2599++') {
-      const mockUser = { email: 'admin', uid: 'admin-uid' } as User;
+      const mockUser = { email: ADMIN_EMAIL, uid: 'admin-uid' } as User;
       setUser(mockUser);
       localStorage.setItem('custom_admin_user', JSON.stringify(mockUser));
       navigate('/admin');

@@ -28,7 +28,7 @@ async function generateSitemap() {
       console.warn('Warning: Could not fetch articles from Firestore (possibly quota exceeded). Generating basic sitemap.', dbError.message);
     }
 
-    const baseUrl = process.env.VITE_APP_URL || 'https://huisache.com';
+    const baseUrl = 'https://huisache.com';
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
     
