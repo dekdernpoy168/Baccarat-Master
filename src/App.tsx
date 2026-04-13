@@ -62,7 +62,7 @@ import {
   User
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { Article } from './constants';
+import { Article, ARTICLES } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
 import { BatchSeoDashboard } from './components/BatchSeoDashboard';
@@ -86,7 +86,7 @@ interface FirestoreErrorInfo {
   authInfo: any;
 }
 
-const ADMIN_EMAIL = "admin";
+const ADMIN_EMAIL = "dekdernpoy168@gmail.com";
 
 // --- SEO Component ---
 const SEO = ({ title, description, keywords, canonicalUrl, type = "website", image, schema }: { title: string, description: string, keywords?: string, canonicalUrl?: string, type?: string, image?: string, schema?: any }) => {
@@ -4284,12 +4284,16 @@ export default function App() {
         const docs: any = await response.json();
         console.log(`Fetched ${docs.length} articles from API`);
         
-        // Only use articles from the database
-        setArticles(docs as Article[]);
+        if (docs.length > 0) {
+          setArticles(docs as Article[]);
+        } else {
+          console.log('No articles in database, using static fallback');
+          setArticles(ARTICLES);
+        }
       } catch (error) {
         console.error("API Error (Articles):", error);
-        // Set to empty array on error instead of static articles
-        setArticles([]);
+        // Fallback to static articles on error
+        setArticles(ARTICLES);
       }
     };
 
