@@ -25,7 +25,7 @@ import {
   query, 
   where 
 } from 'firebase/firestore';
-import { db } from '../firebase'; // Assuming Firestore is exported from firebase.ts
+import { db, auth } from '../firebase'; // Assuming Firestore is exported from firebase.ts
 
 interface McpServer {
   id: string;
@@ -33,6 +33,57 @@ interface McpServer {
   url: string;
   token?: string;
   enabled: boolean;
+}
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
 }
 
 export const McpSettings: React.FC = () => {
@@ -54,8 +105,9 @@ export const McpSettings: React.FC = () => {
 
   const fetchServers = async () => {
     setLoading(true);
+    const path = 'mcp_servers';
     try {
-      const querySnapshot = await getDocs(collection(db, 'mcp_servers'));
+      const querySnapshot = await getDocs(collection(db, path));
       const serverList = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -63,7 +115,11 @@ export const McpSettings: React.FC = () => {
       setServers(serverList);
     } catch (err: any) {
       console.error("Error fetching MCP servers:", err);
-      setError("Failed to load MCP servers. Make sure Firestore is configured.");
+      try {
+        handleFirestoreError(err, OperationType.GET, path);
+      } catch (formattedErr: any) {
+        setError(formattedErr.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -72,8 +128,9 @@ export const McpSettings: React.FC = () => {
   const handleAddServer = async () => {
     if (!newServer.name || !newServer.url) return;
     setSaving(true);
+    const path = 'mcp_servers';
     try {
-      const docRef = await addDoc(collection(db, 'mcp_servers'), {
+      const docRef = await addDoc(collection(db, path), {
         name: newServer.name,
         url: newServer.url,
         token: newServer.token || '',
@@ -84,29 +141,43 @@ export const McpSettings: React.FC = () => {
       setIsAdding(false);
       setNewServer({ name: '', url: '', token: '', enabled: true });
     } catch (err: any) {
-      setError(err.message);
+      try {
+        handleFirestoreError(err, OperationType.WRITE, path);
+      } catch (formattedErr: any) {
+        setError(formattedErr.message);
+      }
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteServer = async (id: string) => {
+    const path = `mcp_servers/${id}`;
     try {
       await deleteDoc(doc(db, 'mcp_servers', id));
       setServers(servers.filter(s => s.id !== id));
     } catch (err: any) {
-      setError(err.message);
+      try {
+        handleFirestoreError(err, OperationType.DELETE, path);
+      } catch (formattedErr: any) {
+        setError(formattedErr.message);
+      }
     }
   };
 
   const toggleServer = async (server: McpServer) => {
+    const path = `mcp_servers/${server.id}`;
     try {
       await updateDoc(doc(db, 'mcp_servers', server.id), {
         enabled: !server.enabled
       });
       setServers(servers.map(s => s.id === server.id ? { ...s, enabled: !s.enabled } : s));
     } catch (err: any) {
-      setError(err.message);
+      try {
+        handleFirestoreError(err, OperationType.UPDATE, path);
+      } catch (formattedErr: any) {
+        setError(formattedErr.message);
+      }
     }
   };
 
@@ -131,12 +202,37 @@ export const McpSettings: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-700 flex items-center gap-3">
-          <AlertCircle size={20} />
-          <p className="text-sm">{error}</p>
-          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
-            <X size={18} />
-          </button>
+        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-700">
+          <div className="flex items-center gap-3 mb-2">
+            <AlertCircle size={20} />
+            <p className="font-bold">Error</p>
+            <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="text-sm bg-white/50 p-3 rounded-lg font-mono break-all overflow-auto max-h-32">
+            {error.startsWith('{') ? (
+              (() => {
+                try {
+                  const errObj = JSON.parse(error);
+                  return (
+                    <div>
+                      <p className="text-red-600 font-bold mb-1">{errObj.error}</p>
+                      <p className="text-gray-600">Operation: {errObj.operationType} on {errObj.path}</p>
+                      <p className="text-gray-600">User: {errObj.authInfo.email || 'Not logged in'}</p>
+                      {errObj.error.includes('permission') && (
+                        <p className="mt-2 text-blue-600 font-medium">
+                          Tip: Only the administrator (dekdernpoy168@gmail.com) can manage MCP settings.
+                        </p>
+                      )}
+                    </div>
+                  );
+                } catch (e) {
+                  return error;
+                }
+              })()
+            ) : error}
+          </div>
         </div>
       )}
 
