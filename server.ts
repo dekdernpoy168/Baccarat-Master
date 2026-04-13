@@ -110,62 +110,8 @@ interface McpServerConfig {
 }
 
 async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[] } = {}) {
+  // 1. Try Gemini first (most reliable in this environment)
   try {
-    // Try Anthropic first if key is provided
-    if (process.env.ANTHROPIC_API_KEY) {
-      const systemPrompt = options.json ? "Return ONLY a valid JSON object. No other text." : "";
-      const anthropicParams: any = {
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role: "user", content: prompt }],
-        model: "claude-3-opus-20240229",
-      };
-
-      if (options.mcpServers && options.mcpServers.length > 0) {
-        anthropicParams.mcp_servers = options.mcpServers.map(s => ({
-          type: "url",
-          url: s.url,
-          name: s.name,
-          authorization_token: s.token
-        }));
-        
-        anthropicParams.tools = options.mcpServers.map(s => ({
-          type: "mcp_toolset",
-          mcp_server_name: s.name
-        }));
-      }
-
-      if (options.useTools && !options.mcpServers) {
-        const finalMessage = await anthropic.beta.messages.toolRunner({
-          model: "claude-3-opus-20240229",
-          max_tokens: 4096,
-          messages: [{ role: "user", content: prompt }],
-          tools: [keywordTool, articleCheckTool],
-        });
-        console.log("Anthropic Tool Usage:", finalMessage.usage);
-        const text = finalMessage.content[0].type === 'text' ? finalMessage.content[0].text : "";
-        return options.json ? JSON.parse(text) : text;
-      }
-
-      const message = await anthropic.messages.create(anthropicParams);
-      
-      console.log("Anthropic Usage:", message.usage);
-      const text = message.content[0].type === 'text' ? message.content[0].text : "";
-      if (options.json) {
-        // Claude doesn't have a native JSON mode like OpenAI/Gemini in the same way, 
-        // so we might need to parse it manually or use a system prompt.
-        // For now, we'll try to parse the text.
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          // Fallback to Gemini if JSON parsing fails
-          console.warn("Anthropic JSON parse failed, falling back to Gemini");
-        }
-      } else {
-        return text;
-      }
-    }
-
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
     const modelParams: any = {
       model: "gemini-1.5-flash",
@@ -183,22 +129,83 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
     console.log("Gemini Usage:", result.usageMetadata);
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
     return options.json ? JSON.parse(text) : text;
-  } catch (error: any) {
-    console.warn("Gemini Error, falling back to OpenAI:", error.message);
+  } catch (geminiError: any) {
+    console.warn("Gemini Error, falling back to Anthropic:", geminiError.message);
     
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("Gemini failed and OPENAI_API_KEY is not set.");
+    // 2. Try Anthropic if Gemini fails
+    if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy") {
+      try {
+        const systemPrompt = options.json ? "Return ONLY a valid JSON object. No other text." : "";
+        const anthropicParams: any = {
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: "user", content: prompt }],
+          model: "claude-3-opus-20240229",
+        };
+
+        if (options.mcpServers && options.mcpServers.length > 0) {
+          anthropicParams.mcp_servers = options.mcpServers.map(s => ({
+            type: "url",
+            url: s.url,
+            name: s.name,
+            authorization_token: s.token
+          }));
+          
+          anthropicParams.tools = options.mcpServers.map(s => ({
+            type: "mcp_toolset",
+            mcp_server_name: s.name
+          }));
+        }
+
+        if (options.useTools && !options.mcpServers) {
+          const finalMessage = await anthropic.beta.messages.toolRunner({
+            model: "claude-3-opus-20240229",
+            max_tokens: 4096,
+            messages: [{ role: "user", content: prompt }],
+            tools: [keywordTool, articleCheckTool],
+          });
+          console.log("Anthropic Tool Usage:", finalMessage.usage);
+          const text = finalMessage.content[0].type === 'text' ? finalMessage.content[0].text : "";
+          return options.json ? JSON.parse(text) : text;
+        }
+
+        const message = await anthropic.messages.create(anthropicParams);
+        console.log("Anthropic Usage:", message.usage);
+        const text = message.content[0].type === 'text' ? message.content[0].text : "";
+        
+        if (options.json) {
+          try {
+            return JSON.parse(text);
+          } catch (e) {
+            console.warn("Anthropic JSON parse failed");
+          }
+        } else {
+          return text;
+        }
+      } catch (anthropicError: any) {
+        console.warn("Anthropic Error, falling back to OpenAI:", anthropicError.message);
+      }
     }
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: options.json ? { type: "json_object" } : { type: "text" },
-    });
+    // 3. Try OpenAI as final fallback
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "dummy") {
+      throw new Error("All AI providers failed and OPENAI_API_KEY is not set.");
+    }
 
-    console.log("OpenAI Usage:", response.usage);
-    const text = response.choices[0].message.content || (options.json ? "{}" : "");
-    return options.json ? JSON.parse(text) : text;
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: options.json ? { type: "json_object" } : { type: "text" },
+      });
+
+      console.log("OpenAI Usage:", response.usage);
+      const text = response.choices[0].message.content || (options.json ? "{}" : "");
+      return options.json ? JSON.parse(text) : text;
+    } catch (openaiError: any) {
+      console.error("All AI providers failed:", openaiError.message);
+      throw new Error(`AI generation failed: ${openaiError.message}`);
+    }
   }
 }
 
