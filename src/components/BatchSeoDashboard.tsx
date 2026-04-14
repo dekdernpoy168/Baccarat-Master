@@ -154,26 +154,26 @@ export const BatchSeoDashboard: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto bg-white min-h-screen">
+    <div className="p-6 max-w-6xl mx-auto bg-gray-950 min-h-screen text-gray-100">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <RefreshCw className={cn("w-8 h-8 text-blue-600", isProcessing && "animate-spin")} />
+          <h1 className="text-3xl font-bold text-gray-100 flex items-center gap-3">
+            <RefreshCw className={cn("w-8 h-8 text-blue-400", isProcessing && "animate-spin")} />
             ระบบสร้าง SEO อัตโนมัติ
           </h1>
-          <p className="text-gray-500 mt-1">สร้าง Meta Title และ Description สำหรับบทความหลายรายการพร้อมกัน</p>
+          <p className="text-gray-400 mt-1">สร้าง Meta Title และ Description สำหรับบทความหลายรายการพร้อมกัน</p>
         </div>
         
         <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
           <button 
             onClick={() => setViewMode('list')}
-            className={cn("p-2 rounded-md transition-all", viewMode === 'list' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700")}
+            className={cn("p-2 rounded-md transition-all", viewMode === 'list' ? "bg-gray-800 shadow-sm text-blue-400" : "text-gray-400 hover:text-gray-200")}
           >
             <List size={20} />
           </button>
           <button 
             onClick={() => setViewMode('grid')}
-            className={cn("p-2 rounded-md transition-all", viewMode === 'grid' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700")}
+            className={cn("p-2 rounded-md transition-all", viewMode === 'grid' ? "bg-gray-800 shadow-sm text-blue-400" : "text-gray-400 hover:text-gray-200")}
           >
             <LayoutGrid size={20} />
           </button>
@@ -204,7 +204,7 @@ export const BatchSeoDashboard: React.FC = () => {
                 <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-2">เครื่องมือ MCP ที่ใช้งานอยู่</p>
                 <div className="flex flex-wrap gap-2">
                   {mcpServers.map(s => (
-                    <span key={s.id} className="px-2 py-1 bg-white rounded-lg text-[10px] font-medium text-purple-700 border border-purple-200 flex items-center gap-1">
+                    <span key={s.id} className="px-2 py-1 bg-gray-800 rounded-lg text-[10px] font-medium text-purple-300 border border-purple-800 flex items-center gap-1">
                       <Zap size={10} />
                       {s.name}
                     </span>
@@ -265,7 +265,7 @@ export const BatchSeoDashboard: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     className={cn(
-                      "bg-white rounded-2xl border transition-all overflow-hidden",
+                      "bg-gray-900 rounded-2xl border border-gray-800 transition-all overflow-hidden",
                       result.status === 'completed' ? "border-gray-100 hover:border-blue-200 hover:shadow-xl" : "border-gray-100 opacity-70"
                     )}
                   >

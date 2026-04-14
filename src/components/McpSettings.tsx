@@ -183,14 +183,14 @@ export const McpSettings: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto bg-white min-h-screen">
+    <div className="p-6 max-w-4xl mx-auto bg-gray-950 min-h-screen text-gray-100">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Settings2 className="w-8 h-8 text-purple-600" />
+          <h1 className="text-3xl font-bold text-gray-100 flex items-center gap-3">
+            <Settings2 className="w-8 h-8 text-purple-400" />
             ตั้งค่าการเชื่อมต่อ MCP
           </h1>
-          <p className="text-gray-500 mt-1">จัดการเซิร์ฟเวอร์ Model Context Protocol สำหรับเครื่องมือ AI</p>
+          <p className="text-gray-400 mt-1">จัดการเซิร์ฟเวอร์ Model Context Protocol สำหรับเครื่องมือ AI</p>
         </div>
         
         <button 
@@ -211,7 +211,7 @@ export const McpSettings: React.FC = () => {
               <X size={18} />
             </button>
           </div>
-          <div className="text-sm bg-white/50 p-3 rounded-lg font-mono break-all overflow-auto max-h-32">
+          <div className="text-sm bg-gray-900/50 p-3 rounded-lg font-mono break-all overflow-auto max-h-32">
             {error.startsWith('{') ? (
               (() => {
                 try {
@@ -335,7 +335,7 @@ export const McpSettings: React.FC = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className={cn(
-                  "bg-white p-5 rounded-2xl border transition-all flex items-center justify-between",
+                  "bg-gray-900 p-5 rounded-2xl border transition-all flex items-center justify-between",
                   server.enabled ? "border-gray-100 hover:border-purple-200" : "border-gray-100 opacity-60"
                 )}
               >
@@ -367,7 +367,7 @@ export const McpSettings: React.FC = () => {
                     )}
                   >
                     <span className={cn(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                      "inline-block h-4 w-4 transform rounded-full bg-gray-200 transition-transform",
                       server.enabled ? "translate-x-6" : "translate-x-1"
                     )} />
                   </button>
