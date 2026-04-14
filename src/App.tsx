@@ -712,7 +712,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               desc: "ทำความเข้าใจกฎ กติกา อัตราการจ่ายเงิน และเงื่อนไขการจั่วไพ่ใบที่สามอย่างละเอียดสำหรับมือใหม่ที่ต้องการเริ่มอย่างถูกต้อง",
               icon: <BookOpen className="w-6 h-6 text-gold" />,
               image: "https://img1.pic.in.th/images/Basic-way-to-play.jpg",
-              color: "from-blue-500/20 to-transparent"
+              color: "from-gold/20 to-transparent"
             },
             { 
               id: "reading",
@@ -720,7 +720,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               desc: "เจาะลึกเค้าไพ่มังกร ปิงปอง เ้าไพ่ลูกคู่ และการวิเคราะห์โรดแมพ (Roadmap) ทั้ง 5 รูปแบบที่เซียนใช้ทำเงินจริง",
               icon: <Eye className="w-6 h-6 text-gold" />,
               image: "https://img1.pic.in.th/images/Reading-the-cards.jpg",
-              color: "from-purple-500/20 to-transparent"
+              color: "from-gold/20 to-transparent"
             },
             { 
               id: "money",
@@ -728,7 +728,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               desc: "สอนระบบการวางเดิมพันแบบ Martingale, Fibonacci, 1-3-2-4 และสูตรเดินเงินคงที่เพื่อรักษาพอร์ตและทำกำไรยั่งยืน",
               icon: <TrendingUp className="w-6 h-6 text-gold" />,
               image: "https://img1.pic.in.th/images/money-transfer-techniques.jpg",
-              color: "from-green-500/20 to-transparent"
+              color: "from-gold/20 to-transparent"
             },
             { 
               id: "expert",
@@ -736,7 +736,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               desc: "รวบรวมเคล็ดลับจิตวิทยาการเล่น การจัดการอารมณ์ และเทคนิคการเลือกห้องที่เพิ่มโอกาสชนะได้มากกว่า 80%",
               icon: <Zap className="w-6 h-6 text-gold" />,
               image: "https://img1.pic.in.th/images/Expert-tricks-1.jpg",
-              color: "from-red-500/20 to-transparent"
+              color: "from-gold/20 to-transparent"
             }
           ].map((item, i) => (
             <motion.div 
@@ -4334,9 +4334,182 @@ const FormulaPage = () => {
 // --- Main App ---
 
 export default function App() {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(true);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' } | null>(null);
+
+  // Fetch Articles
+  const fetchArticles = useCallback(async () => {
+    console.log('Fetching articles from API...');
+    setArticlesLoading(true);
+    try {
+      const response = await fetch('/api/articles');
+      if (!response.ok) throw new Error('Failed to fetch articles');
+      const docs: any = await response.json();
+      console.log(`Fetched ${docs.length} articles from API`);
+      
+      if (docs.length > 0) {
+        setArticles(docs as Article[]);
+      } else {
+        console.log('No articles in database, using static fallback');
+        setArticles(ARTICLES);
+      }
+    } catch (error) {
+      console.error("API Error (Articles):", error);
+      // Fallback to static articles on error
+      setArticles(ARTICLES);
+    } finally {
+      setArticlesLoading(false);
+    }
+  }, []);
+
+  // Fetch Categories
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      const catsData: any = await response.json();
+      const cats = catsData.map((cat: any) => cat.name);
+      setCategories(cats);
+    } catch (error) {
+      console.error("API Error (Categories):", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  useEffect(() => {
+    // Check for custom admin user in localStorage
+    const savedUser = localStorage.getItem('custom_admin_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('custom_admin_user');
+      }
+    }
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
+      if (!savedUser) {
+        setUser(u);
+      }
+      setAuthReady(true);
+    });
+
+    fetchArticles();
+    fetchCategories();
+
+    // Socket.io for real-time updates
+    console.log('Initializing socket.io client...');
+    const socket = io(window.location.origin, {
+      path: '/socket.io',
+      transports: ['polling', 'websocket'],
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      timeout: 30000,
+      autoConnect: true
+    });
+    
+    socket.on('connect', () => {
+      console.log('Socket.io connected with ID:', socket.id);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket.io connection error:', error.message, error);
+    });
+
+    socket.on('articles_updated', () => {
+      console.log('Articles updated via socket - fetching new data...');
+      fetchArticles();
+      setNotification({ message: 'อัพเดตบทความเรียบร้อยแล้ว', type: 'info' });
+    });
+    socket.on('categories_updated', () => {
+      console.log('Categories updated via socket - fetching new data...');
+      fetchCategories();
+      setNotification({ message: 'อัพเดตหมวดหมู่เรียบร้อยแล้ว', type: 'info' });
+    });
+
+    return () => {
+      unsubscribeAuth();
+      socket.disconnect();
+    };
+  }, [fetchArticles, fetchCategories]);
+
+  if (!authReady) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
+
   return (
-    <div className="min-h-screen bg-green-500 flex items-center justify-center">
-      <h1 className="text-4xl text-white">Hello World</h1>
-    </div>
+    <Router>
+      <div className="min-h-screen flex flex-col bg-baccarat-black">
+        <Navbar user={user} />
+        
+        {/* Real-time Notification Toast */}
+        <AnimatePresence>
+          {notification && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: 50, x: '-50%' }}
+              className="fixed bottom-10 left-1/2 z-[200] px-6 py-3 bg-gold text-baccarat-black font-bold rounded-full shadow-[0_0_30px_rgba(212,175,55,0.4)] flex items-center gap-2"
+            >
+              <Zap size={18} className="animate-pulse" />
+              {notification.message}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<HomePage articles={articles} user={user} />} />
+            <Route path="/articles" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/formula" element={<FormulaPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/login" element={<LoginPage user={user} setUser={setUser} />} />
+            <Route 
+              path="/admin" 
+              element={
+                user?.email === ADMIN_EMAIL ? (
+                  <AdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} loading={articlesLoading} fetchArticles={fetchArticles} />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
+            />
+            <Route 
+              path="/admin/batch-seo" 
+              element={
+                user?.email === ADMIN_EMAIL ? (
+                  <BatchSeoDashboard />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
+            />
+            <Route 
+              path="/admin/mcp-settings" 
+              element={
+                user?.email === ADMIN_EMAIL ? (
+                  <McpSettings />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
+            />
+            <Route path="/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </Router>
   );
 }

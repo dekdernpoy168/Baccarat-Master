@@ -7,12 +7,12 @@
   --color-gold-light: #F9E272;
   --color-gold-dark: #996515;
   --color-baccarat-red: #8B0000;
-  --color-baccarat-black: #0A0A0A;
+  --color-baccarat-black: #121212;
 }
 
 body {
   background-color: var(--color-baccarat-black);
-  color: #FFFFFF;
+  color: #E5E7EB;
   font-family: 'Inter', sans-serif;
 }
 
@@ -70,13 +70,13 @@ body {
 }
 
 .article-content a {
-  color: #22c55e !important;
+  color: var(--color-gold) !important;
   text-decoration: underline;
   font-weight: 600;
 }
 
 .article-content a:hover {
-  color: #16a34a !important;
+  color: var(--color-gold-light) !important;
 }
 
 /* CTA Block Style */
