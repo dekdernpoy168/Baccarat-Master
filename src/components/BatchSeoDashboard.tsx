@@ -159,9 +159,9 @@ export const BatchSeoDashboard: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <RefreshCw className={cn("w-8 h-8 text-blue-600", isProcessing && "animate-spin")} />
-            Batch SEO Generator
+            ระบบสร้าง SEO อัตโนมัติ
           </h1>
-          <p className="text-gray-500 mt-1">Generate Meta Titles and Descriptions for multiple articles at once.</p>
+          <p className="text-gray-500 mt-1">สร้าง Meta Title และ Description สำหรับบทความหลายรายการพร้อมกัน</p>
         </div>
         
         <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
@@ -186,19 +186,22 @@ export const BatchSeoDashboard: React.FC = () => {
           <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
             <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <FileText size={16} />
-              Article Titles (One per line)
+              หัวข้อบทความ (หนึ่งรายการต่อบรรทัด)
             </label>
             <textarea
               value={titlesText}
               onChange={(e) => setTitlesText(e.target.value)}
-              placeholder="Enter titles here..."
-              className="w-full h-64 p-4 rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+              placeholder="ใส่หัวข้อบทความที่นี่..."
+              className="w-full h-64 p-4 rounded-xl border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm text-gray-900"
               disabled={isProcessing}
             />
+            {!titlesText.trim() && !isProcessing && (
+              <p className="text-[10px] text-red-500 mt-1">* กรุณาใส่หัวข้อบทความอย่างน้อย 1 รายการ</p>
+            )}
             
             {mcpServers.length > 0 && (
               <div className="mt-4 p-3 bg-purple-50 rounded-xl border border-purple-100">
-                <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-2">Active MCP Tools</p>
+                <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-2">เครื่องมือ MCP ที่ใช้งานอยู่</p>
                 <div className="flex flex-wrap gap-2">
                   {mcpServers.map(s => (
                     <span key={s.id} className="px-2 py-1 bg-white rounded-lg text-[10px] font-medium text-purple-700 border border-purple-200 flex items-center gap-1">
@@ -221,19 +224,19 @@ export const BatchSeoDashboard: React.FC = () => {
               )}
             >
               {isProcessing ? <Loader2 className="animate-spin" /> : <Send size={18} />}
-              {isProcessing ? 'Processing Batch...' : 'Start Batch Generation'}
+              {isProcessing ? 'กำลังประมวลผล...' : 'เริ่มสร้างข้อมูล SEO'}
             </button>
           </div>
 
           {batchId && (
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Batch Status</span>
+                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">สถานะการทำงาน</span>
                 <span className={cn(
                   "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
                   status === 'ended' ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700 animate-pulse"
                 )}>
-                  {status}
+                  {status === 'ended' ? 'เสร็จสิ้น' : status}
                 </span>
               </div>
               <p className="text-xs text-blue-800 break-all">ID: {batchId}</p>
@@ -246,7 +249,7 @@ export const BatchSeoDashboard: React.FC = () => {
           {results.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-3xl p-12">
               <Sparkles size={48} className="mb-4 opacity-20" />
-              <p>Results will appear here once generation starts.</p>
+              <p>ผลลัพธ์จะปรากฏที่นี่เมื่อเริ่มการสร้างข้อมูล</p>
             </div>
           ) : (
             <div className={cn(
@@ -281,7 +284,7 @@ export const BatchSeoDashboard: React.FC = () => {
                         <div>
                           <h3 className="font-semibold text-gray-900 line-clamp-1">{result.title}</h3>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            {result.status === 'completed' ? 'Generation complete' : result.status === 'error' ? result.error : 'Waiting for AI...'}
+                            {result.status === 'completed' ? 'สร้างข้อมูลสำเร็จ' : result.status === 'error' ? result.error : 'กำลังรอ AI...'}
                           </p>
                         </div>
                       </div>
@@ -326,16 +329,16 @@ export const BatchSeoDashboard: React.FC = () => {
           )}
 
           <div className="mt-12 bg-gray-50 p-6 rounded-3xl border border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-widest">AI SEO Guide</h3>
+            <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-widest">คู่มือ AI SEO</h3>
             <div className="prose prose-sm max-w-none text-gray-600">
               <Markdown remarkPlugins={[remarkGfm]}>
                 {`
-### How it works
-1. **Input**: Enter a list of article titles you want to optimize.
-2. **Process**: The AI analyzes each title and generates optimized metadata.
-3. **Results**: You get a **Meta Title** (under 60 chars) and a **Meta Description** (under 160 chars).
+### วิธีการทำงาน
+1. **ใส่ข้อมูล**: ใส่รายการหัวข้อบทความที่คุณต้องการปรับแต่ง
+2. **ประมวลผล**: AI จะวิเคราะห์แต่ละหัวข้อและสร้าง Metadata ที่เหมาะสม
+3. **ผลลัพธ์**: คุณจะได้รับ **Meta Title** (ไม่เกิน 60 ตัวอักษร) และ **Meta Description** (ไม่เกิน 160 ตัวอักษร)
 
-> **Tip**: Use specific keywords in your titles for better AI results.
+> **คำแนะนำ**: ใช้คีย์เวิร์ดที่เฉพาะเจาะจงในหัวข้อเพื่อให้ AI ให้ผลลัพธ์ที่ดีขึ้น
                 `}
               </Markdown>
             </div>
