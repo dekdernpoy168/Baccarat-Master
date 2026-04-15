@@ -2730,96 +2730,165 @@ const AdminDashboard = ({ articles, categories, setArticles, setCategories, load
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <SEO title="Admin Dashboard" description="จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์" />
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12">
-        <div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
-          <p className="text-gray-400">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex gap-2">
-            <button 
-              onClick={() => exportArticles('xlsx')}
-              className="bg-green-500/10 text-green-500 px-4 py-2 rounded-full font-bold hover:bg-green-500/20 border border-green-500/30 transition-all flex items-center text-sm"
-            >
-              <Download size={18} className="mr-2" /> Excel
-            </button>
-            <button 
-              onClick={() => exportArticles('html')}
-              className="bg-blue-500/10 text-blue-500 px-4 py-2 rounded-full font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex items-center text-sm"
-            >
-              <Download size={18} className="mr-2" /> Word/Docs
-            </button>
-            <button 
-              onClick={() => exportArticles('txt')}
-              className="bg-gray-500/10 text-gray-500 px-4 py-2 rounded-full font-bold hover:bg-gray-500/20 border border-gray-500/30 transition-all flex items-center text-sm"
-            >
-              <Download size={18} className="mr-2" /> Text
-            </button>
-          </div>
-          <button 
-            onClick={() => setIsManagingCategories(true)}
-            className="bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center"
-          >
-            <Target size={20} className="mr-2 text-gold" /> จัดการหมวดหมู่
-          </button>
-          <button 
-            onClick={fetchArticles}
-            disabled={loading}
-            className="bg-gray-800 text-white p-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center border border-white/5 disabled:opacity-50"
-            title="รีเฟรชข้อมูล"
-          >
-            <RefreshCw size={20} className={cn(loading && "animate-spin")} />
-          </button>
-          <Link 
-            to="/admin/batch-seo"
-            className="bg-purple-600/20 text-purple-400 px-6 py-3 rounded-full font-bold hover:bg-purple-600/30 border border-purple-600/30 transition-all flex items-center"
-          >
-            <Sparkles size={20} className="mr-2" /> Batch SEO
-          </Link>
-          <Link 
-            to="/admin/mcp-settings"
-            className="bg-indigo-600/20 text-indigo-400 px-6 py-3 rounded-full font-bold hover:bg-indigo-600/30 border border-indigo-600/30 transition-all flex items-center"
-          >
-            <Settings2 size={20} className="mr-2" /> MCP Settings
-          </Link>
-          <button 
-            onClick={() => { setIsEditing(true); setCurrentArticle({ type: filterType }); }}
-            className="gold-bg-gradient text-baccarat-black px-8 py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center"
-          >
-            <Plus size={20} className="mr-2" /> {filterType === 'post' ? 'เพิ่มบทความใหม่' : 'เพิ่มหน้าใหม่'}
-          </button>
-          <button 
-            onClick={handleSeedArticles}
-            disabled={isSeeding}
-            className="bg-blue-600/20 text-blue-400 px-6 py-3 rounded-full font-bold hover:bg-blue-600/30 border border-blue-600/30 transition-all disabled:opacity-50 flex items-center"
-          >
-            {isSeeding ? 'กำลังเพิ่ม...' : <><Database size={20} className="mr-2" /> เพิ่มบทความเริ่มต้น</>}
-          </button>
-        </div>
+      
+      <div className="mb-12">
+        <h1 className="text-4xl font-black text-white uppercase tracking-tighter mb-2">Admin <span className="text-gold">Dashboard</span></h1>
+        <p className="text-gray-400">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
       </div>
 
-      <div className="flex bg-gray-900/50 p-1 rounded-2xl border border-gold/10 w-fit mb-8">
-        <button
-          onClick={() => setFilterType('post')}
-          className={cn(
-            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
-            filterType === 'post' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
+      {!isEditing && (
+        <div className="space-y-6 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Group 1: Content Management */}
+            <div className="bg-gray-900/50 border border-gold/20 p-6 rounded-3xl flex flex-col h-full">
+              <h3 className="text-gold font-bold mb-4 flex items-center gap-2">
+                <FileText size={20} /> จัดการเนื้อหา
+              </h3>
+              <div className="grid grid-cols-1 gap-3 mt-auto">
+                <button 
+                  onClick={() => { setIsEditing(true); setCurrentArticle({ type: 'post' }); }}
+                  className="gold-bg-gradient text-baccarat-black px-6 py-3 rounded-xl font-black hover:scale-[1.02] transition-all flex items-center justify-center"
+                >
+                  <Plus size={20} className="mr-2" /> เพิ่มบทความใหม่
+                </button>
+                <button 
+                  onClick={() => { setIsEditing(true); setCurrentArticle({ type: 'page' }); }}
+                  className="bg-gray-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-700 transition-all flex items-center justify-center border border-white/5"
+                >
+                  <Copy size={20} className="mr-2 text-gold" /> เพิ่มหน้าเพจใหม่
+                </button>
+                <button 
+                  onClick={fetchArticles}
+                  disabled={loading}
+                  className="bg-gray-800/50 text-gray-300 px-6 py-3 rounded-xl font-bold hover:bg-gray-700 transition-all flex items-center justify-center border border-white/5 disabled:opacity-50"
+                >
+                  <RefreshCw size={18} className={cn("mr-2", loading && "animate-spin")} /> รีเฟรชข้อมูล
+                </button>
+              </div>
+            </div>
+
+            {/* Group 2: SEO & AI Tools */}
+            <div className="bg-gray-900/50 border border-gold/20 p-6 rounded-3xl flex flex-col h-full">
+              <h3 className="text-gold font-bold mb-4 flex items-center gap-2">
+                <Sparkles size={20} /> เครื่องมือ SEO & AI
+              </h3>
+              <div className="grid grid-cols-1 gap-3 mt-auto">
+                <div className="flex gap-2">
+                  <Link 
+                    to="/admin/batch-seo"
+                    className="flex-grow bg-purple-600/20 text-purple-400 px-4 py-3 rounded-xl font-bold hover:bg-purple-600/30 border border-purple-600/30 transition-all flex items-center justify-center text-sm"
+                  >
+                    <Sparkles size={18} className="mr-2" /> Batch SEO
+                  </Link>
+                  <Link 
+                    to="/admin/mcp-settings"
+                    className="flex-grow bg-indigo-600/20 text-indigo-400 px-4 py-3 rounded-xl font-bold hover:bg-indigo-600/30 border border-indigo-600/30 transition-all flex items-center justify-center text-sm"
+                  >
+                    <Settings2 size={18} className="mr-2" /> MCP
+                  </Link>
+                </div>
+                <button 
+                  onClick={() => setIsManagingCategories(true)}
+                  className="bg-gray-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-700 transition-all flex items-center justify-center border border-white/5"
+                >
+                  <Target size={20} className="mr-2 text-gold" /> จัดการหมวดหมู่
+                </button>
+                <button
+                  onClick={() => generateLogo()}
+                  disabled={isGeneratingLogo}
+                  className="bg-gold/10 text-gold px-6 py-3 rounded-xl font-bold flex items-center justify-center border border-gold/20 disabled:opacity-50 transition-all hover:bg-gold/20"
+                >
+                  {isGeneratingLogo ? (
+                    <RefreshCw size={18} className="animate-spin mr-2" />
+                  ) : (
+                    <Wand2 size={18} className="mr-2" />
+                  )}
+                  {generatedLogo ? 'สร้างโลโก้ใหม่' : 'สร้างโลโก้ด้วย AI'}
+                </button>
+              </div>
+            </div>
+
+            {/* Group 3: Data & System */}
+            <div className="bg-gray-900/50 border border-gold/20 p-6 rounded-3xl flex flex-col h-full">
+              <h3 className="text-gold font-bold mb-4 flex items-center gap-2">
+                <Database size={20} /> จัดการข้อมูล & ระบบ
+              </h3>
+              <div className="space-y-4 mt-auto">
+                <div className="grid grid-cols-3 gap-2">
+                  <button 
+                    onClick={() => exportArticles('xlsx')}
+                    className="bg-green-500/10 text-green-500 p-3 rounded-xl font-bold hover:bg-green-500/20 border border-green-500/30 transition-all flex flex-col items-center justify-center text-[10px]"
+                    title="Export Excel"
+                  >
+                    <Download size={18} className="mb-1" /> Excel
+                  </button>
+                  <button 
+                    onClick={() => exportArticles('html')}
+                    className="bg-blue-500/10 text-blue-500 p-3 rounded-xl font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex flex-col items-center justify-center text-[10px]"
+                    title="Export Word"
+                  >
+                    <Download size={18} className="mb-1" /> Word
+                  </button>
+                  <button 
+                    onClick={() => exportArticles('txt')}
+                    className="bg-gray-500/10 text-gray-500 p-3 rounded-xl font-bold hover:bg-gray-500/20 border border-gray-500/30 transition-all flex flex-col items-center justify-center text-[10px]"
+                    title="Export Text"
+                  >
+                    <Download size={18} className="mb-1" /> Text
+                  </button>
+                </div>
+                <button 
+                  onClick={handleSeedArticles}
+                  disabled={isSeeding}
+                  className="w-full bg-blue-600/20 text-blue-400 px-6 py-3 rounded-xl font-bold hover:bg-blue-600/30 border border-blue-600/30 transition-all disabled:opacity-50 flex items-center justify-center"
+                >
+                  {isSeeding ? 'กำลังเพิ่ม...' : <><Database size={20} className="mr-2" /> เพิ่มบทความเริ่มต้น</>}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {generatedLogo && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-black/40 border border-gold/10 p-4 rounded-2xl flex items-center gap-4"
+            >
+              <img src={generatedLogo} alt="Logo" className="w-12 h-12 rounded-lg bg-black p-1 border border-gold/20" />
+              <div className="flex-grow">
+                <p className="text-white text-sm font-bold">โลโก้ที่สร้างล่าสุด</p>
+                <p className="text-gray-500 text-xs">คุณสามารถดาวน์โหลดหรือสร้างใหม่ได้จากเมนูเครื่องมือ</p>
+              </div>
+              <a href={generatedLogo} download="logo.png" className="text-gold hover:text-white p-2"><Download size={20} /></a>
+            </motion.div>
           )}
-        >
-          <FileText size={18} />
-          บทความ (Posts)
-        </button>
-        <button
-          onClick={() => setFilterType('page')}
-          className={cn(
-            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
-            filterType === 'page' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
-          )}
-        >
-          <Copy size={18} />
-          หน้าเพจ (Pages)
-        </button>
-      </div>
+        </div>
+      )}
+
+      {!isEditing && (
+        <div className="flex bg-gray-900/50 p-1 rounded-2xl border border-gold/10 w-fit mb-8">
+          <button
+            onClick={() => setFilterType('post')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+              filterType === 'post' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
+            )}
+          >
+            <FileText size={18} />
+            บทความ (Posts)
+          </button>
+          <button
+            onClick={() => setFilterType('page')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+              filterType === 'page' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
+            )}
+          >
+            <Copy size={18} />
+            หน้าเพจ (Pages)
+          </button>
+        </div>
+      )}
 
       {isEditing ? (
         <motion.div 
