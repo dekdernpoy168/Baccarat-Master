@@ -34,6 +34,9 @@ interface McpServer {
   url: string;
   token?: string;
   enabled: boolean;
+  status?: 'online' | 'offline' | 'unknown' | 'testing';
+  lastChecked?: string;
+  error?: string;
 }
 
 enum OperationType {
@@ -99,10 +102,64 @@ export const McpSettings: React.FC = () => {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testingAll, setTestingAll] = useState(false);
 
   useEffect(() => {
     fetchServers();
   }, []);
+
+  const testServerConnection = async (server: McpServer) => {
+    setServers(prev => prev.map(s => s.id === server.id ? { ...s, status: 'testing', error: undefined } : s));
+    
+    try {
+      // Basic connectivity test
+      // Note: MCP servers usually use SSE or HTTP. A simple fetch can check if the endpoint is reachable.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const headers: HeadersInit = {};
+      if (server.token) {
+        headers['Authorization'] = server.token.startsWith('Bearer ') ? server.token : `Bearer ${server.token}`;
+      }
+
+      const response = await fetch(server.url, { 
+        method: 'GET', // Or HEAD if supported
+        headers,
+        signal: controller.signal,
+        mode: 'no-cors' // Use no-cors to avoid preflight issues for simple reachability check
+      });
+
+      clearTimeout(timeoutId);
+      
+      // With no-cors, we can't see the status code, but if it didn't throw, it's reachable
+      setServers(prev => prev.map(s => s.id === server.id ? { 
+        ...s, 
+        status: 'online', 
+        lastChecked: new Date().toISOString(),
+        error: undefined
+      } : s));
+      
+      return true;
+    } catch (err: any) {
+      const errorMessage = err.name === 'AbortError' ? 'การเชื่อมต่อหมดเวลา (Timeout)' : 'ไม่สามารถเชื่อมต่อได้ (Connection Refused)';
+      setServers(prev => prev.map(s => s.id === server.id ? { 
+        ...s, 
+        status: 'offline', 
+        lastChecked: new Date().toISOString(),
+        error: errorMessage
+      } : s));
+      return false;
+    }
+  };
+
+  const testAllServers = async () => {
+    setTestingAll(true);
+    const enabledServers = servers.filter(s => s.enabled);
+    for (const server of enabledServers) {
+      await testServerConnection(server);
+    }
+    setTestingAll(false);
+  };
 
   const fetchServers = async () => {
     setLoading(true);
@@ -193,13 +250,23 @@ export const McpSettings: React.FC = () => {
           <p className="text-gray-400 mt-1">จัดการเซิร์ฟเวอร์ Model Context Protocol สำหรับเครื่องมือ AI</p>
         </div>
         
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-purple-700 transition-all shadow-lg shadow-purple-900/20"
-        >
-          <Plus size={18} />
-          เพิ่มเซิร์ฟเวอร์
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={testAllServers}
+            disabled={loading || testingAll || servers.length === 0}
+            className="bg-gray-800 text-gray-300 px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-gray-700 transition-all border border-white/5 disabled:opacity-50"
+          >
+            {testingAll ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} className="text-yellow-400" />}
+            ทดสอบทั้งหมด
+          </button>
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-purple-700 transition-all shadow-lg shadow-purple-900/20"
+          >
+            <Plus size={18} />
+            เพิ่มเซิร์ฟเวอร์
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -350,15 +417,43 @@ export const McpSettings: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-gray-100">{server.name}</h3>
                       {server.token && <Shield size={14} className="text-green-500" />}
+                      {server.status === 'online' && (
+                        <span className="flex items-center gap-1 text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">
+                          <CheckCircle2 size={10} /> Online
+                        </span>
+                      )}
+                      {server.status === 'offline' && (
+                        <span className="flex items-center gap-1 text-[10px] text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full border border-red-400/20">
+                          <AlertCircle size={10} /> Offline
+                        </span>
+                      )}
+                      {server.status === 'testing' && (
+                        <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">
+                          <Loader2 size={10} className="animate-spin" /> Testing...
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                       <ExternalLink size={12} />
                       {server.url}
                     </p>
+                    {server.error && (
+                      <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
+                        <AlertCircle size={10} /> {server.error}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => testServerConnection(server)}
+                    disabled={server.status === 'testing'}
+                    className="p-2 text-gray-500 hover:text-yellow-400 transition-colors"
+                    title="ทดสอบการเชื่อมต่อ"
+                  >
+                    <Zap size={18} className={cn(server.status === 'testing' && "animate-pulse")} />
+                  </button>
                   <button 
                     onClick={() => toggleServer(server)}
                     className={cn(
