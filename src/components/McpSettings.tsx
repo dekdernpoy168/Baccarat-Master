@@ -117,17 +117,41 @@ export const McpSettings: React.FC = () => {
   const testConnection = async (provider: string) => {
     setTestingConnection(true);
     setTestResult(null);
-    // Simulate connection test for now
-    setTimeout(() => {
+    setError(null);
+    
+    const providerConfig = config[provider];
+    if (!providerConfig) return;
+
+    try {
+      const res = await fetch('/api/ai/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          apiKey: providerConfig.apiKey,
+          proxyUrl: providerConfig.proxyUrl
+        })
+      });
+      
+      const data = await res.json() as { success: boolean, error?: string };
+      if (data.success) {
+        setTestResult('success');
+      } else {
+        setTestResult('error');
+        setError(`การเชื่อมต่อล้มเหลว: ${data.error}`);
+      }
+    } catch (err: any) {
+      setTestResult('error');
+      setError("เกิดข้อผิดพลาดในการทดสอบการเชื่อมต่อ");
+    } finally {
       setTestingConnection(false);
-      setTestResult('success');
-    }, 1500);
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -136,7 +160,7 @@ export const McpSettings: React.FC = () => {
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-gray-900">ผู้ให้บริการ</h2>
-        <select className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <select className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option>คีย์ API ที่กำหนดเอง</option>
         </select>
       </div>
@@ -156,43 +180,44 @@ export const McpSettings: React.FC = () => {
         {Object.entries(PROVIDER_DETAILS).map(([key, details]) => {
           const providerConfig = config[key] || { enabled: false, apiKey: '', proxyUrl: '', models: [] };
           const Icon = details.icon;
+          const isConfigured = key === 'ollama' || !!providerConfig.apiKey;
+          const isUsable = providerConfig.enabled && isConfigured;
           
           return (
-            <div key={key} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-indigo-300 transition-colors bg-white">
+            <div key={key} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-blue-300 transition-colors bg-white">
               <div className="flex items-center gap-3">
-                <div className={cn("p-2 rounded-lg bg-gray-50", details.color)}>
+                <div className={cn("p-2 rounded-lg bg-gray-50 relative", details.color)}>
                   <Icon className="w-5 h-5" />
+                  <div className={cn(
+                    "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
+                    isUsable ? "bg-green-500" : (providerConfig.enabled ? "bg-yellow-500" : "bg-gray-300")
+                  )} title={isUsable ? "พร้อมใช้งาน" : (providerConfig.enabled ? "เปิดใช้งานแต่ยังไม่ได้ตั้งค่าคีย์" : "ปิดใช้งาน")}></div>
                 </div>
-                <span className="font-medium text-gray-900">{details.name}</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-gray-900">{details.name}</span>
+                  <span className="text-xs text-gray-500">
+                    {isUsable ? "พร้อมใช้งาน" : (providerConfig.enabled ? "ขาด API Key" : "ปิดใช้งาน")}
+                  </span>
+                </div>
               </div>
               
               <div className="flex items-center gap-3">
-                {key === 'groq' ? (
-                  <>
-                    <button 
-                      onClick={() => setSelectedProvider(key)}
-                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={providerConfig.enabled}
-                        onChange={(e) => handleToggleProvider(key, e.target.checked)}
-                      />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setSelectedProvider(key)}
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors"
-                  >
-                    ตั้งค่า
-                  </button>
-                )}
+                <button 
+                  onClick={() => setSelectedProvider(key)}
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  title="ตั้งค่า"
+                >
+                  <Settings2 className="w-4 h-4" />
+                </button>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={providerConfig.enabled}
+                    onChange={(e) => handleToggleProvider(key, e.target.checked)}
+                  />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
               </div>
             </div>
           );
@@ -236,7 +261,7 @@ export const McpSettings: React.FC = () => {
                         value={config[selectedProvider]?.apiKey || ''}
                         onChange={(e) => handleUpdateProvider(selectedProvider, { apiKey: e.target.value })}
                         placeholder="กรุณาใส่คีย์ API ของคุณ"
-                        className="w-full pl-3 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        className="w-full pl-3 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       />
                       <button
                         type="button"
@@ -258,7 +283,7 @@ export const McpSettings: React.FC = () => {
                     value={config[selectedProvider]?.proxyUrl || ''}
                     onChange={(e) => handleUpdateProvider(selectedProvider, { proxyUrl: e.target.value })}
                     placeholder={selectedProvider === 'ollama' ? "http://localhost:11434" : "https://api.example.com/v1"}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   />
                 </div>
 
@@ -270,7 +295,7 @@ export const McpSettings: React.FC = () => {
                   <button
                     onClick={() => testConnection(selectedProvider)}
                     disabled={testingConnection}
-                    className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {testingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
                     ตรวจสอบ
@@ -289,7 +314,7 @@ export const McpSettings: React.FC = () => {
                     <h4 className="text-sm font-medium text-gray-900">
                       รายการโมเดล <span className="text-gray-500 font-normal">(มีโมเดล {config[selectedProvider]?.models?.length || 0} รายการที่พร้อมใช้งาน)</span>
                     </h4>
-                    <button className="p-1 text-gray-400 hover:text-indigo-600 transition-colors">
+                    <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
@@ -300,7 +325,7 @@ export const McpSettings: React.FC = () => {
                         <span className="text-sm text-gray-700">{model}</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input type="checkbox" className="sr-only peer" defaultChecked={true} />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                       </div>
                     ))}
@@ -321,7 +346,7 @@ export const McpSettings: React.FC = () => {
                 <button
                   onClick={handleSaveModal}
                   disabled={saving}
-                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   บันทึก

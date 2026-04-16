@@ -466,6 +466,61 @@ async function startServer() {
     }
   });
 
+  server.post("/api/ai/test-connection", async (req, res) => {
+    const { provider, apiKey, proxyUrl } = req.body;
+    
+    if (!apiKey && provider !== 'ollama') {
+      return res.status(400).json({ success: false, error: "API key is required" });
+    }
+
+    try {
+      if (provider === 'openai') {
+        const openaiClient = new OpenAI({ apiKey, baseURL: proxyUrl || undefined });
+        await openaiClient.models.list();
+        return res.json({ success: true });
+      } 
+      else if (provider === 'anthropic') {
+        const anthropicClient = new Anthropic({ apiKey, baseURL: proxyUrl || undefined });
+        // Anthropic doesn't have a simple models.list, so we do a minimal completion
+        await anthropicClient.messages.create({
+          model: "claude-3-haiku-20240307",
+          max_tokens: 1,
+          messages: [{ role: "user", content: "Hi" }]
+        });
+        return res.json({ success: true });
+      }
+      else if (provider === 'gemini') {
+        const genAI = new GoogleGenAI({ apiKey });
+        // Minimal call to test key
+        const result = await genAI.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: [{ role: "user", parts: [{ text: "Hi" }] }],
+        });
+        return res.json({ success: true });
+      }
+      else if (provider === 'deepseek') {
+        const deepseekClient = new OpenAI({ apiKey, baseURL: proxyUrl || "https://api.deepseek.com/v1" });
+        await deepseekClient.models.list();
+        return res.json({ success: true });
+      }
+      else if (provider === 'groq') {
+        const groqClient = new OpenAI({ apiKey, baseURL: proxyUrl || "https://api.groq.com/openai/v1" });
+        await groqClient.models.list();
+        return res.json({ success: true });
+      }
+      else if (provider === 'ollama') {
+        const ollamaClient = new OpenAI({ apiKey: "ollama", baseURL: proxyUrl || "http://localhost:11434/v1" });
+        await ollamaClient.models.list();
+        return res.json({ success: true });
+      }
+      
+      return res.status(400).json({ success: false, error: "Unknown provider" });
+    } catch (error: any) {
+      console.error(`Connection test failed for ${provider}:`, error.message);
+      return res.status(400).json({ success: false, error: error.message || "Connection failed" });
+    }
+  });
+
   server.post("/api/ai/generate-keywords", async (req, res) => {
     try {
       const { primaryKeyword, count } = req.body;
