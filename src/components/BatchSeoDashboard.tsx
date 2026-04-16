@@ -24,12 +24,16 @@ import { db } from '../firebase';
 
 interface BatchResult {
   custom_id: string;
-  response: {
-    body: {
+  result: {
+    type: 'succeeded' | 'errored' | 'canceled' | 'expired';
+    message?: {
       content: Array<{
         type: string;
         text: string;
       }>;
+    };
+    error?: {
+      message: string;
     };
   };
 }
@@ -60,6 +64,7 @@ export const BatchSeoDashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMcpServers();
@@ -81,6 +86,7 @@ export const BatchSeoDashboard: React.FC = () => {
     if (titles.length === 0) return;
 
     setIsProcessing(true);
+    setError(null);
     try {
       const response = await fetch('/api/ai/batch-seo', {
         method: 'POST',
@@ -90,8 +96,58 @@ export const BatchSeoDashboard: React.FC = () => {
           mcpServers: mcpServers.map(s => ({ name: s.name, url: s.url, token: s.token }))
         })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json() as any;
+        throw new Error(errorData.error || 'Failed to start batch processing');
+      }
+
       const data = await response.json() as any;
-      if (data.batchId) {
+      if (data.results) {
+        // Synchronous processing completed
+        setBatchId('sync-batch');
+        setStatus('ended');
+        
+        const newResults = titles.map((title, i) => {
+          const res = data.results.find((r: any) => r.custom_id === `seo-req-${i}`);
+          if (res && res.result.type === 'succeeded' && res.result.message) {
+            try {
+              const content = res.result.message.content[0].text;
+              const jsonMatch = content.match(/\{[\s\S]*\}/);
+              const jsonStr = jsonMatch ? jsonMatch[0] : content;
+              const parsed = JSON.parse(jsonStr);
+              return {
+                id: `seo-req-${i}`,
+                title,
+                metaTitle: parsed.metaTitle || '',
+                metaDescription: parsed.metaDescription || '',
+                status: 'completed' as const
+              };
+            } catch (e) {
+              return {
+                id: `seo-req-${i}`,
+                title,
+                metaTitle: '',
+                metaDescription: '',
+                status: 'error' as const,
+                error: 'Failed to parse AI response'
+              };
+            }
+          } else {
+            return {
+              id: `seo-req-${i}`,
+              title,
+              metaTitle: '',
+              metaDescription: '',
+              status: 'error' as const,
+              error: res?.result?.error?.message || 'Request failed'
+            };
+          }
+        });
+        setResults(newResults);
+        setIsProcessing(false);
+      } else if (data.batchId) {
+        // Asynchronous batch processing
         setBatchId(data.batchId);
         setStatus(data.status);
         // Initialize results with pending status
@@ -102,9 +158,13 @@ export const BatchSeoDashboard: React.FC = () => {
           metaDescription: '',
           status: 'pending'
         })));
+      } else {
+        throw new Error('No valid response from server');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Batch start error:', error);
+      setError(error.message);
+      setIsProcessing(false);
     }
   };
 
@@ -122,18 +182,26 @@ export const BatchSeoDashboard: React.FC = () => {
             data.results.forEach((res: BatchResult) => {
               const index = newResults.findIndex(r => r.id === res.custom_id);
               if (index !== -1) {
-                try {
-                  const content = res.response.body.content[0].text;
-                  const parsed = JSON.parse(content);
-                  newResults[index] = {
-                    ...newResults[index],
-                    metaTitle: parsed.metaTitle,
-                    metaDescription: parsed.metaDescription,
-                    status: 'completed'
-                  };
-                } catch (e) {
+                if (res.result.type === 'succeeded' && res.result.message) {
+                  try {
+                    const content = res.result.message.content[0].text;
+                    // Try to find JSON in the text if it's not pure JSON
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    const jsonStr = jsonMatch ? jsonMatch[0] : content;
+                    const parsed = JSON.parse(jsonStr);
+                    newResults[index] = {
+                      ...newResults[index],
+                      metaTitle: parsed.metaTitle || '',
+                      metaDescription: parsed.metaDescription || '',
+                      status: 'completed'
+                    };
+                  } catch (e) {
+                    newResults[index].status = 'error';
+                    newResults[index].error = 'Failed to parse AI response';
+                  }
+                } else {
                   newResults[index].status = 'error';
-                  newResults[index].error = 'Failed to parse AI response';
+                  newResults[index].error = res.result.error?.message || `Request ${res.result.type}`;
                 }
               }
             });
@@ -164,7 +232,17 @@ export const BatchSeoDashboard: React.FC = () => {
           <p className="text-gray-400 mt-1">สร้าง Meta Title และ Description สำหรับบทความหลายรายการพร้อมกัน</p>
         </div>
         
-        <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-lg border border-white/5">
+        <div className="flex items-center gap-4">
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 bg-red-900/20 px-4 py-2 rounded-xl border border-red-500/20 text-sm">
+              <AlertCircle size={16} />
+              {error}
+              <button onClick={() => setError(null)} className="ml-2 hover:text-white">
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-lg border border-white/5">
           <button 
             onClick={() => setViewMode('list')}
             className={cn("p-2 rounded-md transition-all", viewMode === 'list' ? "bg-gray-800 shadow-sm text-blue-400" : "text-gray-500 hover:text-gray-300")}
@@ -179,6 +257,7 @@ export const BatchSeoDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+    </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Input Section */}

@@ -48,7 +48,7 @@ const openai = new OpenAI({
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "dummy",
   defaultHeaders: {
-    "anthropic-beta": "mcp-client-2025-11-20"
+    "anthropic-beta": "mcp-client-2025-11-20,message-batches-2024-09-24"
   }
 });
 
@@ -109,38 +109,63 @@ interface McpServerConfig {
   token?: string;
 }
 
-async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[] } = {}) {
-  // 1. Try Gemini first (most reliable in this environment)
-  try {
-    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-    const modelParams: any = {
-      model: "gemini-1.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    };
-    
-    if (options.json) {
-      modelParams.config = {
-        responseMimeType: "application/json",
-        responseSchema: options.schema
-      };
-    }
+async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' } = {}) {
+  const hasOpenAI = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy";
+  const hasAnthropic = process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy";
+  const hasGemini = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy";
 
-    const result: any = await genAI.models.generateContent(modelParams);
-    console.log("Gemini Usage:", result.usageMetadata);
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
-    return options.json ? JSON.parse(text) : text;
-  } catch (geminiError: any) {
-    console.warn("Gemini Error, falling back to Anthropic:", geminiError.message);
-    
-    // 2. Try Anthropic if Gemini fails
-    if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy") {
-      try {
-        const systemPrompt = options.json ? "Return ONLY a valid JSON object. No other text." : "";
+  // Determine order of providers based on preference and availability
+  let providers: ('openai' | 'anthropic' | 'gemini')[] = [];
+  
+  if (options.preferredProvider) {
+    providers.push(options.preferredProvider);
+  }
+  
+  // Add remaining available providers as fallbacks
+  if (hasOpenAI && !providers.includes('openai')) providers.push('openai');
+  if (hasAnthropic && !providers.includes('anthropic')) providers.push('anthropic');
+  if (hasGemini && !providers.includes('gemini')) providers.push('gemini');
+
+  if (providers.length === 0) {
+    throw new Error("No AI providers are configured.");
+  }
+
+  let lastError: any = null;
+
+  for (const provider of providers) {
+    try {
+      if (provider === 'openai') {
+        let finalPrompt = prompt;
+        if (options.json) {
+          if (!prompt.toLowerCase().includes('json')) {
+            finalPrompt += '\n\nPlease return the response in JSON format.';
+          }
+          if (options.schema) {
+            finalPrompt += `\n\nExpected JSON structure:\n${JSON.stringify(options.schema, null, 2)}`;
+          }
+        }
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: finalPrompt }],
+          response_format: options.json ? { type: "json_object" } : { type: "text" },
+        });
+        console.log("OpenAI Usage:", response.usage);
+        const text = response.choices[0].message.content || (options.json ? "{}" : "");
+        return options.json ? JSON.parse(text) : text;
+      } 
+      
+      else if (provider === 'anthropic') {
+        let systemPrompt = options.json ? "Return ONLY a valid JSON object. No other text." : "";
+        let finalPrompt = prompt;
+        if (options.json && options.schema) {
+          finalPrompt += `\n\nExpected JSON structure:\n${JSON.stringify(options.schema, null, 2)}`;
+        }
+        
         const anthropicParams: any = {
           max_tokens: 4096,
           system: systemPrompt,
-          messages: [{ role: "user", content: prompt }],
-          model: "claude-3-opus-20240229",
+          messages: [{ role: "user", content: finalPrompt }],
+          model: "claude-3-5-sonnet-20241022",
         };
 
         if (options.mcpServers && options.mcpServers.length > 0) {
@@ -150,7 +175,6 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
             name: s.name,
             authorization_token: s.token
           }));
-          
           anthropicParams.tools = options.mcpServers.map(s => ({
             type: "mcp_toolset",
             mcp_server_name: s.name
@@ -159,9 +183,9 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
 
         if (options.useTools && !options.mcpServers) {
           const finalMessage = await anthropic.beta.messages.toolRunner({
-            model: "claude-3-opus-20240229",
+            model: "claude-3-5-sonnet-20241022",
             max_tokens: 4096,
-            messages: [{ role: "user", content: prompt }],
+            messages: [{ role: "user", content: finalPrompt }],
             tools: [keywordTool, articleCheckTool],
           });
           console.log("Anthropic Tool Usage:", finalMessage.usage);
@@ -177,36 +201,45 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           try {
             return JSON.parse(text);
           } catch (e) {
-            console.warn("Anthropic JSON parse failed");
+            console.warn("Anthropic JSON parse failed, trying to extract JSON");
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) return JSON.parse(jsonMatch[0]);
+            throw e;
           }
         } else {
           return text;
         }
-      } catch (anthropicError: any) {
-        console.warn("Anthropic Error, falling back to OpenAI:", anthropicError.message);
       }
-    }
 
-    // 3. Try OpenAI as final fallback
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "dummy") {
-      throw new Error("All AI providers failed and OPENAI_API_KEY is not set.");
-    }
+      else if (provider === 'gemini') {
+        const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+        const modelParams: any = {
+          model: "gemini-1.5-flash",
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        };
+        
+        if (options.json) {
+          modelParams.config = {
+            responseMimeType: "application/json",
+            responseSchema: options.schema
+          };
+        }
 
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: options.json ? { type: "json_object" } : { type: "text" },
-      });
-
-      console.log("OpenAI Usage:", response.usage);
-      const text = response.choices[0].message.content || (options.json ? "{}" : "");
-      return options.json ? JSON.parse(text) : text;
-    } catch (openaiError: any) {
-      console.error("All AI providers failed:", openaiError.message);
-      throw new Error(`AI generation failed: ${openaiError.message}`);
+        const result: any = await genAI.models.generateContent(modelParams);
+        console.log("Gemini Usage:", result.usageMetadata);
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
+        return options.json ? JSON.parse(text) : text;
+      }
+    } catch (error: any) {
+      console.warn(`${provider} failed:`, error.message);
+      lastError = error;
+      // Continue to the next provider in the loop
     }
   }
+
+  // If we get here, all providers failed
+  console.error("All AI providers failed. Last error:", lastError?.message);
+  throw new Error(`AI generation failed: ${lastError?.message || "Unknown error"}`);
 }
 
 async function* streamAI(prompt: string) {
@@ -519,49 +552,115 @@ async function startServer() {
 
   server.post("/api/ai/batch-seo", async (req, res) => {
     try {
-      const { titles, mcpServers } = req.body; // Array of titles and optional MCP servers
+      const { titles, mcpServers } = req.body;
       if (!Array.isArray(titles)) {
         return res.status(400).json({ error: "titles must be an array" });
       }
 
-      if (!process.env.ANTHROPIC_API_KEY) {
-        return res.status(501).json({ error: "Anthropic API key required for batch processing" });
+      const hasOpenAI = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy";
+      const hasAnthropic = process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy";
+
+      if (!hasOpenAI && !hasAnthropic) {
+        return res.status(501).json({ error: "No AI API keys are configured (OpenAI or Anthropic)." });
       }
 
-      const requests: any[] = titles.map((title, index) => {
-        const params: any = {
-          model: "claude-3-opus-20240229",
-          max_tokens: 500,
-          messages: [{ 
-            role: "user" as const, 
-            content: `Generate SEO meta title and description for: "${title}". Return as JSON: { "metaTitle": "...", "metaDescription": "..." }` 
-          }]
+      // Determine preferred provider based on mcpServers
+      let preferredProvider = hasAnthropic ? "anthropic" : "openai";
+      if (mcpServers && Array.isArray(mcpServers)) {
+        if (mcpServers.some(s => s.name.includes('OPENAI'))) {
+          preferredProvider = hasOpenAI ? "openai" : preferredProvider;
+        } else if (mcpServers.some(s => s.name.includes('ANTHROPIC'))) {
+          preferredProvider = hasAnthropic ? "anthropic" : preferredProvider;
+        }
+      }
+
+      // Process concurrently using Promise.all
+      const results = await Promise.all(titles.map(async (title, index) => {
+        const prompt = `Generate SEO meta title and description for this article title: "${title}". 
+              Return ONLY a JSON object with "metaTitle" and "metaDescription" keys. 
+              Meta Title should be under 60 characters. Meta Description should be under 160 characters.`;
+
+        let resultData = null;
+        let lastError = null;
+
+        // Helper to call OpenAI
+        const callOpenAI = async () => {
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" }
+          });
+          return {
+            type: 'succeeded',
+            message: {
+              content: [{ type: 'text', text: response.choices[0].message.content || '{}' }]
+            }
+          };
         };
 
-        if (mcpServers && mcpServers.length > 0) {
-          params.mcp_servers = mcpServers.map((s: any) => ({
-            type: "url",
-            url: s.url,
-            name: s.name,
-            authorization_token: s.token
-          }));
-          
-          params.tools = mcpServers.map((s: any) => ({
-            type: "mcp_toolset",
-            mcp_server_name: s.name
-          }));
+        // Helper to call Anthropic
+        const callAnthropic = async () => {
+          const response = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 500,
+            messages: [{ role: "user", content: prompt }]
+          });
+          return {
+            type: 'succeeded',
+            message: {
+              content: response.content
+            }
+          };
+        };
+
+        try {
+          if (preferredProvider === "openai") {
+            try {
+              resultData = await callOpenAI();
+            } catch (err: any) {
+              console.warn(`OpenAI failed for "${title}", falling back to Anthropic:`, err.message);
+              if (hasAnthropic) {
+                resultData = await callAnthropic();
+              } else {
+                throw err;
+              }
+            }
+          } else {
+            try {
+              resultData = await callAnthropic();
+            } catch (err: any) {
+              console.warn(`Anthropic failed for "${title}", falling back to OpenAI:`, err.message);
+              if (hasOpenAI) {
+                resultData = await callOpenAI();
+              } else {
+                throw err;
+              }
+            }
+          }
+        } catch (err: any) {
+          lastError = err;
         }
 
-        return {
-          custom_id: `seo-req-${index}`,
-          params
-        };
-      });
+        if (resultData) {
+          return { custom_id: `seo-req-${index}`, result: resultData };
+        } else {
+          return {
+            custom_id: `seo-req-${index}`,
+            result: {
+              type: 'errored',
+              error: { message: lastError?.message || "Unknown error" }
+            }
+          };
+        }
+      }));
 
-      const batch = await anthropic.messages.batches.create({ requests });
-      res.json({ batchId: batch.id, status: batch.processing_status });
+      res.json({ results });
     } catch (error: any) {
-      console.error("Batch SEO Error:", error);
+      console.error("Batch SEO Error Details:", {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data || error.response
+      });
       res.status(500).json({ error: error.message });
     }
   });
@@ -569,11 +668,17 @@ async function startServer() {
   server.get("/api/ai/batch-results/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const batch = await anthropic.messages.batches.retrieve(id);
+      const batchApi = (anthropic as any).beta?.messages?.batches || (anthropic as any).messages?.batches;
+      
+      if (!batchApi) {
+        throw new Error("Anthropic Batch API is not available.");
+      }
+
+      const batch = await batchApi.retrieve(id);
       
       if (batch.processing_status === 'ended') {
         const results = [];
-        const iter = await anthropic.messages.batches.results(id);
+        const iter = await batchApi.results(id);
         for await (const entry of iter) {
           results.push(entry);
         }
