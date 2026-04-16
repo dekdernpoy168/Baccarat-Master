@@ -21,6 +21,47 @@ import Anthropic from '@anthropic-ai/sdk';
 import { z } from "zod";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 
+// Helper to read AI providers config
+const AI_PROVIDERS_FILE = path.join(process.cwd(), 'ai-providers.json');
+
+function getAiProvidersConfig() {
+  try {
+    if (fs.existsSync(AI_PROVIDERS_FILE)) {
+      const data = fs.readFileSync(AI_PROVIDERS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error("Error reading ai-providers.json:", err);
+  }
+  return {};
+}
+
+function saveAiProvidersConfig(config: any) {
+  try {
+    fs.writeFileSync(AI_PROVIDERS_FILE, JSON.stringify(config, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error("Error writing ai-providers.json:", err);
+    return false;
+  }
+}
+
+// Helper to get API key (prefers config file, falls back to env)
+function getApiKey(provider: string) {
+  const config = getAiProvidersConfig();
+  if (config[provider] && config[provider].apiKey) {
+    return config[provider].apiKey;
+  }
+  
+  if (provider === 'openai') return process.env.OPENAI_API_KEY;
+  if (provider === 'anthropic') return process.env.ANTHROPIC_API_KEY;
+  if (provider === 'gemini') return process.env.GEMINI_API_KEY;
+  if (provider === 'deepseek') return process.env.DEEPSEEK_API_KEY;
+  if (provider === 'groq') return process.env.GROQ_API_KEY;
+  
+  return undefined;
+}
+
 // Configure R2 Client
 const r2Client = new S3Client({
   region: "auto",
@@ -109,13 +150,18 @@ interface McpServerConfig {
   token?: string;
 }
 
-async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' } = {}) {
-  const hasOpenAI = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy";
-  const hasAnthropic = process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy";
-  const hasGemini = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy";
+async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'ollama' } = {}) {
+  const config = getAiProvidersConfig();
+  
+  const hasOpenAI = (config.openai?.enabled && getApiKey('openai')) || (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy");
+  const hasAnthropic = (config.anthropic?.enabled && getApiKey('anthropic')) || (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy");
+  const hasGemini = (config.gemini?.enabled && getApiKey('gemini')) || (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy");
+  const hasDeepseek = config.deepseek?.enabled && getApiKey('deepseek');
+  const hasGroq = config.groq?.enabled && getApiKey('groq');
+  const hasOllama = config.ollama?.enabled;
 
   // Determine order of providers based on preference and availability
-  let providers: ('openai' | 'anthropic' | 'gemini')[] = [];
+  let providers: ('openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'ollama')[] = [];
   
   if (options.preferredProvider) {
     providers.push(options.preferredProvider);
@@ -125,6 +171,9 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
   if (hasOpenAI && !providers.includes('openai')) providers.push('openai');
   if (hasAnthropic && !providers.includes('anthropic')) providers.push('anthropic');
   if (hasGemini && !providers.includes('gemini')) providers.push('gemini');
+  if (hasDeepseek && !providers.includes('deepseek')) providers.push('deepseek');
+  if (hasGroq && !providers.includes('groq')) providers.push('groq');
+  if (hasOllama && !providers.includes('ollama')) providers.push('ollama');
 
   if (providers.length === 0) {
     throw new Error("No AI providers are configured.");
@@ -135,6 +184,9 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
   for (const provider of providers) {
     try {
       if (provider === 'openai') {
+        const apiKey = getApiKey('openai') || process.env.OPENAI_API_KEY;
+        const openaiClient = new OpenAI({ apiKey });
+        
         let finalPrompt = prompt;
         if (options.json) {
           if (!prompt.toLowerCase().includes('json')) {
@@ -144,7 +196,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
             finalPrompt += `\n\nExpected JSON structure:\n${JSON.stringify(options.schema, null, 2)}`;
           }
         }
-        const response = await openai.chat.completions.create({
+        const response = await openaiClient.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [{ role: "user", content: finalPrompt }],
           response_format: options.json ? { type: "json_object" } : { type: "text" },
@@ -155,6 +207,9 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
       } 
       
       else if (provider === 'anthropic') {
+        const apiKey = getApiKey('anthropic') || process.env.ANTHROPIC_API_KEY;
+        const anthropicClient = new Anthropic({ apiKey, defaultHeaders: { "anthropic-beta": "prompt-caching-2024-07-31" } });
+        
         let systemPrompt = options.json ? "Return ONLY a valid JSON object. No other text." : "";
         let finalPrompt = prompt;
         if (options.json && options.schema) {
@@ -182,7 +237,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         }
 
         if (options.useTools && !options.mcpServers) {
-          const finalMessage = await anthropic.beta.messages.toolRunner({
+          const finalMessage = await anthropicClient.beta.messages.toolRunner({
             model: "claude-3-5-sonnet-20241022",
             max_tokens: 4096,
             messages: [{ role: "user", content: finalPrompt }],
@@ -193,7 +248,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           return options.json ? JSON.parse(text) : text;
         }
 
-        const message = await anthropic.messages.create(anthropicParams);
+        const message = await anthropicClient.messages.create(anthropicParams);
         console.log("Anthropic Usage:", message.usage);
         const text = message.content[0].type === 'text' ? message.content[0].text : "";
         
@@ -212,7 +267,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
       }
 
       else if (provider === 'gemini') {
-        const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+        const apiKey = getApiKey('gemini') || process.env.GEMINI_API_KEY;
+        const genAI = new GoogleGenAI({ apiKey: apiKey || "" });
         const modelParams: any = {
           model: "gemini-1.5-flash",
           contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -228,6 +284,74 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         const result: any = await genAI.models.generateContent(modelParams);
         console.log("Gemini Usage:", result.usageMetadata);
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
+        return options.json ? JSON.parse(text) : text;
+      }
+      
+      else if (provider === 'deepseek') {
+        const apiKey = getApiKey('deepseek');
+        const baseURL = config.deepseek?.proxyUrl || "https://api.deepseek.com/v1";
+        const deepseekClient = new OpenAI({ apiKey, baseURL });
+        
+        let finalPrompt = prompt;
+        if (options.json) {
+          if (!prompt.toLowerCase().includes('json')) {
+            finalPrompt += '\n\nPlease return the response in JSON format.';
+          }
+          if (options.schema) {
+            finalPrompt += `\n\nExpected JSON structure:\n${JSON.stringify(options.schema, null, 2)}`;
+          }
+        }
+        const response = await deepseekClient.chat.completions.create({
+          model: "deepseek-chat",
+          messages: [{ role: "user", content: finalPrompt }],
+          response_format: options.json ? { type: "json_object" } : { type: "text" },
+        });
+        const text = response.choices[0].message.content || (options.json ? "{}" : "");
+        return options.json ? JSON.parse(text) : text;
+      }
+      
+      else if (provider === 'groq') {
+        const apiKey = getApiKey('groq');
+        const baseURL = config.groq?.proxyUrl || "https://api.groq.com/openai/v1";
+        const groqClient = new OpenAI({ apiKey, baseURL });
+        
+        let finalPrompt = prompt;
+        if (options.json) {
+          if (!prompt.toLowerCase().includes('json')) {
+            finalPrompt += '\n\nPlease return the response in JSON format.';
+          }
+          if (options.schema) {
+            finalPrompt += `\n\nExpected JSON structure:\n${JSON.stringify(options.schema, null, 2)}`;
+          }
+        }
+        const response = await groqClient.chat.completions.create({
+          model: "llama3-8b-8192",
+          messages: [{ role: "user", content: finalPrompt }],
+          response_format: options.json ? { type: "json_object" } : { type: "text" },
+        });
+        const text = response.choices[0].message.content || (options.json ? "{}" : "");
+        return options.json ? JSON.parse(text) : text;
+      }
+      
+      else if (provider === 'ollama') {
+        const baseURL = config.ollama?.proxyUrl || "http://localhost:11434/v1";
+        const ollamaClient = new OpenAI({ apiKey: "ollama", baseURL });
+        
+        let finalPrompt = prompt;
+        if (options.json) {
+          if (!prompt.toLowerCase().includes('json')) {
+            finalPrompt += '\n\nPlease return the response in JSON format.';
+          }
+          if (options.schema) {
+            finalPrompt += `\n\nExpected JSON structure:\n${JSON.stringify(options.schema, null, 2)}`;
+          }
+        }
+        const response = await ollamaClient.chat.completions.create({
+          model: "deepseek-r1",
+          messages: [{ role: "user", content: finalPrompt }],
+          response_format: options.json ? { type: "json_object" } : { type: "text" },
+        });
+        const text = response.choices[0].message.content || (options.json ? "{}" : "");
         return options.json ? JSON.parse(text) : text;
       }
     } catch (error: any) {
@@ -305,6 +429,43 @@ async function startServer() {
   server.use('/api/users', usersApi);
 
   // AI Proxy Routes
+  server.get("/api/ai/providers", (req, res) => {
+    const config = getAiProvidersConfig();
+    
+    // Add default providers from env if not in config
+    if (!config.openai) config.openai = { enabled: !!process.env.OPENAI_API_KEY, apiKey: process.env.OPENAI_API_KEY || '', proxyUrl: '', models: ['gpt-4o-mini', 'gpt-4o'] };
+    if (!config.anthropic) config.anthropic = { enabled: !!process.env.ANTHROPIC_API_KEY, apiKey: process.env.ANTHROPIC_API_KEY || '', proxyUrl: '', models: ['claude-3-5-sonnet-20241022'] };
+    if (!config.gemini) config.gemini = { enabled: !!process.env.GEMINI_API_KEY, apiKey: process.env.GEMINI_API_KEY || '', proxyUrl: '', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] };
+    
+    // Mask API keys for security before sending to client
+    const maskedConfig = { ...config };
+    for (const provider in maskedConfig) {
+      if (maskedConfig[provider].apiKey) {
+        const key = maskedConfig[provider].apiKey;
+        maskedConfig[provider].apiKey = key.substring(0, 4) + '*'.repeat(Math.max(0, key.length - 8)) + key.substring(key.length - 4);
+      }
+    }
+    res.json(maskedConfig);
+  });
+
+  server.put("/api/ai/providers", (req, res) => {
+    const newConfig = req.body;
+    const currentConfig = getAiProvidersConfig();
+    
+    // Merge configs, preserving actual API keys if the new one is masked
+    for (const provider in newConfig) {
+      if (currentConfig[provider] && newConfig[provider].apiKey && newConfig[provider].apiKey.includes('*')) {
+        newConfig[provider].apiKey = currentConfig[provider].apiKey;
+      }
+    }
+    
+    if (saveAiProvidersConfig(newConfig)) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: "Failed to save configuration" });
+    }
+  });
+
   server.post("/api/ai/generate-keywords", async (req, res) => {
     try {
       const { primaryKeyword, count } = req.body;

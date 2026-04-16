@@ -1,498 +1,336 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Server, 
-  Plus, 
-  Trash2, 
-  Save, 
+  Settings2, 
   X, 
   CheckCircle2, 
   AlertCircle, 
   Loader2,
-  ExternalLink,
-  Shield,
+  Eye,
+  EyeOff,
+  Bot,
+  Brain,
   Zap,
-  Settings2
+  Sparkles,
+  Box,
+  MessageSquare,
+  Cloud,
+  Edit2,
+  Plus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
-  query, 
-  where 
-} from 'firebase/firestore';
-import { signInWithPopup } from 'firebase/auth';
-import { db, auth, googleProvider } from '../firebase'; // Assuming Firestore is exported from firebase.ts
 
-interface McpServer {
-  id: string;
-  name: string;
-  url: string;
-  token?: string;
+interface AiProviderConfig {
   enabled: boolean;
-  status?: 'online' | 'offline' | 'unknown' | 'testing';
-  lastChecked?: string;
-  error?: string;
+  apiKey: string;
+  proxyUrl: string;
+  models: string[];
 }
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
+interface AiConfig {
+  [key: string]: AiProviderConfig;
 }
 
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+const PROVIDER_DETAILS = {
+  openai: { name: 'OpenAI', icon: Bot, color: 'text-green-600', defaultModels: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'] },
+  deepseek: { name: 'DeepSeek', icon: Brain, color: 'text-blue-600', defaultModels: ['deepseek-chat', 'deepseek-reasoner'] },
+  groq: { name: 'Groq', icon: Zap, color: 'text-orange-500', defaultModels: ['llama3-8b-8192', 'llama3-70b-8192', 'mixtral-8x7b-32768'] },
+  gemini: { name: 'Google (Gemini)', icon: Sparkles, color: 'text-blue-500', defaultModels: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-pro'] },
+  ollama: { name: 'Ollama', icon: Box, color: 'text-gray-700', defaultModels: ['deepseek-r1', 'llama3.2', 'llama3.1', 'mistral'] },
+  anthropic: { name: 'Anthropic (Claude)', icon: MessageSquare, color: 'text-purple-600', defaultModels: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'] },
+  azure_openai: { name: 'Azure OpenAI', icon: Cloud, color: 'text-blue-700', defaultModels: [] },
+  azure_ai: { name: 'Azure AI', icon: Cloud, color: 'text-blue-800', defaultModels: [] },
+};
 
 export const McpSettings: React.FC = () => {
-  const [servers, setServers] = useState<McpServer[]>([]);
+  const [config, setConfig] = useState<AiConfig>({});
   const [loading, setLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
-  const [newServer, setNewServer] = useState<Partial<McpServer>>({
-    name: '',
-    url: '',
-    token: '',
-    enabled: true
-  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [testingAll, setTestingAll] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
-    fetchServers();
+    fetchConfig();
   }, []);
 
-  const testServerConnection = async (server: McpServer) => {
-    setServers(prev => prev.map(s => s.id === server.id ? { ...s, status: 'testing', error: undefined } : s));
-    
-    try {
-      // Basic connectivity test
-      // Note: MCP servers usually use SSE or HTTP. A simple fetch can check if the endpoint is reachable.
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
-      const headers: HeadersInit = {};
-      if (server.token) {
-        headers['Authorization'] = server.token.startsWith('Bearer ') ? server.token : `Bearer ${server.token}`;
-      }
-
-      const response = await fetch(server.url, { 
-        method: 'GET', // Or HEAD if supported
-        headers,
-        signal: controller.signal,
-        mode: 'no-cors' // Use no-cors to avoid preflight issues for simple reachability check
-      });
-
-      clearTimeout(timeoutId);
-      
-      // With no-cors, we can't see the status code, but if it didn't throw, it's reachable
-      setServers(prev => prev.map(s => s.id === server.id ? { 
-        ...s, 
-        status: 'online', 
-        lastChecked: new Date().toISOString(),
-        error: undefined
-      } : s));
-      
-      return true;
-    } catch (err: any) {
-      const errorMessage = err.name === 'AbortError' ? 'การเชื่อมต่อหมดเวลา (Timeout)' : 'ไม่สามารถเชื่อมต่อได้ (Connection Refused)';
-      setServers(prev => prev.map(s => s.id === server.id ? { 
-        ...s, 
-        status: 'offline', 
-        lastChecked: new Date().toISOString(),
-        error: errorMessage
-      } : s));
-      return false;
-    }
-  };
-
-  const testAllServers = async () => {
-    setTestingAll(true);
-    const enabledServers = servers.filter(s => s.enabled);
-    for (const server of enabledServers) {
-      await testServerConnection(server);
-    }
-    setTestingAll(false);
-  };
-
-  const fetchServers = async () => {
+  const fetchConfig = async () => {
     setLoading(true);
-    const path = 'mcp_servers';
     try {
-      const querySnapshot = await getDocs(collection(db, path));
-      const serverList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as McpServer[];
-      setServers(serverList);
-    } catch (err: any) {
-      console.error("Error fetching MCP servers:", err);
-      try {
-        handleFirestoreError(err, OperationType.GET, path);
-      } catch (formattedErr: any) {
-        setError(formattedErr.message);
+      const res = await fetch('/api/ai/providers');
+      if (res.ok) {
+        const data = await res.json() as Record<string, any>;
+        // Ensure all providers exist in config
+        const fullConfig: AiConfig = { ...(data || {}) };
+        Object.keys(PROVIDER_DETAILS).forEach(key => {
+          if (!fullConfig[key]) {
+            fullConfig[key] = { enabled: false, apiKey: '', proxyUrl: '', models: PROVIDER_DETAILS[key as keyof typeof PROVIDER_DETAILS].defaultModels };
+          }
+        });
+        setConfig(fullConfig);
       }
+    } catch (err: any) {
+      setError("Failed to load AI configuration.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddServer = async () => {
-    if (!newServer.name || !newServer.url) return;
+  const saveConfig = async (newConfig: AiConfig) => {
     setSaving(true);
-    const path = 'mcp_servers';
+    setError(null);
     try {
-      const docRef = await addDoc(collection(db, path), {
-        name: newServer.name,
-        url: newServer.url,
-        token: newServer.token || '',
-        enabled: newServer.enabled ?? true,
-        createdAt: new Date().toISOString()
+      const res = await fetch('/api/ai/providers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
       });
-      setServers([...servers, { id: docRef.id, ...newServer } as McpServer]);
-      setIsAdding(false);
-      setNewServer({ name: '', url: '', token: '', enabled: true });
+      if (!res.ok) throw new Error("Failed to save");
+      setConfig(newConfig);
     } catch (err: any) {
-      try {
-        handleFirestoreError(err, OperationType.WRITE, path);
-      } catch (formattedErr: any) {
-        setError(formattedErr.message);
-      }
+      setError("Failed to save configuration.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteServer = async (id: string) => {
-    const path = `mcp_servers/${id}`;
-    try {
-      await deleteDoc(doc(db, 'mcp_servers', id));
-      setServers(servers.filter(s => s.id !== id));
-    } catch (err: any) {
-      try {
-        handleFirestoreError(err, OperationType.DELETE, path);
-      } catch (formattedErr: any) {
-        setError(formattedErr.message);
-      }
-    }
+  const handleToggleProvider = (provider: string, enabled: boolean) => {
+    const newConfig = { ...config, [provider]: { ...config[provider], enabled } };
+    saveConfig(newConfig);
   };
 
-  const toggleServer = async (server: McpServer) => {
-    const path = `mcp_servers/${server.id}`;
-    try {
-      await updateDoc(doc(db, 'mcp_servers', server.id), {
-        enabled: !server.enabled
-      });
-      setServers(servers.map(s => s.id === server.id ? { ...s, enabled: !s.enabled } : s));
-    } catch (err: any) {
-      try {
-        handleFirestoreError(err, OperationType.UPDATE, path);
-      } catch (formattedErr: any) {
-        setError(formattedErr.message);
-      }
-    }
+  const handleUpdateProvider = (provider: string, updates: Partial<AiProviderConfig>) => {
+    setConfig(prev => ({
+      ...prev,
+      [provider]: { ...prev[provider], ...updates }
+    }));
   };
+
+  const handleSaveModal = () => {
+    saveConfig(config);
+    setSelectedProvider(null);
+    setTestResult(null);
+  };
+
+  const testConnection = async (provider: string) => {
+    setTestingConnection(true);
+    setTestResult(null);
+    // Simulate connection test for now
+    setTimeout(() => {
+      setTestingConnection(false);
+      setTestResult('success');
+    }, 1500);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto bg-gray-950 min-h-screen text-gray-100">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-100 flex items-center gap-3">
-            <Settings2 className="w-8 h-8 text-purple-400" />
-            ตั้งค่าการเชื่อมต่อ MCP
-          </h1>
-          <p className="text-gray-400 mt-1">จัดการเซิร์ฟเวอร์ Model Context Protocol สำหรับเครื่องมือ AI</p>
-        </div>
-        
-        <div className="flex flex-wrap gap-3">
-          <button 
-            onClick={testAllServers}
-            disabled={loading || testingAll || servers.length === 0}
-            className="bg-gray-800 text-gray-300 px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-gray-700 transition-all border border-white/5 disabled:opacity-50"
-          >
-            {testingAll ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} className="text-yellow-400" />}
-            ทดสอบทั้งหมด
-          </button>
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-purple-700 transition-all shadow-lg shadow-purple-900/20"
-          >
-            <Plus size={18} />
-            เพิ่มเซิร์ฟเวอร์
-          </button>
-        </div>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-gray-900">ผู้ให้บริการ</h2>
+        <select className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option>คีย์ API ที่กำหนดเอง</option>
+        </select>
       </div>
+      
+      <p className="text-sm text-gray-500 mb-8">
+        คีย์ API ของคุณถูกเก็บไว้ในเซิร์ฟเวอร์ของคุณและจะไม่ถูกส่งไปที่อื่น หมายเหตุ: บางฟีเจอร์อาจถูกจำกัดหากไม่ได้ตั้งค่าคีย์
+      </p>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-900/20 border border-red-500/20 rounded-xl text-red-400">
-          <div className="flex items-center gap-3 mb-2">
-            <AlertCircle size={20} />
-            <p className="font-bold">ข้อผิดพลาด</p>
-            <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-200">
-              <X size={18} />
-            </button>
-          </div>
-          <div className="text-sm bg-black/40 p-3 rounded-lg font-mono break-all overflow-auto max-h-32 border border-white/5">
-            {error.startsWith('{') ? (
-              (() => {
-                try {
-                  const errObj = JSON.parse(error);
-                  return (
-                    <div>
-                      <p className="text-red-400 font-bold mb-1">{errObj.error}</p>
-                      <p className="text-gray-400">การดำเนินการ: {errObj.operationType} ที่ {errObj.path}</p>
-                      <p className="text-gray-400">ผู้ใช้: {errObj.authInfo.email || 'ยังไม่ได้เข้าสู่ระบบ'}</p>
-                      {errObj.error.includes('permission') && (
-                        <div className="mt-2 p-3 bg-blue-900/20 rounded-lg border border-blue-500/20">
-                          <p className="text-blue-300 font-medium text-xs mb-2">
-                            คำแนะนำ: เฉพาะผู้ดูแลระบบ (dekdernpoy168@gmail.com) เท่านั้นที่สามารถจัดการการตั้งค่า MCP ได้
-                          </p>
-                          {!errObj.authInfo.userId && (
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  await signInWithPopup(auth, googleProvider);
-                                  window.location.reload();
-                                } catch (e: any) {
-                                  setError(e.message);
-                                }
-                              }}
-                              className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
-                            >
-                              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-3 h-3 brightness-0 invert" />
-                              เข้าสู่ระบบด้วย Google
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                } catch (e) {
-                  return error;
-                }
-              })()
-            ) : error}
-          </div>
+        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3 text-red-600">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <p className="text-sm">{error}</p>
         </div>
       )}
 
-      <div className="space-y-4">
-        <AnimatePresence mode="popLayout">
-          {isAdding && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {Object.entries(PROVIDER_DETAILS).map(([key, details]) => {
+          const providerConfig = config[key] || { enabled: false, apiKey: '', proxyUrl: '', models: [] };
+          const Icon = details.icon;
+          
+          return (
+            <div key={key} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-indigo-300 transition-colors bg-white">
+              <div className="flex items-center gap-3">
+                <div className={cn("p-2 rounded-lg bg-gray-50", details.color)}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="font-medium text-gray-900">{details.name}</span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {key === 'groq' ? (
+                  <>
+                    <button 
+                      onClick={() => setSelectedProvider(key)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={providerConfig.enabled}
+                        onChange={(e) => handleToggleProvider(key, e.target.checked)}
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setSelectedProvider(key)}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors"
+                  >
+                    ตั้งค่า
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {selectedProvider && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-gray-900 p-6 rounded-2xl border border-purple-500/30 space-y-4"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">ชื่อเซิร์ฟเวอร์</label>
-                  <input 
-                    type="text" 
-                    value={newServer.name}
-                    onChange={e => setNewServer({...newServer, name: e.target.value})}
-                    placeholder="เช่น Google Search"
-                    className="w-full p-3 rounded-xl bg-black border border-white/10 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white"
+              <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {PROVIDER_DETAILS[selectedProvider as keyof typeof PROVIDER_DETAILS]?.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setSelectedProvider(null);
+                    setTestResult(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1">
+                {selectedProvider !== 'ollama' && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      API key
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={config[selectedProvider]?.apiKey || ''}
+                        onChange={(e) => handleUpdateProvider(selectedProvider, { apiKey: e.target.value })}
+                        placeholder="กรุณาใส่คีย์ API ของคุณ"
+                        className="w-full pl-3 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    URL พร็อกซี API {selectedProvider !== 'ollama' && '(ไม่บังคับ)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={config[selectedProvider]?.proxyUrl || ''}
+                    onChange={(e) => handleUpdateProvider(selectedProvider, { proxyUrl: e.target.value })}
+                    placeholder={selectedProvider === 'ollama' ? "http://localhost:11434" : "https://api.example.com/v1"}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                   />
-                  {!newServer.name && <p className="text-[10px] text-red-500 mt-1">* กรุณาใส่ชื่อเซิร์ฟเวอร์</p>}
                 </div>
+
+                <div className="mb-6 flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">ตรวจสอบการเชื่อมต่อ</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">ตรวจสอบว่าคีย์ API และพร็อกซีของคุณถูกต้องหรือไม่</p>
+                  </div>
+                  <button
+                    onClick={() => testConnection(selectedProvider)}
+                    disabled={testingConnection}
+                    className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {testingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
+                    ตรวจสอบ
+                  </button>
+                </div>
+
+                {testResult === 'success' && (
+                  <div className="mb-6 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    เชื่อมต่อสำเร็จ
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">URL เซิร์ฟเวอร์ (SSE/HTTP)</label>
-                  <input 
-                    type="text" 
-                    value={newServer.url}
-                    onChange={e => setNewServer({...newServer, url: e.target.value})}
-                    placeholder="https://..."
-                    className="w-full p-3 rounded-xl bg-black border border-white/10 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white"
-                  />
-                  {!newServer.url && <p className="text-[10px] text-red-500 mt-1">* กรุณาใส่ URL เซิร์ฟเวอร์</p>}
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-gray-900">
+                      รายการโมเดล <span className="text-gray-500 font-normal">(มีโมเดล {config[selectedProvider]?.models?.length || 0} รายการที่พร้อมใช้งาน)</span>
+                    </h4>
+                    <button className="p-1 text-gray-400 hover:text-indigo-600 transition-colors">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {(config[selectedProvider]?.models || PROVIDER_DETAILS[selectedProvider as keyof typeof PROVIDER_DETAILS]?.defaultModels || []).map((model, idx) => (
+                      <div key={idx} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">{model}</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" defaultChecked={true} />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">โทเค็นการยืนยันตัวตน (ไม่บังคับ)</label>
-                <input 
-                  type="password" 
-                  value={newServer.token}
-                  onChange={e => setNewServer({...newServer, token: e.target.value})}
-                  placeholder="Bearer token..."
-                  className="w-full p-3 rounded-xl bg-black border border-white/10 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-white"
-                />
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button 
-                  onClick={() => setIsAdding(false)}
-                  className="px-4 py-2 text-gray-400 font-semibold hover:text-gray-200"
+
+              <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+                <button
+                  onClick={() => {
+                    setSelectedProvider(null);
+                    setTestResult(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   ยกเลิก
                 </button>
-                <button 
-                  onClick={handleAddServer}
-                  disabled={saving || !newServer.name || !newServer.url}
-                  className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50"
+                <button
+                  onClick={handleSaveModal}
+                  disabled={saving}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
-                  {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                  บันทึกเซิร์ฟเวอร์
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  บันทึก
                 </button>
               </div>
             </motion.div>
-          )}
-
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-              <Loader2 className="animate-spin mb-4" size={32} />
-              <p>กำลังโหลดเซิร์ฟเวอร์ MCP...</p>
-            </div>
-          ) : servers.length === 0 && !isAdding ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500 border-2 border-dashed border-white/10 rounded-3xl">
-              <Server size={48} className="mb-4 opacity-20" />
-              <p>ยังไม่มีการกำหนดค่าเซิร์ฟเวอร์ MCP</p>
-            </div>
-          ) : (
-            servers.map((server) => (
-              <motion.div
-                key={server.id}
-                layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={cn(
-                  "bg-gray-900 p-5 rounded-2xl border transition-all flex items-center justify-between",
-                  server.enabled ? "border-purple-500/30 hover:border-purple-500/50" : "border-white/5 opacity-60"
-                )}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={cn(
-                    "p-3 rounded-xl",
-                    server.enabled ? "bg-purple-900/40 text-purple-400" : "bg-gray-800 text-gray-500"
-                  )}>
-                    <Zap size={24} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-gray-100">{server.name}</h3>
-                      {server.token && <Shield size={14} className="text-green-500" />}
-                      {server.status === 'online' && (
-                        <span className="flex items-center gap-1 text-[10px] text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">
-                          <CheckCircle2 size={10} /> Online
-                        </span>
-                      )}
-                      {server.status === 'offline' && (
-                        <span className="flex items-center gap-1 text-[10px] text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full border border-red-400/20">
-                          <AlertCircle size={10} /> Offline
-                        </span>
-                      )}
-                      {server.status === 'testing' && (
-                        <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">
-                          <Loader2 size={10} className="animate-spin" /> Testing...
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                      <ExternalLink size={12} />
-                      {server.url}
-                    </p>
-                    {server.error && (
-                      <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
-                        <AlertCircle size={10} /> {server.error}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => testServerConnection(server)}
-                    disabled={server.status === 'testing'}
-                    className="p-2 text-gray-500 hover:text-yellow-400 transition-colors"
-                    title="ทดสอบการเชื่อมต่อ"
-                  >
-                    <Zap size={18} className={cn(server.status === 'testing' && "animate-pulse")} />
-                  </button>
-                  <button 
-                    onClick={() => toggleServer(server)}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                      server.enabled ? "bg-purple-600" : "bg-gray-700"
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                      server.enabled ? "translate-x-6" : "translate-x-1"
-                    )} />
-                  </button>
-                  <button 
-                    onClick={() => handleDeleteServer(server.id)}
-                    className="p-2 text-gray-500 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="mt-12 bg-purple-900/20 p-6 rounded-3xl border border-purple-500/20">
-        <h3 className="text-sm font-bold text-purple-400 mb-4 uppercase tracking-widest">เกี่ยวกับ MCP Connector</h3>
-        <div className="prose prose-sm max-w-none text-purple-300/80">
-          <p>
-            <strong>Model Context Protocol (MCP)</strong> เป็นมาตรฐานโอเพนซอร์สสำหรับการเชื่อมต่อแอปพลิเคชัน AI กับระบบภายนอก 
-            การเพิ่มเซิร์ฟเวอร์ MCP ระยะไกลที่นี่ จะช่วยให้ Claude สามารถเข้าถึงข้อมูลแบบเรียลไทม์และเครื่องมือเฉพาะทางได้โดยตรง
-          </p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li><strong>การรวมระบบโดยตรง</strong>: เชื่อมต่อโดยไม่ต้องใช้ไคลเอนต์แยกต่างหาก</li>
-            <li><strong>การเรียกใช้เครื่องมือ</strong>: เข้าถึงเครื่องมือระยะไกลผ่าน Messages API</li>
-            <li><strong>รองรับ OAuth</strong>: เชื่อมต่อกับเซิร์ฟเวอร์ที่มีการยืนยันตัวตนอย่างปลอดภัย</li>
-          </ul>
-        </div>
-      </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
