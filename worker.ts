@@ -6,7 +6,7 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, asc, min, notInArray, sql } from 'drizzle-orm';
 import * as schema from './src/db/schema';
-import { DurableObject, WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from "cloudflare:workers";
+import { DurableObject } from "cloudflare:workers";
 
 export interface Env {
   DB: D1Database;
@@ -17,23 +17,8 @@ export interface Env {
   IMAGES: any;
   BUCKET: R2Bucket;
   AI: any;
-  MY_WORKFLOW: any;
   MY_QUEUE: any;
   ASSETS?: Fetcher; // Supported when using Cloudflare Pages
-}
-
-type Params = {};
-
-// --- Cloudflare Workflows (Example) ---
-export class MyWorkflow extends WorkflowEntrypoint<Env, Params> {
-  async run(event: WorkflowEvent<Params>, step: WorkflowStep) {
-    await step.do("my first step", async () => {
-      // ...
-    });
-    await step.do("my second step", async () => {
-      // ...
-    });
-  }
 }
 
 // --- My Durable Object (Tutorial Example) ---
@@ -259,15 +244,6 @@ export default {
       // /api/images-test: Placeholder for Images API (Basic check)
       if (normalizedPath === '/images-test' && method === 'GET') {
         return json({ message: 'Cloudflare Images binding detected' });
-      }
-
-      // /api/workflow-test: Trigger a new workflow instance
-      if (normalizedPath === '/workflow-test' && method === 'GET') {
-        const instance = await env.MY_WORKFLOW.create();
-        return json({
-          id: instance.id,
-          details: await instance.status(),
-        });
       }
 
       // /api/queue-test: Send a message to the Queue

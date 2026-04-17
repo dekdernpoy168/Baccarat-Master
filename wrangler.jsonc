@@ -42,12 +42,6 @@
   "ai": {
     "binding": "AI"
   },
-  "workflows": [
-    {
-      "binding": "MY_WORKFLOW",
-      "class_name": "MyWorkflow"
-    }
-  ],
   "queues": {
     "producers": [
       {
