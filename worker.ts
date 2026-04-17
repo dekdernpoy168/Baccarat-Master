@@ -12,7 +12,6 @@ export interface Env {
   DB: D1Database;
   WEBSOCKET_MANAGER: DurableObjectNamespace<WebSocketManager>;
   MY_DURABLE_OBJECT: DurableObjectNamespace<MyDurableObject>;
-  HYPERDRIVE: { connectionString: string };
   IMAGES: any;
   BUCKET: R2Bucket;
   AI: any;
@@ -230,14 +229,6 @@ export default {
         const stub = env.MY_DURABLE_OBJECT.get(id);
         const greeting = await stub.sayHello();
         return new Response(greeting);
-      }
-
-      // /api/hyperdrive-test: Test Hyperdrive connection
-      if (normalizedPath === '/hyperdrive-test' && method === 'GET') {
-        return json({ 
-          message: 'Hyperdrive binding configured', 
-          connectionString: env.HYPERDRIVE?.connectionString || 'Not set' 
-        });
       }
 
       // /api/images-test: Placeholder for Images API (Basic check)

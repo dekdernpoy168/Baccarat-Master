@@ -19,12 +19,6 @@
       "database_id": "1ec6974a-786d-44b3-bb06-dcdd738924ed"
     }
   ],
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "YOUR_HYPERDRIVE_ID_HERE"
-    }
-  ],
   "images": {
     "binding": "IMAGES"
   },
