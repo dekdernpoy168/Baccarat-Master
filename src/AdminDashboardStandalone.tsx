@@ -712,15 +712,15 @@ const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '
   );
 };
 
-const AdminDashboard = () => {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, setArticles: propsSetArticles, setCategories: propsSetCategories, loading: propsLoading, fetchArticles: propsFetchArticles }: { articles?: Article[], categories?: string[], setArticles?: (articles: Article[]) => void, setCategories?: (categories: string[]) => void, loading?: boolean, fetchArticles?: () => void }) => {
+  const [articles, setArticles] = useState<Article[]>(propsArticles || []);
+  const [categories, setCategories] = useState<string[]>(propsCategories || []);
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState<{old: string, new: string} | null>(null);
   const [currentArticle, setCurrentArticle] = useState<Partial<Article>>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(propsLoading || false);
   const [error, setError] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -807,6 +807,14 @@ const AdminDashboard = () => {
       setError(err.message);
     }
   };
+
+  useEffect(() => {
+    if (propsArticles) setArticles(propsArticles);
+  }, [propsArticles]);
+
+  useEffect(() => {
+    if (propsCategories) setCategories(propsCategories);
+  }, [propsCategories]);
 
   useEffect(() => {
     loadData();
@@ -1392,7 +1400,7 @@ const AdminDashboard = () => {
 
       const articleData = {
         ...dataWithoutId,
-        slug: dataWithoutId.slug || dataWithoutId.title.replace(/\s+/g, '-').toLowerCase(),
+        slug: dataWithoutId.slug || dataWithoutId.title?.replace(/\s+/g, '-').toLowerCase() || '',
         status,
         type: currentArticle.type || filterType,
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -1451,6 +1459,7 @@ const AdminDashboard = () => {
       setIsEditing(false);
       setCurrentArticle({});
       loadData(); // Reload data
+      if (propsFetchArticles) propsFetchArticles();
     } catch (err: any) {
       let message = "เกิดข้อผิดพลาดในการบันทึกข้อมูล";
       try {

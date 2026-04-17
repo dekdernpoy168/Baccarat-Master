@@ -67,6 +67,7 @@ import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
 import { BatchSeoDashboard } from './components/BatchSeoDashboard';
 import { McpSettings } from './components/McpSettings';
+import StandaloneAdminDashboard from './AdminDashboardStandalone';
 
 // --- Types & Constants ---
 
@@ -2121,7 +2122,7 @@ const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '
   );
 };
 
-const AdminDashboard = ({ articles, categories, setArticles, setCategories, loading, fetchArticles }: { articles: Article[], categories: string[], setArticles: (articles: Article[]) => void, setCategories: (categories: string[]) => void, loading: boolean, fetchArticles: () => void }) => {
+const internalAdminDashboard = ({ articles, categories, setArticles, setCategories, loading, fetchArticles }: { articles: Article[], categories: string[], setArticles: (articles: Article[]) => void, setCategories: (categories: string[]) => void, loading: boolean, fetchArticles: () => void }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -4666,7 +4667,7 @@ export default function App() {
               path="/admin" 
               element={
                 user?.email === ADMIN_EMAIL ? (
-                  <AdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} loading={articlesLoading} fetchArticles={fetchArticles} />
+                  <StandaloneAdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} loading={articlesLoading} fetchArticles={fetchArticles} />
                 ) : (
                   <Navigate to="/login" />
                 )

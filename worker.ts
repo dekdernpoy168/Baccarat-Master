@@ -448,6 +448,123 @@ export default {
       }
 
       // =============================================
+      // AI API
+      // =============================================
+
+      // POST /api/ai/generate-slug
+      if (normalizedPath === '/ai/generate-slug' && method === 'POST') {
+        const { title } = await request.json() as any;
+        const result: any = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a SEO expert. Generate 3 SEO-friendly URL slugs from the given title. Return only a JSON object with an "options" array of strings.' },
+            { role: 'user', content: `Title: ${title}` }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        return json(result);
+      }
+
+      // POST /api/ai/generate-keywords
+      if (normalizedPath === '/ai/generate-keywords' && method === 'POST') {
+        const { primaryKeyword } = await request.json() as any;
+        const result: any = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a SEO expert. Generate 8 relevant keywords or tags based on the primary keyword. Return as a comma-separated string in a JSON object with key "text".' },
+            { role: 'user', content: `Primary Keyword: ${primaryKeyword}` }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        return json(result);
+      }
+
+      // POST /api/ai/generate-excerpt
+      if (normalizedPath === '/ai/generate-excerpt' && method === 'POST') {
+        const { title } = await request.json() as any;
+        const result: any = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a content editor. Generate 3 short, engaging excerpts (meta descriptions) from the given title. Return only a JSON object with an "options" array of strings.' },
+            { role: 'user', content: `Title: ${title}` }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        return json(result);
+      }
+
+      // POST /api/ai/generate-article
+      if (normalizedPath === '/ai/generate-article' && method === 'POST') {
+        const { prompt } = await request.json() as any;
+        const result: any = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a expert content writer. Create a high-quality article including HTML content, metaTitle, metaDescription, and slug. Return as a JSON object.' },
+            { role: 'user', content: prompt }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        return json(result);
+      }
+
+      // POST /api/ai/brainstorm
+      if (normalizedPath === '/ai/brainstorm' && method === 'POST') {
+        const { topic } = await request.json() as any;
+        const result: any = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a content strategist. Brainstorm 5 unique and engaging article topics for the given niche. Return only a JSON object with an "options" array of strings.' },
+            { role: 'user', content: `Niche/Topic: ${topic}` }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        return json(result);
+      }
+
+      // POST /api/ai/execute-prompt
+      if (normalizedPath === '/ai/execute-prompt' && method === 'POST') {
+        const { prompt, systemPrompt } = await request.json() as any;
+        const result: any = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
+            { role: 'user', content: prompt }
+          ]
+        });
+        return json(result);
+      }
+
+      // POST /api/ai/stream-prompt (Experimental streaming version)
+      if (normalizedPath === '/ai/stream-prompt' && method === 'POST') {
+        const { prompt } = await request.json() as any;
+        const stream = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a expert content writer. Create a high-quality article including HTML content, metaTitle, metaDescription, and slug. Return as a JSON object string.' },
+            { role: 'user', content: prompt }
+          ],
+          stream: true
+        });
+
+        return new Response(stream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        });
+      }
+
+      // POST /api/ai/generate-image
+      if (normalizedPath === '/ai/generate-image' && method === 'POST') {
+        const { prompt, type } = await request.json() as any;
+        // Use Flux or SDXL
+        const finalPrompt = type === 'logo' ? 'A modern, luxury gold logo for Baccarat Master website' : prompt;
+        const result: any = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', {
+          prompt: finalPrompt
+        });
+        
+        // Flux returns image property as base64 or buffer usually
+        // We'll return it as a data URL or similar if possible, or binary
+        return new Response(result.image, {
+          headers: { 'Content-Type': 'image/png' }
+        });
+      }
+
+      // =============================================
       // AUTH API
       // =============================================
 
