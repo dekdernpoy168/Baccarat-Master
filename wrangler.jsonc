@@ -31,6 +31,10 @@
   "ai": {
     "binding": "AI"
   },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
   "queues": {
     "producers": [
       {
