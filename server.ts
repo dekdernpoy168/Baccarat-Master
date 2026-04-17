@@ -78,7 +78,7 @@ async function getApiKey(provider: string) {
 // Configure R2 Client
 const r2Client = new S3Client({
   region: "auto",
-  endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: process.env.R2_ENDPOINT || `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
@@ -1100,7 +1100,7 @@ async function startServer() {
       const file = req.file;
       const fileExtension = path.extname(file.originalname);
       const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
-      const bucketName = process.env.R2_BUCKET_NAME || "baccaratmaster";
+      const bucketName = process.env.R2_BUCKET_NAME || "baccarat-master-assets";
 
       const command = new PutObjectCommand({
         Bucket: bucketName,
