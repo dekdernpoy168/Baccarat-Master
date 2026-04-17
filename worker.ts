@@ -22,20 +22,16 @@ export interface Env {
   ASSETS?: Fetcher; // Supported when using Cloudflare Pages
 }
 
+type Params = {};
+
 // --- Cloudflare Workflows (Example) ---
-export class MyWorkflow extends WorkflowEntrypoint<Env> {
-  async run(event: WorkflowEvent<any>, step: WorkflowStep) {
-    const data = await step.do('initial step', async () => {
-      // Cast to any to access params if types are not fully updated
-      const params = (event as any).params;
-      return { msg: "Workflow started", payload: params };
+export class MyWorkflow extends WorkflowEntrypoint<Env, Params> {
+  async run(event: WorkflowEvent<Params>, step: WorkflowStep) {
+    await step.do("my first step", async () => {
+      // ...
     });
-
-    await step.sleep('short delay', '10 seconds');
-
-    await step.do('final step', async () => {
-      console.log('Workflow finishing with data:', data);
-      return { status: "completed" };
+    await step.do("my second step", async () => {
+      // ...
     });
   }
 }
@@ -270,12 +266,10 @@ export default {
 
       // /api/workflow-test: Trigger a new workflow instance
       if (normalizedPath === '/workflow-test' && method === 'GET') {
-        const instance = await env.MY_WORKFLOW.create({
-          params: { time: new Date().toISOString() }
-        });
-        return json({ 
-          message: 'Workflow triggered', 
-          id: instance.id 
+        const instance = await env.MY_WORKFLOW.create();
+        return json({
+          id: instance.id,
+          details: await instance.status(),
         });
       }
 
