@@ -134,70 +134,36 @@ export default {
         try {
           const response = await env.ASSETS.fetch(request.clone());
           
-          // SPA Fallback: If it's a 404 and not a file (no dot in the last segment), serve index.html
+          // SPA Fallback: If it's a 404 and not a file, serve index.html
           const url = new URL(request.url);
           const lastSegment = url.pathname.split('/').pop() || '';
           if (response.status === 404 && !lastSegment.includes('.')) {
             return await env.ASSETS.fetch(new URL('/', request.url));
           }
           
-          return response;
+          // If we got the asset, return it!
+          if (response.status !== 404) return response;
         } catch (e) {
           console.error("Error fetching from ASSETS:", e);
         }
       }
 
-      // Root path returns status JSON if no assets
+      // Root path returns status JSON if no assets or if specifically requested as JSON
       if (normalizedPath === "/") {
         return json({ 
           status: 'ok', 
           message: 'Baccarat Master API is running.',
           endpoints: ['/api/articles', '/api/categories', '/api/auth/me'],
-          note: 'Front-end assets (env.ASSETS) not bound.'
+          setup: {
+            d1_db: !!env.DB,
+            assets: !!env.ASSETS,
+            websocket_manager: !!env.WEBSOCKET_MANAGER
+          }
         });
       }
 
-      // For other paths, return a specialized error page
-      return new Response(`
-        <!DOCTYPE html>
-        <html lang="th">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Configuration Required - Baccarat Master</title>
-          <style>
-            body { font-family: 'Inter', system-ui, sans-serif; background: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
-            .card { background: #141414; padding: 2rem; border-radius: 12px; border: 1px solid #333; max-width: 500px; line-height: 1.6; }
-            h1 { color: #f27d26; margin-top: 0; }
-            code { background: #000; padding: 2px 6px; border-radius: 4px; color: #0f0; }
-            .steps { text-align: left; margin-top: 20px; font-size: 14px; }
-            .btn { display: inline-block; background: #f27d26; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; margin-top: 20px; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>ยังไม่ได้ตั้งค่า Assets</h1>
-            <p>หน้าเว็บ React ของคุณยังไม่ได้เชื่อมกับระบบ API (Worker)</p>
-            <div class="steps">
-              <strong>วิธีแก้ไข:</strong>
-              <ol>
-                <li>ไปที่หน้า Dashboard ของ Cloudflare</li>
-                <li>ไปที่ <b>Workers & Pages</b> > <b>baccaratmaster</b></li>
-                <li>ไปที่ <b>Settings (การตั้งค่า)</b> > <b>Variables (ตัวแปร)</b></li>
-                <li>ที่ <b>Service Bindings</b> กด <b>Add Binding</b></li>
-                <li><b>Variable name:</b> <code>ASSETS</code></li>
-                <li><b>Service:</b> เลือกโปรเจกต์ Pages ของคุณ</li>
-                <li>กด <b>Save and deploy</b> แล้วรีเฟรชหน้านี้</li>
-              </ol>
-            </div>
-            <a href="https://dash.cloudflare.com" class="btn" target="_blank">ไปที่ Cloudflare Dashboard</a>
-          </div>
-        </body>
-        </html>
-      `, {
-        status: 404,
-        headers: { 'Content-Type': 'text/html; charset=UTF-8' }
-      });
+      // Final fallback for missing assets or paths
+      return new Response('Asset not found or configuration incomplete.', { status: 404 });
     }
 
     try {
