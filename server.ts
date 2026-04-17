@@ -551,7 +551,7 @@ async function startServer() {
   server.post("/api/ai/generate-slug", async (req, res) => {
     try {
       const { title } = req.body;
-      const prompt = `Generate 3 SEO-friendly URL slug options in English for this Thai article title: "${title}". Use only lowercase letters and hyphens.`;
+      const prompt = `Generate 4 SEO-friendly URL slug options for this article title: "${title}". 2 options MUST be in Thai Language (using Thai characters and hyphens), and 2 options MUST be in English (using English letters and hyphens). Use only lowercase characters and hyphens. Do not use any spaces.`;
       const data = await callAI(prompt, {
         json: true,
         schema: {
@@ -568,6 +568,33 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       console.error("Slug Gen Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-meta-data", async (req, res) => {
+    try {
+      const { title } = req.body;
+      const prompt = `จากหัวข้อบทความ: "${title}"
+สร้างข้อมูลต่อไปนี้:
+1. metaDescription: ความยาว 140-160 ตัวอักษร ดึงดูดใจ มีหัวข้อบทความเป็นส่วนประกอบ
+2. tags: Keyword สำคัญ (คั่นด้วยลูกน้ำ) เช่น "สูตรบาคาร่า, เทคนิคทำกำไร"
+3. excerpt: คำโปรยสรุปเนื้อหา 70-100 คำ ในรูปแบบ AI Overview เน้นตอบคำถามผู้ใช้ทันที เพื่อเน้นการติดอันดับ Featured Snippets`;
+      const data = await callAI(prompt, {
+        json: true,
+        schema: {
+          type: Type.OBJECT,
+          properties: {
+            metaDescription: { type: Type.STRING },
+            tags: { type: Type.STRING },
+            excerpt: { type: Type.STRING }
+          },
+          required: ["metaDescription", "tags", "excerpt"]
+        }
+      });
+      res.json(data);
+    } catch (error: any) {
+      console.error("Meta Gen Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

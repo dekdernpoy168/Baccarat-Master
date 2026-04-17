@@ -634,88 +634,6 @@ const SelectionModal = ({
   );
 };
 
-const SeoGeneratorModal = ({ isOpen, onClose, onExecute, topic: initialTopic = '' }: { isOpen: boolean, onClose: () => void, onExecute: (data: { metaTitle: string, metaDescription: string }) => void, topic?: string }) => {
-  const [keyword, setKeyword] = useState('');
-  const [topic, setTopic] = useState(initialTopic);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleGenerate = async () => {
-    if (!keyword.trim() || !topic.trim()) {
-      alert('กรุณาใส่คีย์เวิร์ดและหัวข้อ');
-      return;
-    }
-    setIsGenerating(true);
-    try {
-      const response = await fetch('/api/ai/generate-seo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword, topic })
-      });
-      const data: any = await response.json();
-      if (data.metaTitle && data.metaDescription) {
-        onExecute(data);
-      }
-    } catch (err) {
-      console.error(err);
-      alert('เกิดข้อผิดพลาดในการสร้างข้อมูล SEO');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-[#1a1c1e] border border-gold/30 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl shadow-gold/10"
-      >
-        <div className="bg-gold/10 px-6 py-4 flex items-center justify-between border-b border-gold/20">
-          <h2 className="text-gold font-bold flex items-center gap-2"><Sparkles size={18} /> Generate Meta Title & Description</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-gray-400 text-[10px] font-bold uppercase">คีย์เวิร์ดหลัก (Primary Keyword)</label>
-            <input 
-              type="text" 
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
-              placeholder="เช่น บาคาร่าออนไลน์, วิธีเล่นบาคาร่า"
-              className="w-full bg-black border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-gold"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-gray-400 text-[10px] font-bold uppercase">หัวข้อ (Topic)</label>
-            <input 
-              type="text" 
-              value={topic}
-              onChange={e => setTopic(e.target.value)}
-              placeholder="หัวข้อบทความ"
-              className="w-full bg-black border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-gold"
-            />
-          </div>
-          <button 
-            onClick={handleGenerate}
-            disabled={isGenerating || !keyword.trim() || !topic.trim()}
-            className="w-full gold-bg-gradient text-baccarat-black py-3 rounded-xl font-bold flex items-center justify-center transition-all disabled:opacity-50"
-          >
-            {isGenerating ? (
-              <div className="w-5 h-5 border-2 border-baccarat-black border-t-transparent rounded-full animate-spin mr-2"></div>
-            ) : (
-              <Wand2 size={18} className="mr-2" />
-            )}
-            Generate Tit&Des
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
 
 const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, setArticles: propsSetArticles, setCategories: propsSetCategories, loading: propsLoading, fetchArticles: propsFetchArticles }: { articles?: Article[], categories?: string[], setArticles?: (articles: Article[]) => void, setCategories?: (categories: string[]) => void, loading?: boolean, fetchArticles?: () => void }) => {
   const [articles, setArticles] = useState<Article[]>(propsArticles || []);
@@ -732,14 +650,46 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [showPreview, setShowPreview] = useState(false);
 
   const [showPromptBuilder, setShowPromptBuilder] = useState(false);
-  const [showSeoModal, setShowSeoModal] = useState(false);
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
   const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false);
-  const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
   const [isGeneratingArticleImage, setIsGeneratingArticleImage] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+
+  const autoFillSEO = async () => {
+    if (!currentArticle.title?.trim()) {
+      alert('กรุณาใส่หัวข้อบทความก่อนเพื่อใช้เป็นฐานข้อมูล');
+      return;
+    }
+    setIsAutoFilling(true);
+    try {
+      const title = currentArticle.title.trim();
+      const metaTitle = title.length > 60 ? title.substring(0, 60) : title;
+      
+      const response = await fetch('/api/ai/generate-meta-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      if (!response.ok) throw new Error('Failed to generate meta data');
+      const data: any = await response.json();
+      
+      setCurrentArticle(prev => ({
+        ...prev,
+        metaTitle: metaTitle,
+        metaDescription: data.metaDescription || prev.metaDescription,
+        tags: data.tags || prev.tags,
+        excerpt: data.excerpt || prev.excerpt
+      }));
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการดึงข้อมูล SEO');
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -980,38 +930,6 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       alert('เกิดข้อผิดพลาดในการสร้างโลโก้');
     } finally {
       setIsGeneratingLogo(false);
-    }
-  };
-
-  const generateKeywords = async () => {
-    if (!currentArticle.title?.trim() && !currentArticle.metaTitle?.trim() && !currentArticle.metaDescription?.trim()) {
-      alert('กรุณาใส่หัวข้อบทความ, Meta Title หรือ Meta Description ก่อน');
-      return;
-    }
-    setIsGeneratingKeywords(true);
-    try {
-      const prompt = `คุณคือผู้เชี่ยวชาญด้าน SEO วิเคราะห์ข้อมูลบทความต่อไปนี้ แล้วสร้าง Keywords Meta Tag ที่เหมาะสมที่สุด 5-8 คำ (คั่นด้วยลูกน้ำ) โดยอิงจากคำที่ใช้และเนื้อหาที่ควรจะเป็น
-        
-        หัวข้อบทความ (Title): ${currentArticle.title || '-'}
-        Meta Title: ${currentArticle.metaTitle || '-'}
-        Meta Description: ${currentArticle.metaDescription || '-'}
-        
-        ตอบกลับมาเฉพาะคำคีย์เวิร์ดที่คั่นด้วยลูกน้ำ (,) เท่านั้น ห้ามมีข้อความอื่น`;
-
-      const response = await fetch('/api/ai/execute-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
-      });
-      const data: any = await response.json();
-      if (data.text) {
-        setCurrentArticle(prev => ({ ...prev, metaKeywords: data.text.trim() }));
-      }
-    } catch (err) {
-      console.error(err);
-      alert('เกิดข้อผิดพลาดในการสร้าง Keywords');
-    } finally {
-      setIsGeneratingKeywords(false);
     }
   };
 
@@ -1770,10 +1688,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   <label className="text-gold text-sm font-bold flex items-center"><TypeIcon size={16} className="mr-2" /> หัวข้อบทความ (Title)</label>
                   <button 
                     type="button"
-                    onClick={() => setShowSeoModal(true)}
-                    className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all flex items-center gap-1"
+                    onClick={autoFillSEO}
+                    disabled={isAutoFilling || !currentArticle.title?.trim()}
+                    className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all flex items-center gap-1 disabled:opacity-50"
                   >
-                    <Sparkles size={10} /> Generate SEO Tags
+                    {isAutoFilling ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Sparkles size={10} />}
+                    Auto-Fill SEO Data
                   </button>
                 </div>
                 <input 
@@ -1825,10 +1745,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 <h3 className="text-white font-bold flex items-center"><Search size={18} className="mr-2 text-gold" /> SEO Settings</h3>
                 <button 
                   type="button"
-                  onClick={() => setShowSeoModal(true)}
-                  className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all"
+                  onClick={autoFillSEO}
+                  disabled={isAutoFilling || !currentArticle.title?.trim()}
+                  className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all disabled:opacity-50"
                 >
-                  <Sparkles size={14} className="mr-2" /> Generate SEO Tags
+                  {isAutoFilling ? <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div> : <Sparkles size={14} className="mr-2" />}
+                  Auto-Fill SEO Tags
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1868,20 +1790,6 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
               </div>
             </div>
 
-
-            <SeoGeneratorModal 
-              isOpen={showSeoModal} 
-              onClose={() => setShowSeoModal(false)} 
-              topic={currentArticle.title}
-              onExecute={(data) => {
-                setCurrentArticle(prev => ({
-                  ...prev,
-                  metaTitle: data.metaTitle,
-                  metaDescription: data.metaDescription
-                }));
-                setShowSeoModal(false);
-              }}
-            />
 
             <SelectionModal 
               isOpen={showSlugSelection}
@@ -1934,14 +1842,23 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-gold text-sm font-bold flex items-center"><Target size={16} className="mr-2" /> หมวดหมู่</label>
                 <div className="flex flex-col space-y-2">
                   <select 
                     value={categories.includes(currentArticle.category || '') ? currentArticle.category : 'custom'} 
                     onChange={e => {
                       if (e.target.value === 'custom') {
-                        setCurrentArticle({...currentArticle, category: ''});
+                        const newCat = window.prompt("กรุณาใส่ชื่อหมวดหมู่ใหม่:");
+                        if (newCat && newCat.trim()) {
+                          setCurrentArticle({...currentArticle, category: newCat.trim()});
+                          if (!categories.includes(newCat.trim())) {
+                            setCategories([...categories, newCat.trim()]);
+                          }
+                        } else {
+                          // Revert if cancelled
+                          setCurrentArticle({...currentArticle});
+                        }
                       } else {
                         setCurrentArticle({...currentArticle, category: e.target.value});
                       }
@@ -1952,45 +1869,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     {categories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
+                    {currentArticle.category && !categories.includes(currentArticle.category) && (
+                      <option value={currentArticle.category}>{currentArticle.category}</option>
+                    )}
                     <option value="custom">+ เพิ่มหมวดหมู่ใหม่ / ระบุเอง</option>
                   </select>
-                  
-                  {(!categories.includes(currentArticle.category || '') || currentArticle.category === '') && (
-                    <input 
-                      required
-                      type="text" 
-                      value={currentArticle.category || ''} 
-                      onChange={e => setCurrentArticle({...currentArticle, category: e.target.value})}
-                      className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                      placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ที่นี่..."
-                    />
-                  )}
                 </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-gold text-sm font-bold flex items-center"><Tag size={16} className="mr-2" /> Keywords Meta Tag</label>
-                  <button 
-                    type="button"
-                    onClick={generateKeywords}
-                    disabled={isGeneratingKeywords}
-                    className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all disabled:opacity-50"
-                  >
-                    {isGeneratingKeywords ? (
-                      <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
-                    ) : (
-                      <Sparkles size={14} className="mr-2" />
-                    )}
-                    Generate
-                  </button>
-                </div>
-                <input 
-                  type="text" 
-                  value={currentArticle.metaKeywords || ''} 
-                  onChange={e => setCurrentArticle({...currentArticle, metaKeywords: e.target.value})}
-                  className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                  placeholder="เช่น บาคาร่า, สูตรบาคาร่า, เล่นบาคาร่า (คั่นด้วยลูกน้ำ)"
-                />
               </div>
             </div>
 
