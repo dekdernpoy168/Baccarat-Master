@@ -43,7 +43,6 @@ import { calculateReadTime } from './lib/readTime';
 import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
-import { io } from 'socket.io-client';
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
@@ -773,38 +772,6 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
 
   useEffect(() => {
     loadData();
-
-    // Socket.io for real-time updates
-    const socket = io(window.location.origin, {
-      path: '/socket.io',
-      transports: ['polling', 'websocket'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
-      timeout: 30000,
-      autoConnect: true,
-      forceNew: true
-    });
-    
-    socket.on('connect', () => {
-      console.log('Socket.io connected (Admin) with ID:', socket.id);
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Socket.io connection error (Admin):', error.message, error);
-    });
-
-    socket.on('articles_updated', () => {
-      console.log('Articles updated via socket (Admin)');
-      loadData();
-    });
-    socket.on('categories_updated', () => {
-      console.log('Categories updated via socket (Admin)');
-      loadData();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   }, []);
 
   const filteredArticles = articles.filter(a => {
