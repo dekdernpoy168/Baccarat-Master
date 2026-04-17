@@ -874,6 +874,16 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       alert('กรุณาใส่หัวข้อบทความก่อน');
       return;
     }
+
+    // สร้าง Slug แบบท้องถิ่น (Deterministic) ตามกฎ: ตัวพิมพ์เล็ก, ลบอักขระพิเศษ, เปลี่ยนช่องว่างเป็นขีดกลาง
+    const localSlug = currentArticle.title
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0E00-\u0E7F\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
     setIsGeneratingSlug(true);
     try {
       const response = await fetch('/api/ai/generate-slug', {
@@ -883,16 +893,26 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       });
       if (!response.ok) throw new Error('Failed to generate slug');
       const data: any = await response.json();
-      const cleanedOptions = (data.options || []).map((s: string) => 
+      const aiOptions = (data.options || []).map((s: string) => 
         s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       );
-      if (cleanedOptions.length > 0) {
-        setSlugOptions(cleanedOptions);
+      
+      // รวม Slug ท้องถิ่นเข้ากับตัวเลือกจาก AI
+      const allOptions = Array.from(new Set([localSlug, ...aiOptions])).filter(Boolean);
+      
+      if (allOptions.length > 0) {
+        setSlugOptions(allOptions);
         setShowSlugSelection(true);
       }
     } catch (err) {
       console.error(err);
-      alert('เกิดข้อผิดพลาดในการสร้าง Slug');
+      // หาก AI พลาด ให้ใช้เฉพาะ Slug ท้องถิ่น
+      if (localSlug) {
+        setSlugOptions([localSlug]);
+        setShowSlugSelection(true);
+      } else {
+        alert('เกิดข้อผิดพลาดในการสร้าง Slug');
+      }
     } finally {
       setIsGeneratingSlug(false);
     }
@@ -1869,7 +1889,14 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
               title="เลือก Slug (URL)"
               options={slugOptions}
               onSelect={(value) => {
-                setCurrentArticle(prev => ({ ...prev, slug: value }));
+                setCurrentArticle(prev => {
+                  const updated = { ...prev, slug: value };
+                  // Automate Image URL Sync: ถ้ายังไม่มีรูป ให้เติม URL อัตโนมัติ
+                  if (!prev.image || prev.image.trim() === '') {
+                    updated.image = `https://pic.huisache.com/${value}.jpg`;
+                  }
+                  return updated;
+                });
                 setShowSlugSelection(false);
               }}
             />
