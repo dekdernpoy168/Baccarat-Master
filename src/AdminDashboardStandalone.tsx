@@ -825,7 +825,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       if (!response.ok) throw new Error('Failed to generate slug');
       const data: any = await response.json();
       const aiOptions = (data.options || []).map((s: string) => 
-        s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+        s.trim().toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       );
       
       // รวม Slug ท้องถิ่นเข้ากับตัวเลือกจาก AI

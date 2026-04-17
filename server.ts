@@ -197,6 +197,21 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
 
   let lastError: any = null;
 
+  const parseJsonFallback = (text: string, provider: string, options: AIProviderOptions) => {
+    if (!options.json) return text;
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.warn(`${provider} JSON parse failed, trying to extract JSON`);
+      const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return parsed;
+      }
+      throw new Error(`Failed to parse JSON from ${provider}`);
+    }
+  };
+
   for (const provider of providers) {
     try {
       if (provider === 'openai') {
@@ -219,7 +234,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         });
         console.log("OpenAI Usage:", response.usage);
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        const parsed = options.json ? JSON.parse(text) : text;
+        const parsed = parseJsonFallback(text, provider, options);
         return options.returnProvider ? { data: parsed, provider } : parsed;
       } 
       
@@ -271,18 +286,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         const text = message.content[0].type === 'text' ? message.content[0].text : "";
         
         if (options.json) {
-          try {
-            const parsed = JSON.parse(text);
-            return options.returnProvider ? { data: parsed, provider } : parsed;
-          } catch (e) {
-            console.warn("Anthropic JSON parse failed, trying to extract JSON");
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0]);
-                return options.returnProvider ? { data: parsed, provider } : parsed;
-            }
-            throw e;
-          }
+          const parsed = parseJsonFallback(text, provider, options);
+          return options.returnProvider ? { data: parsed, provider } : parsed;
         } else {
           return options.returnProvider ? { data: text, provider } : text;
         }
@@ -306,7 +311,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         const result: any = await genAI.models.generateContent(modelParams);
         console.log("Gemini Usage:", result.usageMetadata);
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
-        const parsed = options.json ? JSON.parse(text) : text;
+        const parsed = parseJsonFallback(text, provider, options);
         return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
@@ -330,7 +335,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           response_format: options.json ? { type: "json_object" } : { type: "text" },
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        const parsed = options.json ? JSON.parse(text) : text;
+        const parsed = parseJsonFallback(text, provider, options);
         return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
@@ -349,12 +354,12 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           }
         }
         const response = await groqClient.chat.completions.create({
-          model: "llama3-8b-8192",
+          model: "llama-3.3-70b-versatile",
           messages: [{ role: "user", content: finalPrompt }],
           response_format: options.json ? { type: "json_object" } : { type: "text" },
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        const parsed = options.json ? JSON.parse(text) : text;
+        const parsed = parseJsonFallback(text, provider, options);
         return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
@@ -375,11 +380,11 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         
         // We use the OpenAI SDK to connect to x.ai since x.ai provides OpenAI compatible endpoints
         const response = await grokClient.chat.completions.create({
-          model: "grok-4.20-reasoning", 
+          model: "grok-2", 
           messages: [{ role: "user", content: finalPrompt }]
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        const parsed = options.json ? JSON.parse(text) : text;
+        const parsed = parseJsonFallback(text, provider, options);
         return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
@@ -402,7 +407,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           response_format: options.json ? { type: "json_object" } : { type: "text" },
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        const parsed = options.json ? JSON.parse(text) : text;
+        const parsed = parseJsonFallback(text, provider, options);
         return options.returnProvider ? { data: parsed, provider } : parsed;
       }
     } catch (error: any) {
