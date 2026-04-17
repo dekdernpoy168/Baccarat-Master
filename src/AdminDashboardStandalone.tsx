@@ -90,8 +90,13 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
   const ogImage = image || defaultImage;
   const location = useLocation();
   
-  // Auto-generate canonical URL if not provided
-  const currentUrl = canonicalUrl || `${window.location.origin}${location.pathname}${location.search}`;
+  // Auto-generate canonical URL if not provided (Strict Google SEO Best Practices)
+  const cleanPathname = location.pathname.endsWith('/') && location.pathname.length > 1 
+    ? location.pathname.slice(0, -1) 
+    : location.pathname;
+  
+  // Use absolute URL from window origin, stripping out tracking query paramss
+  const currentUrl = canonicalUrl || `${window.location.origin}${cleanPathname}`;
   
   const faqSchema = schema?.faqs ? {
     "@context": "https://schema.org",

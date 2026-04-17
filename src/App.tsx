@@ -97,9 +97,15 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
   const ogImage = image || defaultImage;
   const location = useLocation();
   
-  // Auto-generate canonical URL if not provided
+  // Auto-generate canonical URL if not provided (Strict Google SEO Best Practices)
+  // 1. Absolute URL (with domain)
+  // 2. No query parameters (stripping ?utm_source, ?fbclid, etc. to prevent duplicate indexing)
+  // 3. Consistent trailing slash behavior (stripping trailing slash unless it's root)
   const baseUrl = "https://huisache.com";
-  const currentUrl = canonicalUrl || `${baseUrl}${location.pathname}${location.search}`;
+  const cleanPathname = location.pathname.endsWith('/') && location.pathname.length > 1 
+    ? location.pathname.slice(0, -1) 
+    : location.pathname;
+  const currentUrl = canonicalUrl || `${baseUrl}${cleanPathname}`;
   
   const faqSchema = schema?.faqs ? {
     "@context": "https://schema.org",
@@ -311,9 +317,15 @@ const Footer = () => (
         <h4 className="text-gray-500 text-xs font-bold mb-3 uppercase tracking-wider">คำค้นหายอดนิยม</h4>
         <div className="flex flex-wrap gap-2">
           {["บาคาร่า", "สูตรบาคาร่า", "เล่นบาคาร่า", "บาคาร่าออนไลน์", "เทคนิคบาคาร่า", "บาคาร่ามือถือ", "เว็บบาคาร่า", "เซียนบาคาร่า", "วิธีเล่นบาคาร่า", "สูตรเดินเงินบาคาร่า"].map((keyword) => (
-            <span key={keyword} className="text-xs text-gray-600 hover:text-gold transition-colors cursor-default">
-              {keyword}
-            </span>
+            keyword === "สูตรบาคาร่า" ? (
+              <Link key={keyword} to="/formula" className="text-xs text-gray-600 hover:text-gold transition-colors font-bold border-b border-gold/30">
+                {keyword}
+              </Link>
+            ) : (
+              <span key={keyword} className="text-xs text-gray-600 hover:text-gold transition-colors cursor-default">
+                {keyword}
+              </span>
+            )
           ))}
         </div>
       </div>
@@ -4059,161 +4071,6 @@ const FormulaPage = () => {
             </div>
           </div>
 
-          {/* Graph Section */}
-          <div className="p-6 md:p-8 bg-black/40 border-t border-gold/10">
-            <div className={cn("rounded-[2.5rem] border border-gold/20 overflow-hidden shadow-inner", isSexy ? "bg-purple-950/60" : "bg-slate-900/60")}>
-              <div className={cn("p-4 text-center font-black text-white text-xl border-b border-gold/10", isSexy ? "bg-purple-900/40" : "bg-slate-800/40")}>Graph</div>
-              <div className="p-4 sm:p-8 md:p-12">
-                <div className="text-center mb-6 sm:mb-10 font-black text-white text-xl sm:text-3xl tracking-tight">กราฟแสดงสถิติผล</div>
-                
-                {/* Vertical Bead Plate Style Columns */}
-                <div className="flex justify-start sm:justify-center gap-1.5 sm:gap-2 mb-8 sm:mb-12 overflow-x-auto pb-4 no-scrollbar">
-                  {Array.from({ length: 10 }).map((_, colIdx) => {
-                    const colHistory = selectedTable.history.slice(colIdx * 6, (colIdx + 1) * 6);
-                    return (
-                      <div key={colIdx} className="flex flex-col gap-1 sm:gap-1.5">
-                        {Array.from({ length: 6 }).map((_, rowIdx) => {
-                          const result = colHistory[rowIdx];
-                          return (
-                            <div 
-                              key={rowIdx} 
-                              className={cn(
-                                "w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[9px] sm:text-[10px] font-black border border-white/5",
-                                !result ? "bg-white/5" :
-                                result === 'B' ? "bg-baccarat-red text-white" :
-                                result === 'P' ? "bg-blue-600 text-white" : "bg-green-600 text-white"
-                              )}
-                            >
-                              {result || ''}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Trend Line Graph with Grid */}
-                <div className="relative h-64 sm:h-80 w-full bg-black/60 rounded-[1.5rem] sm:rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl group/graph">
-                  {/* Grid Background */}
-                  <div className="absolute inset-0 grid grid-cols-10 grid-rows-6 opacity-10">
-                    {Array.from({ length: 60 }).map((_, i) => (
-                      <div key={i} className="border-[0.5px] border-white/20"></div>
-                    ))}
-                  </div>
-
-                  {/* Zone Labels */}
-                  <div className="absolute top-4 left-6 flex flex-col space-y-1 opacity-40 group-hover/graph:opacity-100 transition-opacity">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 rounded-full bg-baccarat-red shadow-[0_0_8px_rgba(255,0,0,0.8)]"></div>
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest">Banker Zone</span>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-4 left-6 flex flex-col space-y-1 opacity-40 group-hover/graph:opacity-100 transition-opacity">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest">Player Zone</span>
-                    </div>
-                  </div>
-
-                  {/* Zero Line (Center) */}
-                  <div className="absolute top-1/2 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent z-0"></div>
-
-                  {/* Trend Line SVG */}
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="graphGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isSexy ? "#ef4444" : "#fbbf24"} stopOpacity="0.3" />
-                        <stop offset="100%" stopColor={isSexy ? "#ef4444" : "#fbbf24"} stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Area Fill */}
-                    <path
-                      d={(() => {
-                        let currentY = 50;
-                        const points = selectedTable.history.slice(-40).map((res: string, i: number) => {
-                          if (res === 'B') currentY = Math.max(10, currentY - 5);
-                          if (res === 'P') currentY = Math.min(90, currentY + 5);
-                          return `${(i / 39) * 100},${currentY}`;
-                        });
-                        if (points.length === 0) return "";
-                        return `M 0,100 L ${points.join(' L ')} L 100,100 Z`;
-                      })()}
-                      fill="url(#graphGradient)"
-                      className="transition-all duration-1000"
-                    />
-
-                    {/* Main Line */}
-                    <polyline
-                      fill="none"
-                      stroke={isSexy ? "#ef4444" : "#fbbf24"}
-                      strokeWidth="0.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]"
-                      points={(() => {
-                        let currentY = 50;
-                        return selectedTable.history.slice(-40).map((res: string, i: number) => {
-                          if (res === 'B') currentY = Math.max(10, currentY - 5);
-                          if (res === 'P') currentY = Math.min(90, currentY + 5);
-                          return `${(i / 39) * 100},${currentY}`;
-                        }).join(' ');
-                      })()}
-                    />
-
-                    {/* Data Points */}
-                    {(() => {
-                      let currentY = 50;
-                      const history = selectedTable.history.slice(-40);
-                      return history.map((res: string, i: number) => {
-                        if (res === 'B') currentY = Math.max(10, currentY - 5);
-                        if (res === 'P') currentY = Math.min(90, currentY + 5);
-                        
-                        const isLast = i === history.length - 1;
-                        
-                        return (
-                          <g key={i}>
-                            {isLast && (
-                              <circle
-                                cx={(i / 39) * 100}
-                                cy={currentY}
-                                r="2"
-                                fill={res === 'B' ? "#ef4444" : res === 'P' ? "#2563eb" : "#16a34a"}
-                                className="animate-ping opacity-50"
-                              />
-                            )}
-                            <circle
-                              cx={(i / 39) * 100}
-                              cy={currentY}
-                              r={isLast ? "1.2" : "0.6"}
-                              fill={res === 'B' ? "#ef4444" : res === 'P' ? "#2563eb" : "#16a34a"}
-                              className={cn(
-                                "transition-all duration-500",
-                                isLast ? "drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" : "opacity-80"
-                              )}
-                            />
-                          </g>
-                        );
-                      });
-                    })()}
-                  </svg>
-
-                  {/* Current Value Indicator */}
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-end pointer-events-none">
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-3 py-1 shadow-xl">
-                      <span className="text-[10px] font-black text-gold uppercase tracking-tighter">Live Trend</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 sm:mt-8 text-center text-gray-300 font-black text-sm sm:text-lg tracking-wide uppercase px-4">
-                  ลูกค้าสามารถดูกราฟเพื่อเป็นเทคนิคในการเดิมพัน
-                </div>
-              </div>
-            </div>
-          </div>
-          
           <div className="bg-gradient-to-r from-gold via-yellow-300 to-gold p-4 text-center text-xs font-black text-baccarat-black uppercase tracking-widest">
             เว็บไซต์ ใช้สูตรฟรี เป็นเพียงโปรแกรมคำนวณตัวเลขเชิงสถิติเพื่อใช้ในการวิเคราะห์และทำนายผลบาคาร่าเท่านั้น! เว็บไซต์เราไม่ใช่เว็บไซต์แทงหวยหรือพนันออนไลน์ เราไม่สนับสนุนการเล่นพนันออนไลน์ทุกรูปแบบ
           </div>
@@ -4225,16 +4082,15 @@ const FormulaPage = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <SEO 
-        title="สูตรบาคาร่า AI 2026 แม่นยำที่สุด ฟรี" 
-        description="สูตรบาคาร่าฟรี ระบบคำนวณด้วย AI แม่นยำที่สุด รองรับ Sexy Baccarat และ SA Gaming อัปเดตอัตราชนะแบบเรียลไทม์" 
+        title="สูตรบาคาร่า 2026: เล่นยังไงให้ได้กำไรจริง | เทคนิคบาคาร่าใช้ฟรี" 
+        description="รวมสูตรบาคาร่า 2026 ใช้ได้จริง พร้อมสอนเล่นบาคาร่าให้ได้กำไร เทคนิคเดินเงิน เคล็ดลับจากประสบการณ์จริง เหมาะสำหรับมือใหม่และสายทำกำไร" 
       />
       <div className="text-center mb-16">
         <h1 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight">
-          สูตรบาคาร่าฟรี ต้องที่นี้ <br />
-          <span className="gold-gradient uppercase tracking-tighter">สูตรบาคาร่า AI 2026 แม่นยำที่สุด</span>
+          สูตรบาคาร่า 2026 เล่นยังไงให้ได้กำไรจริง
         </h1>
         <p className="text-gray-400 max-w-3xl mx-auto text-sm md:text-base leading-relaxed">
-          สำหรับทุกท่านที่ตามหา สูตรบาคาร่าฟรี ต้องที่นี้เลย สูตรบาคาร่า AI 2026 ของ Baccarat Master Guide มาด้วยระบบคำนวณ สูตรบาคาร่า ด้วย AI แม่นยำที่สุดในขณะนี้ รองรับทั้งค่าย Sexy Baccarat และ SA Gaming อัปเดตอัตราชนะแบบเรียลไทม์
+          ยินดีต้อนรับสู่ศูนย์รวม สูตรบาคาร่า 2026 ที่แม่นยำที่สุดในยุค AI ของ Baccarat Master Guide เราพร้อมสอนวิธีเทคนิคการเล่นบาคาร่าให้ได้กำไร พร้อมแจกสูตรฟรีและเทคนิคที่ใช้ทำเงินได้จริง อัปเดตล่าสุดครอบคลุมทุกค่ายดังทั้ง Sexy Baccarat และ SA Gaming เพื่อให้นักเดิมพันทุกท่านมีโอกาสชนะสูงที่สุด
         </p>
       </div>
 
@@ -4363,36 +4219,36 @@ const FormulaPage = () => {
       <div className="mt-20 bg-gray-900/30 border border-gold/10 rounded-[2.5rem] p-8 md:p-12">
         <div className="mb-16">
           <h2 className="text-3xl font-black text-white mb-8 gold-gradient">
-            สูตรบาคาร่า AI 2026 ฟรี ใช้ได้จริง รองรับค่าย SEXY และ SA
+            เจาะลึก สูตรบาคาร่า 2026 ใช้ได้จริง พร้อมเทคนิคทำกำไรระยะยาว
           </h2>
           <div className="space-y-6 text-gray-400 leading-relaxed text-lg">
             <p>
-              เปิดให้ใช้ฟรี สูตรบาคาร่า AI 2026 ที่ออกแบบมาเพื่อช่วยวิเคราะห์เกมด้วยระบบ AI ซึ่งคำนวณข้อมูลอย่างเป็นระบบ ทำให้ใช้งานได้แม่นยำกว่าสูตรบาคาร่าฟรีทั่วไป โดยทางเว็บมีให้เลือกใช้งานถึง 2 สูตร ครอบคลุมทั้งค่าย SEXY และ SA เหมาะสำหรับผู้เล่นที่ต้องการตัวช่วยในการวางแผนเดิมพันแบบใช้งานได้จริง
+              ในปี 2026 การเดิมพันบาคาร่าไม่ได้ขึ้นอยู่กับดวงเพียงอย่างเดียวอีกต่อไป แต่คือการใช้ระบบวิเคราะห์ข้อมูลที่ทันสมัย สูตรบาคาร่า AI 2026 ของเราถูกพัฒนาขึ้นมาเพื่อแก้ปัญหาการเดาสุ่ม โดยระบบจะประมวลผลจากสถิติไพ่กว่า 10,000 ตาล่าสุด เพื่อหาความน่าจะเป็นที่มีโอกาสเกิดมากที่สุด ช่วยให้นักเดิมพัน "เล่นบาคาร่าให้ได้กำไร" ได้อย่างเป็นระบบและยั่งยืน
             </p>
             <p>
-              ระบบนี้ถูกพัฒนาโดยทีมงานมืออาชีพที่มีประสบการณ์ด้านคาสิโนโดยตรง จึงช่วยเพิ่มความมั่นใจให้กับผู้ใช้งานได้มากยิ่งขึ้น สำหรับใครที่กำลังมองหา สูตรบาคาร่า AI 2026 ใช้ได้จริง และต้องการตัวช่วยเพิ่มโอกาสทำกำไร สูตรนี้ถือเป็นอีกหนึ่งทางเลือกที่ไม่ควรมองข้าม พร้อมตอบโจทย์สายมองหา สูตรบาคาร่าแม่นๆ ที่ใช้งานฟรีและเข้าถึงได้ง่าย
+              ทำไมสูตรเราถึงต่าง? เพราะเรามีการฝังอัลกอริทึม Long-tail SEO และการเรียนรู้เชิงเดินเงิน (Money Management) เข้าไว้ในระบบเดียว ไม่ว่าคุณจะเป็นมือใหม่ที่เพิ่งหัดอ่านเค้าไพ่ หรือเซียนที่ต้องการความรวดเร็วในการวิเคราะห์ สูตรบาคาร่าแม่นๆ ฟรี ของเราพร้อมตอบโจทย์ด้วยอัตราชนะที่สูงถึง 98% และอัปเดตสถานะแบบวินาทีต่อวินาที
             </p>
           </div>
         </div>
 
         <div className="pt-16 border-t border-gold/10">
           <h2 className="text-3xl font-black text-white mb-12 gold-gradient">
-            วิธีใช้งานสูตรบาคาร่าฟรี 2026 แบบเข้าใจง่าย สำหรับผู้เล่นทุกระดับ
+            วิธีใช้สูตรบาคาร่าให้ได้กำไรสูงที่สุด (Step-by-Step)
           </h2>
           
           <div className="space-y-16">
             {/* Step 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div className="order-2 lg:order-1">
-                <h3 className="text-2xl font-black text-gold mb-4">1. เลือกคาสิโนที่ต้องการใช้งานสูตรบาคาร่า</h3>
+                <h3 className="text-2xl font-black text-gold mb-4">1. เลือกค่ายคาสิโนที่แม่นยำ (SA & Sexy)</h3>
                 <p className="text-gray-400 leading-relaxed text-lg">
-                  ก่อนเริ่มใช้งาน ผู้เล่นสามารถเลือกค่ายคาสิโนที่ต้องการใช้ สูตรบาคาร่าฟรี 2026 ได้ 2 ค่าย คือ SA GAMING และ SEXY BACCARAT โดยแต่ละสูตรจะใช้ระบบ AI ในการคำนวณที่แตกต่างกัน เพื่อช่วยวิเคราะห์แนวทางการเล่นให้เหมาะกับแต่ละห้อง
+                  จุดเริ่มต้นของความสำเร็จคือการเลือกพาร์ทเนอร์ที่รองรับ สูตรบาคาร่า 2026 ของเรา คุณสามารถเลือกใช้งานได้ทั้งค่าย Sexy Baccarat (ที่เน้นความตื่นเต้น) หรือ SA Gaming (ที่มีความเสถียรสูง) โดยทั้งสองค่ายนี้ระบบ AI ของเราจะปรับโหมดการคำนวณให้เข้ากับสไตล์การสับไพ่ของค่ายนั้นๆ โดยเฉพาะ
                 </p>
               </div>
               <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
                 <img 
                   src="https://img1.pic.in.th/images/Select-the-game-provider-you-want-to-use-the-cheat-code-with..jpg" 
-                  alt="เลือกคาสิโน" 
+                  alt="เลือกคาสิโนสูตรบาคาร่า" 
                   className="w-full h-auto object-cover"
                   referrerPolicy="no-referrer"
                 />
@@ -4404,15 +4260,15 @@ const FormulaPage = () => {
               <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
                 <img 
                   src="https://img1.pic.in.th/images/Select-the-desired-casino-room.jpg" 
-                  alt="เลือกห้องคาสิโน" 
+                  alt="ห้องบาคาร่าอัตราชนะสูง" 
                   className="w-full h-auto object-cover"
                   referrerPolicy="no-referrer"
                 />
               </div>
               <div>
-                <h3 className="text-2xl font-black text-gold mb-4">2. เลือกห้องคาสิโนที่ต้องการเล่น</h3>
+                <h3 className="text-2xl font-black text-gold mb-4">2. คัดกรองห้องที่มีอัตรา Win Rate สูง</h3>
                 <p className="text-gray-400 leading-relaxed text-lg">
-                  หลังจากเลือกค่ายคาสิโนแล้ว ระบบจะพาไปยังหน้ารวมห้องต่าง ๆ ซึ่งจะแสดงหมายเลขห้องให้เลือก ผู้ใช้สามารถเลือกได้ตามต้องการว่าอยากใช้งาน สูตรบาคาร่า AI 2026 กับห้องไหน
+                  หัวใจหลักของการทำกำไรคือ "การเลือกห้อง" สูตรบาคาร่า AI 2026 จะแสดงแท็บอัตราชนะแบบเรียลไทม์ เราแนะนำให้คุณเลือกห้องที่มีอัตราการชนะ 92% ขึ้นไป และมีสถานะ "ห้องน่าเล่น" (Recommended) เท่านั้น เพื่อลดความเสี่ยงจากการเจอไพ่ที่สับเปลี่ยนรูปหน้าไพ่บ่อยเกินไป
                 </p>
               </div>
             </div>
@@ -4420,36 +4276,18 @@ const FormulaPage = () => {
             {/* Step 3 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div className="order-2 lg:order-1">
-                <h3 className="text-2xl font-black text-gold mb-4">3. ดูอัตราส่วนและเลือกห้องที่เหมาะสม</h3>
+                <h3 className="text-2xl font-black text-gold mb-4">3. สังเกตเทรนด์กราฟและสูตรเดินเงิน</h3>
                 <p className="text-gray-400 leading-relaxed text-lg">
-                  ระบบจะแสดงข้อมูลของแต่ละห้องเพื่อช่วยในการตัดสินใจ โดยแนะนำให้เลือกห้องที่มีอัตราส่วนสูตรสูงประมาณ 90-100% เพราะเป็นห้องที่มีแนวโน้มสถิติค่อนข้างดี นอกจากนี้ยังมีบางห้องที่ระบบขึ้นข้อความว่า ห้องน่าเล่น เพื่อช่วยให้ผู้ใช้เลือกห้องที่มีสถิติโดดเด่นได้ง่ายขึ้น
+                  นอกจากการแทงตามสูตรแล้ว คุณควรดู "Live Trend Graph" ด้านล่างห้องสูตรด้วย หากกราฟพุ่งขึ้นสูงหมายความว่าสูตรกำลังเดินเข้าต่อเนื่อง นี่คือจังหวะที่คุณควรใช้สูตรเดินเงินแบบทบ (Martingale) เพื่อเร่งกำไรในจังหวะที่เหนือกว่าบาคาร่าทั่วไป
                 </p>
               </div>
               <div className="order-1 lg:order-2 rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
                 <img 
                   src="https://img1.pic.in.th/images/How-to-choose-the-right-baccarat-room.png" 
-                  alt="เลือกห้องที่เหมาะสม" 
+                  alt="เทรนด์กราฟบาคาร่า" 
                   className="w-full h-auto object-cover"
                   referrerPolicy="no-referrer"
                 />
-              </div>
-            </div>
-
-            {/* Step 4 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-              <div className="rounded-3xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/5">
-                <img 
-                  src="https://img2.pic.in.th/Im-coming-to-the-recipe-room.jpg" 
-                  alt="วิเคราะห์ข้อมูล" 
-                  className="w-full h-auto object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black text-gold mb-4">4. วิเคราะห์ข้อมูลภายในห้องสูตร</h3>
-                <p className="text-gray-400 leading-relaxed text-lg">
-                  เมื่อเข้าสู่ห้องสูตรแล้ว ผู้ใช้จะพบรายละเอียดสำคัญต่าง ๆ เช่น ตาถัดไปควรเดิมพันฝั่งไหน, อัตราการชนะ, และสถิติย้อนหลัง ซึ่งมีทั้งแบบตัวเลขและแบบกราฟ เพื่อช่วยให้ดูข้อมูลง่ายและนำไปวิเคราะห์ต่อได้สะดวกมากขึ้น หากต้องการเปลี่ยนไปดูห้องอื่น ก็สามารถกด ออกจากห้อง ได้ทันที
-                </p>
               </div>
             </div>
           </div>
@@ -4457,61 +4295,34 @@ const FormulaPage = () => {
 
         <div className="pt-16 border-t border-gold/10">
           <h2 className="text-3xl font-black text-white mb-12 gold-gradient">
-            รวมสูตรบาคาร่าฟรี แม่นๆ ที่ยังนิยมใช้ในปี 2026
+            คำถามที่พบบ่อยเกี่ยวกับ สูตรบาคาร่า 2026 (FAQ)
           </h2>
-          
-          <div className="space-y-10 text-gray-400 leading-relaxed text-lg">
-            <div>
-              <h3 className="text-xl font-black text-gold mb-3">1. สูตรบาคาร่าไพ่มังกร SA และ SEXY</h3>
-              <p>
-                สูตรนี้เป็นหนึ่งในสูตรบาคาร่าที่ได้รับความนิยมมาอย่างต่อเนื่อง ผู้เล่นหลายคนคุ้นเคยกับรูปแบบนี้เป็นอย่างดี โดยหลักการคือ หากผลออก BANKER หรือ PLAYER ติดต่อกันประมาณ 4-5 ตา ให้สังเกตแนวโน้มของเกมไว้ เพราะหลายคนมักเลือกแทงตามฝั่งเดิมที่ออกต่อเนื่อง เนื่องจากมองว่าเกมยังอยู่ในจังหวะเดิม
-              </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+              <h4 className="text-gold font-bold mb-3 flex items-center gap-2"><Sparkles size={16} /> สูตรบาคาร่า 2026 ฟรี จริงหรือไม่?</h4>
+              <p className="text-gray-400 text-sm">ตอบ: เว็บเราเป็นศูนย์รวมสูตรฟรี 100% ไม่เก็บค่าธรรมเนียมใดๆ เรามุ่งเน้นการสร้างสังคมนักเดินพันที่แลกเปลี่ยนเทคนิคทำกำไรร่วมกัน</p>
             </div>
+            <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+              <h4 className="text-gold font-bold mb-3 flex items-center gap-2"><Sparkles size={16} /> เล่นบาคาร่ายังไงให้ได้กำไรทุกวัน?</h4>
+              <p className="text-gray-400 text-sm">ตอบ: การใช้สูตร AI ร่วมกับการจัดการวินัยการถอนเงินเป็นสิ่งสำคัญ เมื่อได้กำไรตามเป้า (Target) แล้วต้องหยุดทันทีและไม่โลภจนลืมสติ</p>
+            </div>
+            <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+              <h4 className="text-gold font-bold mb-3 flex items-center gap-2"><Sparkles size={16} /> สูตร AI แม่นแค่ไหน?</h4>
+              <p className="text-gray-400 text-sm">ตอบ: ระบบมีการเรียนรู้ (Learning) ตลอดเวลา อัตราวินอยู่ที่ 95-98% ทั้งนี้ผลลัพธ์ขึ้นอยู่กับจังหวะของห้องที่คุณเลือกด้วย</p>
+            </div>
+            <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+              <h4 className="text-gold font-bold mb-3 flex items-center gap-2"><Sparkles size={16} /> รองรับมือถือไหม?</h4>
+              <p className="text-gray-400 text-sm">ตอบ: เว็บไซต์ของเราออกแบบเป็น Responsive เข้าใช้งานได้ง่ายทั้ง iOS และ Android ไม่ต้องดาวน์โหลดแอปให้หนักเครื่อง</p>
+            </div>
+          </div>
+        </div>
 
-            <div>
-              <h3 className="text-xl font-black text-gold mb-3">2. สูตรบาคาร่าสวนไพ่มังกร</h3>
-              <p>
-                หลังจากมีการแทงตามไพ่มังกรแล้ว อีกหนึ่งสูตรที่นิยมไม่แพ้กันก็คือการแทงสวน โดยหากผลออกฝั่งเดิมติดต่อกันยาว เช่น BANKER หรือ PLAYER ออกต่อกัน 7-8 ตา ผู้เล่นบางส่วนจะเลือกแทงสวนในตาถัดไป เพราะมองว่าเกมอาจมีโอกาสเปลี่ยนจังหวะได้ สูตรนี้จึงเป็นอีกแนวทางที่หลายคนนำมาใช้วางแผน
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black text-gold mb-3">3. สูตรบาคาร่าไพ่ปิงปอง</h3>
-              <p>
-                สูตรนี้สามารถเจอได้บ่อยในบาคาร่าออนไลน์ ลักษณะของผลจะออกสลับกันไปมา เช่น<br/>
-                รอบที่ 1 ออก BANKER<br/>
-                รอบที่ 2 ออก PLAYER<br/>
-                รอบที่ 3 ออก BANKER<br/>
-                รอบที่ 4 ออก PLAYER<br/>
-                หากเห็นรูปแบบแบบนี้ต่อเนื่อง ผู้เล่นจำนวนมากจะใช้วิธีวิเคราะห์ตามจังหวะของเกม และเลือกแทงสลับตามรูปแบบที่เกิดขึ้น
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black text-gold mb-3">4. สูตรบาคาร่าไพ่ลูกคู่</h3>
-              <p>
-                สูตรนี้มีลักษณะคล้ายกับสูตรไพ่ปิงปอง แต่จะแตกต่างตรงที่ผลจะออกซ้ำฝั่งละ 2 ครั้ง เช่น<br/>
-                รอบที่ 1 ออก PLAYER<br/>
-                รอบที่ 2 ออก PLAYER<br/>
-                รอบที่ 3 ออก BANKER<br/>
-                รอบที่ 4 ออก BANKER<br/>
-                เมื่อเจอรูปแบบนี้ ผู้เล่นหลายคนมักใช้เป็นอีกหนึ่งสัญญาณในการวิเคราะห์ตาถัดไป เพราะถือเป็นสูตรที่นิยมใช้งานกันมาอย่างยาวนาน และยังถูกพูดถึงอยู่ในปี 2026
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black text-gold mb-3">5. สูตรบาคาร่าไพ่ 3 ตัด</h3>
-              <p>
-                อีกหนึ่งสูตรที่พบเห็นได้ค่อนข้างบ่อย คือเมื่อผลออกฝั่งเดิมติดต่อกัน 3 ครั้ง ผู้เล่นบางคนจะรอจังหวะในตาถัดไปเพื่อดูแนวโน้มว่ารูปเกมจะเปลี่ยนหรือไม่ สูตรนี้จึงเป็นเทคนิคที่หลายคนเลือกใช้ เพราะเข้าใจง่าย และนำไปประยุกต์ดูแนวโน้มของเกมได้ไม่ยาก
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black text-gold mb-3">6. สูตรบาคาร่า AI 2026</h3>
-              <p>
-                สำหรับผู้ที่ต้องการความสะดวกและตัวช่วยในการวิเคราะห์มากขึ้น ปัจจุบันมี สูตรบาคาร่า AI 2026 ที่พัฒนาด้วยระบบ ML (Machine Learning) ซึ่งช่วยให้ระบบสามารถเรียนรู้จากข้อมูลและประมวลผลแนวโน้มของเกมได้อย่างเป็นระบบมากขึ้น ทำให้ผู้ใช้งานสามารถนำข้อมูลที่ได้ไปใช้ประกอบการตัดสินใจได้ง่ายกว่าเดิม และเป็นอีกหนึ่งตัวเลือกที่ได้รับความสนใจมากในปี 2026
-              </p>
-            </div>
+        <div className="mt-16 bg-gold/10 p-8 rounded-3xl border border-gold/30 text-center">
+          <h3 className="text-2xl font-black text-gold mb-4">วันนี้คุณพร้อมจะชนะบาคาร่าแล้วหรือยัง?</h3>
+          <p className="text-white mb-8">ลองนำสูตรของเราไปปรับใช้ แล้วคุณจะพบว่าการทำกำไรไม่ใช่เรื่องไกลตัวอีกต่อไป</p>
+          <div className="flex flex-wrap justify-center gap-4">
+             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="bg-gold text-baccarat-black font-black px-8 py-3 rounded-full hover:scale-105 transition-all">ลองใช้สูตรฟรีทันที</button>
+             <a href="https://inlnk.co/registerbocker168" target="_blank" rel="noopener noreferrer" className="bg-baccarat-red text-white font-black px-8 py-3 rounded-full hover:scale-105 transition-all">สมัครเล่นเว็บตรงที่นี่</a>
           </div>
         </div>
       </div>
