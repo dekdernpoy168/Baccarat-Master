@@ -202,11 +202,16 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
     try {
       return JSON.parse(text);
     } catch (e) {
-      console.warn(`${provider} JSON parse failed, trying to extract JSON`);
+      console.warn(`${provider} JSON parse failed, trying to extract JSON from:`, text.substring(0, 100) + '...');
       const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
       if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return parsed;
+          try {
+             const parsed = JSON.parse(jsonMatch[0]);
+             return parsed;
+          } catch (innerError) {
+             console.error("Inner JSON parse failed during extraction:", innerError);
+             throw new Error(`Failed to parse extracted JSON from ${provider}`);
+          }
       }
       throw new Error(`Failed to parse JSON from ${provider}`);
     }
@@ -625,9 +630,9 @@ async function startServer() {
   server.post("/api/ai/generate-meta-data", async (req, res) => {
     try {
       const { title } = req.body;
-      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย รับรายชื่อหัวข้อบทความต่อไปนี้ แล้วตอบกลับเป็น JSON { meta_title, meta_description, tags } เน้น Keyword บาคาร่า และความเชื่อมั่น ห้ามมีคำฟุ่มเฟือย ความยาว Meta Description ต้องไม่เกิน 160 ตัวอักษร
+      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย รับรายชื่อหัวข้อบทความต่อไปนี้ แล้วตอบกลับเป็น JSON ที่ระบุเท่านั้น \`{ "meta_title": "...", "meta_description": "...", "tags": ["..."], "excerpt_ai": "..." }\` เน้น Keyword บาคาร่า และความเชื่อมั่น ห้ามมีคำฟุ่มเฟือย ความยาว Meta Description ต้องไม่เกิน 160 ตัวอักษร
 ชื่อบทความ: "${title}"
-โครงสร้าง JSON ตามที่กำหนด:
+โครงสร้าง JSON ตามที่กำหนด (ต้องตอบแค่นี้เท่านั้น ห้ามมีคำอธิบาย):
 {
   "meta_title": "...",
   "meta_description": "...",
@@ -683,6 +688,48 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       console.error("Excerpt Gen Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-faq", async (req, res) => {
+    try {
+      const { title, content } = req.body;
+      const cleanContent = content ? content.replace(/<[^>]*>?/gm, '').substring(0, 2000) : "";
+      
+      const prompt = `สร้างคำถามที่พบบ่อย (FAQ) และคำตอบ 3 ข้อสำหรับบทความนี้:
+หัวข้อ: ${title}
+เนื้อความ (แบบย่อ): ${cleanContent}
+หากไม่มีเนื้อหา ให้สร้างจากหัวข้อแทน ตอบกลับเป็น JSON เท่านั้น
+{
+  "faqs": [
+    { "question": "?", "answer": "..." }
+  ]
+}
+`;
+      const data = await callAI(prompt, {
+        json: true,
+        schema: {
+          type: Type.OBJECT,
+          properties: {
+            faqs: {
+              type: Type.ARRAY,
+              items: { 
+                 type: Type.OBJECT,
+                 properties: {
+                    question: { type: Type.STRING },
+                    answer: { type: Type.STRING }
+                 },
+                 required: ["question", "answer"]
+              }
+            }
+          },
+          required: ["faqs"]
+        }
+      });
+      res.json(data);
+    } catch (error: any) {
+      console.error("FAQ Gen Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -1014,7 +1061,9 @@ async function startServer() {
   server.post("/api/ai/execute-prompt", async (req, res) => {
     try {
       const { prompt } = req.body;
-      const text = await callAI(prompt);
+      const textResponse = await callAI(prompt);
+      // Handles case where AI provider returned an object instead of string by accident
+      const text = typeof textResponse === 'object' ? JSON.stringify(textResponse) : textResponse;
       res.json({ text });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

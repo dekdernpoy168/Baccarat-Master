@@ -658,6 +658,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [aiProviderStatus, setAiProviderStatus] = useState<{message: string, isFallback: boolean} | null>(null);
 
+  const [isGeneratingFaq, setIsGeneratingFaq] = useState(false);
+
   const autoFillSEO = async () => {
     if (!currentArticle.title?.trim()) {
       alert('กรุณาใส่หัวข้อบทความก่อนเพื่อใช้เป็นฐานข้อมูล');
@@ -928,6 +930,33 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     }
   };
 
+  const generateFaqFromContent = async () => {
+    if (!currentArticle.title?.trim() && !currentArticle.content?.trim()) {
+      alert('กรุณาใส่หัวข้อ หรือ เขียนเนื้อหาบทความก่อนเพื่อวิเคราะห์');
+      return;
+    }
+    setIsGeneratingFaq(true);
+    try {
+      const response = await fetch('/api/ai/generate-faq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: currentArticle.title || '', content: currentArticle.content || '' })
+      });
+      const data: any = await response.json();
+      if (data.faqs && Array.isArray(data.faqs)) {
+        const currentFaqs = JSON.parse(currentArticle.faqs || '[]');
+        setCurrentArticle({...currentArticle, faqs: JSON.stringify([...currentFaqs, ...data.faqs])});
+      } else {
+         alert('เกิดข้อผิดพลาดในการวิเคราะห์ AI เพื่อสร้าง FAQ');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อสร้างคำถามที่พบบ่อย');
+    } finally {
+      setIsGeneratingFaq(false);
+    }
+  };
+
   const generateExcerptFromTitle = async () => {
     if (!currentArticle.title?.trim()) {
       alert('กรุณาใส่หัวข้อบทความก่อน');
@@ -935,20 +964,21 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     }
     setIsGeneratingExcerpt(true);
     try {
-      const prompt = `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยค จำนวน 3 ตัวเลือก สำหรับบทความหัวข้อ: "${currentArticle.title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`;
-      const response = await fetch('/api/ai/execute-prompt', {
+      const response = await fetch('/api/ai/generate-excerpt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ title: currentArticle.title })
       });
       const data: any = await response.json();
-      if (data.text) {
-        const options = data.text.split('\n').filter((s: string) => s.trim().length > 0);
-        setExcerptOptions(options);
+      if (data.options) {
+        setExcerptOptions(data.options);
         setShowExcerptSelection(true);
+      } else {
+         alert('เกิดข้อผิดพลาดในการสร้างคำโปรย: กลับมาเป็นค่าว่าง');
       }
     } catch (err) {
       console.error(err);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อสร้างคำโปรย');
     } finally {
       setIsGeneratingExcerpt(false);
     }
@@ -2024,7 +2054,16 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <div className="space-y-4 p-6 bg-gray-900/50 border border-gold/10 rounded-2xl">
               <div className="flex items-center justify-between">
                 <h3 className="text-gold font-bold flex items-center"><Plus size={18} className="mr-2" /> คำถามที่พบบ่อย (FAQs)</h3>
-                <button 
+                <div className="flex gap-2">
+                   <button 
+                    type="button"
+                    disabled={isGeneratingFaq}
+                    onClick={generateFaqFromContent}
+                    className="text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {isGeneratingFaq ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />} Auto วิเคราะห์จากเนื้อหา
+                  </button>
+                  <button 
                   type="button"
                   onClick={() => {
                     const faqs = JSON.parse(currentArticle.faqs || '[]');
@@ -2035,6 +2074,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 >
                   <Plus size={14} /> เพิ่มคำถาม
                 </button>
+                </div>
               </div>
               <div className="space-y-4">
                 {JSON.parse(currentArticle.faqs || '[]').map((faq: any, index: number) => (
