@@ -27,7 +27,7 @@
   ],
   "send_email": [
     {
-      "name": "SEND_EMAIL"
+      "binding": "SEND_EMAIL"
     }
   ],
   "images": {
@@ -44,7 +44,7 @@
   },
   "workflows": [
     {
-      "name": "MY_WORKFLOW",
+      "binding": "MY_WORKFLOW",
       "class_name": "MyWorkflow"
     }
   ],
