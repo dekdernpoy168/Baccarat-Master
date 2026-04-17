@@ -10,6 +10,7 @@ import * as schema from './src/db/schema';
 export interface Env {
   DB: D1Database;
   WEBSOCKET_MANAGER: DurableObjectNamespace;
+  ASSETS?: Fetcher; // Supported when using Cloudflare Pages
 }
 
 // --- WebSocket Manager (Durable Object) ---
@@ -118,17 +119,27 @@ export default {
     const db = drizzle(env.DB, { schema });
 
     // Normalize path: remove trailing slash and optional /api prefix
+    const isApiRequest = path.startsWith("/api");
+    const isWebSocket = path === "/ws";
+    
     let normalizedPath = path.replace(/\/$/, "");
-    if (normalizedPath.startsWith("/api")) {
+    if (isApiRequest) {
       normalizedPath = normalizedPath.replace("/api", "");
     }
     if (normalizedPath === "") normalizedPath = "/";
 
+    // Handle non-API requests (static assets/SPA)
+    if (!isApiRequest && !isWebSocket) {
+      if (env.ASSETS) {
+        return await env.ASSETS.fetch(request);
+      }
+    }
+
     try {
       // =============================================
-      // ROOT / HEALTH CHECK
+      // HEALTH CHECK
       // =============================================
-      if (normalizedPath === '/' && method === 'GET') {
+      if (normalizedPath === '/health' && method === 'GET') {
         return json({ 
           status: 'ok', 
           message: 'Baccarat Master API is running.',
