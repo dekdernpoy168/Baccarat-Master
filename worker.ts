@@ -6,18 +6,36 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, asc, min, notInArray, sql } from 'drizzle-orm';
 import * as schema from './src/db/schema';
+import { DurableObject } from "cloudflare:workers";
 
 export interface Env {
   DB: D1Database;
-  WEBSOCKET_MANAGER: DurableObjectNamespace;
+  WEBSOCKET_MANAGER: DurableObjectNamespace<WebSocketManager>;
+  MY_DURABLE_OBJECT: DurableObjectNamespace<MyDurableObject>;
   ASSETS?: Fetcher; // Supported when using Cloudflare Pages
 }
 
+// --- My Durable Object (Tutorial Example) ---
+export class MyDurableObject extends DurableObject<Env> {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+  }
+
+  async sayHello(): Promise<string> {
+    const result = this.ctx.storage.sql
+      .exec("SELECT 'Hello from Durable Object SQLite!' as greeting")
+      .one();
+    return result.greeting as string;
+  }
+}
+
 // --- WebSocket Manager (Durable Object) ---
-export class WebSocketManager {
+export class WebSocketManager extends DurableObject<Env> {
   sessions: WebSocket[] = [];
 
-  constructor(state: any, env: Env) {}
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+  }
 
   async fetch(request: Request) {
     const url = new URL(request.url);
@@ -202,6 +220,14 @@ export default {
       if (normalizedPath === '/users' && method === 'GET') {
         const allUsers = await db.select().from(schema.users).all();
         return json(allUsers);
+      }
+
+      // /api/do-test: Test the new Durable Object
+      if (normalizedPath === '/do-test' && method === 'GET') {
+        const id = env.MY_DURABLE_OBJECT.idFromName('test');
+        const stub = env.MY_DURABLE_OBJECT.get(id);
+        const greeting = await stub.sayHello();
+        return new Response(greeting);
       }
 
       // =============================================

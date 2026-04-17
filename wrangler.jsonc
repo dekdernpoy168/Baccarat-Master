@@ -18,5 +18,28 @@
       "database_name": "baccarat-master-db",
       "database_id": "1ec6974a-786d-44b3-bb06-dcdd738924ed"
     }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "WEBSOCKET_MANAGER",
+        "class_name": "WebSocketManager"
+      },
+      {
+        "name": "MY_DURABLE_OBJECT",
+        "class_name": "MyDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "MyDurableObject"
+      ],
+      "new_classes": [
+        "WebSocketManager"
+      ]
+    }
   ]
 }
