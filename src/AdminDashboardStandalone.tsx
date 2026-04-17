@@ -682,8 +682,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       
       let message = `✅ สถานะปัจจุบัน: ใช้งาน ${usedProvider}`;
       let isFallback = false;
-      if (usedProvider !== 'anthropic') {
-        message = `⚠️ ระบบสำรองทำงาน: ใช้งาน ${usedProvider} แทน (ตรวจสอบยอดเงินระดับสูง)`;
+      if (usedProvider !== 'deepseek') {
+        message = `⚠️ ระบบสำรองทำงาน: ใช้งาน ${usedProvider} แทน (ตรวจสอบสถานะ DeepSeek)`;
         isFallback = true;
       }
       setAiProviderStatus({ message, isFallback });
@@ -875,12 +875,25 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
 
   const brainstormTopics = async () => {
     setIsBrainstorming(true);
+    let keywordInfo = currentArticle.title?.trim() || "บาคาร่า";
     try {
-      const response = await fetch('/api/ai/brainstorm', {
+      const response = await fetch('/api/ai/grok-brainstorm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: keywordInfo })
       });
-      const data: any = await response.json();
+      const responseData: any = await response.json();
+      const data = responseData.data || {};
+      const usedProvider = responseData.provider || 'unknown';
+      
+      let message = `✅ สถานะปัจจุบัน: ใช้งาน ${usedProvider}`;
+      let isFallback = false;
+      if (usedProvider !== 'grok') {
+        message = `⚠️ ระบบสำรองทำงาน: ใช้งาน ${usedProvider} แทน Grok`;
+        isFallback = true;
+      }
+      setAiProviderStatus({ message, isFallback });
+
       if (data.topics) {
         setBrainstormResults(data.topics);
         setShowBrainstormModal(true);
@@ -888,6 +901,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     } catch (err) {
       console.error(err);
       alert('เกิดข้อผิดพลาดในการระดมสมอง');
+      setAiProviderStatus({ message: '❌ เกิดข้อผิดพลาดในการเชื่อมต่อ x.ai', isFallback: true });
     } finally {
       setIsBrainstorming(false);
     }
@@ -1522,12 +1536,51 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <SEO title="Admin Dashboard" description="จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์" />
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 md:mb-12">
-        <div className="w-full md:w-auto">
-          <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
-          <p className="text-gray-400 text-sm md:text-base">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
-        </div>
-        <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
+          {/* Dashboard Header UI and Health Check */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div className="w-full md:w-auto">
+              <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
+              <p className="text-gray-400 text-sm md:text-base">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
+            </div>
+            
+            {/* Health Check Status Panels */}
+            <div className="w-full md:w-auto overflow-x-auto pb-2 custom-scrollbar">
+              <div className="flex gap-2">
+                <div className="bg-black/60 border border-white/10 rounded-xl p-2 md:p-3 min-w-[120px] flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                  <div>
+                    <h4 className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Primary Content</h4>
+                    <p className="text-xs text-white font-bold truncate max-w-[100px]">DeepSeek</p>
+                  </div>
+                </div>
+                <div className="bg-black/60 border border-white/10 rounded-xl p-2 md:p-3 min-w-[120px] flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <div>
+                    <h4 className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Free Fallback</h4>
+                    <p className="text-xs text-white font-bold truncate max-w-[100px]">Gemini</p>
+                  </div>
+                </div>
+                <div className="bg-black/60 border border-white/10 rounded-xl p-2 md:p-3 min-w-[120px] flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                  <div>
+                    <h4 className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Fast / Clickbait</h4>
+                    <p className="text-xs text-white font-bold truncate max-w-[100px]">Groq / Grok</p>
+                  </div>
+                </div>
+                <div className="bg-black/60 border border-white/10 rounded-xl p-2 md:p-3 min-w-[120px] flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <div>
+                    <h4 className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Premium</h4>
+                    <p className="text-xs text-white font-bold truncate max-w-[100px]">OpenAI/Claude</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 md:mb-12">
+            <div></div> {/* Empty div to push buttons right if health check is visible */}
+            <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
           <div className="flex gap-2">
             <button 
               onClick={() => exportArticles('xlsx')}

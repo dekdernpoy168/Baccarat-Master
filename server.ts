@@ -182,13 +182,13 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
     providers.push(options.preferredProvider);
   }
   
-  // Add remaining available providers as fallbacks (Anthropic > OpenAI > Gemini > Grok > Groq)
+  // Add remaining available providers as fallbacks (DeepSeek > Gemini > Groq > Grok > Anthropic > OpenAI > Ollama)
+  if (hasDeepseek && !providers.includes('deepseek')) providers.push('deepseek');
+  if (hasGemini && !providers.includes('gemini')) providers.push('gemini');
+  if (hasGroq && !providers.includes('groq')) providers.push('groq');
+  if (hasGrok && !providers.includes('grok')) providers.push('grok');
   if (hasAnthropic && !providers.includes('anthropic')) providers.push('anthropic');
   if (hasOpenAI && !providers.includes('openai')) providers.push('openai');
-  if (hasGemini && !providers.includes('gemini')) providers.push('gemini');
-  if (hasGrok && !providers.includes('grok')) providers.push('grok');
-  if (hasGroq && !providers.includes('groq')) providers.push('groq');
-  if (hasDeepseek && !providers.includes('deepseek')) providers.push('deepseek');
   if (hasOllama && !providers.includes('ollama')) providers.push('ollama');
 
   if (providers.length === 0) {
@@ -598,6 +598,7 @@ async function startServer() {
       const prompt = `Generate 4 SEO-friendly URL slug options for this article title: "${title}". 2 options MUST be in Thai Language (using Thai characters and hyphens), and 2 options MUST be in English (using English letters and hyphens). Use only lowercase characters and hyphens. Do not use any spaces.`;
       const data = await callAI(prompt, {
         json: true,
+        preferredProvider: 'groq',
         schema: {
           type: Type.OBJECT,
           properties: {
@@ -619,17 +620,15 @@ async function startServer() {
   server.post("/api/ai/generate-meta-data", async (req, res) => {
     try {
       const { title } = req.body;
-      const prompt = `คุณเป็นผู้เชี่ยวชาญ SEO ภาษาไทย หน้าที่ของคุณคือรับชื่อบทความต่อไปนี้ และตอบกลับเป็น JSON เท่านั้น
+      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย รับรายชื่อหัวข้อบทความต่อไปนี้ แล้วตอบกลับเป็น JSON { meta_title, meta_description, tags } เน้น Keyword บาคาร่า และความเชื่อมั่น ห้ามมีคำฟุ่มเฟือย ความยาว Meta Description ต้องไม่เกิน 160 ตัวอักษร
 ชื่อบทความ: "${title}"
-
 โครงสร้าง JSON ตามที่กำหนด:
 {
-"meta_title": "...",
-"meta_description": "...",
-"tags": ["...", "..."],
-"excerpt_ai": "..."
-}
-ทุกอย่างต้องเป็นภาษาไทยที่ดึงดูดใจและเน้นคำสำคัญที่เกี่ยวข้องกับบทความ`;
+  "meta_title": "...",
+  "meta_description": "...",
+  "tags": ["...", "..."],
+  "excerpt_ai": "เขียนสรุปบทความเป็นสไตล์ AI Overview (70-100 คำ) โดยเน้นการตอบคำถามที่ผู้ใช้สงสัยทันที เพื่อใช้ชิงพื้นที่ Featured Snippet บน Google"
+}`;
 
       const result = await callAI(prompt, {
         json: true,
@@ -638,6 +637,23 @@ async function startServer() {
       res.json(result);
     } catch (error: any) {
       console.error("Meta Gen Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/ai/grok-brainstorm", async (req, res) => {
+    try {
+      const { keyword } = req.body;
+      const prompt = `ให้ Grok วิเคราะห์กระแสล่าสุดจาก X (Twitter) เกี่ยวกับ Keyword นี้: "${keyword}" แล้วเสนอชื่อหัวข้อที่ดึงดูดใจ (Clickbait) มาให้ 3 แบบรูปแบบ JSON { "topics": ["หัวข้อที่ 1", "หัวข้อที่ 2", "หัวข้อที่ 3"] }`;
+      
+      const result = await callAI(prompt, {
+        json: true,
+        preferredProvider: 'grok',
+        returnProvider: true
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Grok Brainstorm Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
