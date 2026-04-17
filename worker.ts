@@ -12,7 +12,6 @@ export interface Env {
   DB: D1Database;
   WEBSOCKET_MANAGER: DurableObjectNamespace<WebSocketManager>;
   MY_DURABLE_OBJECT: DurableObjectNamespace<MyDurableObject>;
-  SEND_EMAIL: any; // Email Rendering or Forwarding binding
   HYPERDRIVE: { connectionString: string };
   IMAGES: any;
   BUCKET: R2Bucket;
@@ -503,22 +502,14 @@ export default {
     }
   },
 
-  async email(message: any, env: Env, ctx: any) {
-    // Forward the incoming email to a destination address
-    await message.forward("destination@example.com");
-    // Or send a new email using the send_email binding
-    await env.SEND_EMAIL.send({
-      from: message.to,
-      to: "recipient@example.com",
-      subject: "New email received",
-      text: `New email from ${message.from}`,
-    });
-  },
-
   async queue(batch: any, env: Env, ctx: any) {
     for (const message of batch.messages) {
       console.log(`Received message from queue:`, message.body);
       // Process your queue messages here
     }
+  },
+
+  async scheduled(event: any, env: Env, ctx: any) {
+    console.log(event.scheduledTime);
   }
 };

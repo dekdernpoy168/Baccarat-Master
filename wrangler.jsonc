@@ -25,11 +25,6 @@
       "id": "YOUR_HYPERDRIVE_ID_HERE"
     }
   ],
-  "send_email": [
-    {
-      "binding": "SEND_EMAIL"
-    }
-  ],
   "images": {
     "binding": "IMAGES"
   },
