@@ -99,4 +99,12 @@ export async function initSchema() {
       createdAt TEXT
     );
   `);
+  
+  await exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 }

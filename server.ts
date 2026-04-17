@@ -21,34 +21,47 @@ import Anthropic from '@anthropic-ai/sdk';
 import { z } from "zod";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 
-// Helper to read AI providers config
-const AI_PROVIDERS_FILE = path.join(process.cwd(), 'ai-providers.json');
+// Database-backed API configuration
+let aiConfigCache: any = null;
+let lastCacheTime = 0;
 
-function getAiProvidersConfig() {
+async function getAiProvidersConfig() {
+  if (aiConfigCache && Date.now() - lastCacheTime < 5000) {
+    return aiConfigCache;
+  }
   try {
-    if (fs.existsSync(AI_PROVIDERS_FILE)) {
-      const data = fs.readFileSync(AI_PROVIDERS_FILE, 'utf8');
-      return JSON.parse(data);
+    const rows = await query("SELECT value FROM settings WHERE key = 'ai_providers'");
+    if (rows && rows.length > 0) {
+      aiConfigCache = JSON.parse(rows[0].value);
+      lastCacheTime = Date.now();
+      return aiConfigCache;
     }
   } catch (err) {
-    console.error("Error reading ai-providers.json:", err);
+    console.error("Error reading ai_providers from DB:", err);
   }
   return {};
 }
 
-function saveAiProvidersConfig(config: any) {
+async function saveAiProvidersConfig(config: any) {
   try {
-    fs.writeFileSync(AI_PROVIDERS_FILE, JSON.stringify(config, null, 2), 'utf8');
+    const val = JSON.stringify(config);
+    await exec(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('ai_providers', ?, datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
+      [val]
+    );
+    aiConfigCache = config;
+    lastCacheTime = Date.now();
     return true;
   } catch (err) {
-    console.error("Error writing ai-providers.json:", err);
+    console.error("Error writing ai_providers to DB:", err);
     return false;
   }
 }
 
 // Helper to get API key (prefers config file, falls back to env)
-function getApiKey(provider: string) {
-  const config = getAiProvidersConfig();
+async function getApiKey(provider: string) {
+  const config = await getAiProvidersConfig();
   if (config[provider] && config[provider].apiKey) {
     return config[provider].apiKey;
   }
@@ -151,13 +164,13 @@ interface McpServerConfig {
 }
 
 async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'ollama' } = {}) {
-  const config = getAiProvidersConfig();
+  const config = await getAiProvidersConfig();
   
-  const hasOpenAI = (config.openai?.enabled && getApiKey('openai')) || (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy");
-  const hasAnthropic = (config.anthropic?.enabled && getApiKey('anthropic')) || (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy");
-  const hasGemini = (config.gemini?.enabled && getApiKey('gemini')) || (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy");
-  const hasDeepseek = config.deepseek?.enabled && getApiKey('deepseek');
-  const hasGroq = config.groq?.enabled && getApiKey('groq');
+  const hasOpenAI = (config.openai?.enabled && await getApiKey('openai')) || (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy");
+  const hasAnthropic = (config.anthropic?.enabled && await getApiKey('anthropic')) || (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy");
+  const hasGemini = (config.gemini?.enabled && await getApiKey('gemini')) || (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy");
+  const hasDeepseek = config.deepseek?.enabled && await getApiKey('deepseek');
+  const hasGroq = config.groq?.enabled && await getApiKey('groq');
   const hasOllama = config.ollama?.enabled;
 
   // Determine order of providers based on preference and availability
@@ -184,7 +197,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
   for (const provider of providers) {
     try {
       if (provider === 'openai') {
-        const apiKey = getApiKey('openai') || process.env.OPENAI_API_KEY;
+        const apiKey = await getApiKey('openai') || process.env.OPENAI_API_KEY;
         const openaiClient = new OpenAI({ apiKey });
         
         let finalPrompt = prompt;
@@ -207,7 +220,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
       } 
       
       else if (provider === 'anthropic') {
-        const apiKey = getApiKey('anthropic') || process.env.ANTHROPIC_API_KEY;
+        const apiKey = await getApiKey('anthropic') || process.env.ANTHROPIC_API_KEY;
         const anthropicClient = new Anthropic({ apiKey, defaultHeaders: { "anthropic-beta": "prompt-caching-2024-07-31" } });
         
         let systemPrompt = options.json ? "Return ONLY a valid JSON object. No other text." : "";
@@ -267,7 +280,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
       }
 
       else if (provider === 'gemini') {
-        const apiKey = getApiKey('gemini') || process.env.GEMINI_API_KEY;
+        const apiKey = await getApiKey('gemini') || process.env.GEMINI_API_KEY;
         const genAI = new GoogleGenAI({ apiKey: apiKey || "" });
         const modelParams: any = {
           model: "gemini-1.5-flash",
@@ -288,7 +301,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
       }
       
       else if (provider === 'deepseek') {
-        const apiKey = getApiKey('deepseek');
+        const apiKey = await getApiKey('deepseek');
         const baseURL = config.deepseek?.proxyUrl || "https://api.deepseek.com/v1";
         const deepseekClient = new OpenAI({ apiKey, baseURL });
         
@@ -311,7 +324,7 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
       }
       
       else if (provider === 'groq') {
-        const apiKey = getApiKey('groq');
+        const apiKey = await getApiKey('groq');
         const baseURL = config.groq?.proxyUrl || "https://api.groq.com/openai/v1";
         const groqClient = new OpenAI({ apiKey, baseURL });
         
@@ -429,8 +442,8 @@ async function startServer() {
   server.use('/api/users', usersApi);
 
   // AI Proxy Routes
-  server.get("/api/ai/providers", (req, res) => {
-    const config = getAiProvidersConfig();
+  server.get("/api/ai/providers", async (req, res) => {
+    const config = await getAiProvidersConfig();
     
     // Add default providers from env if not in config
     if (!config.openai) config.openai = { enabled: !!process.env.OPENAI_API_KEY, apiKey: process.env.OPENAI_API_KEY || '', proxyUrl: '', models: ['gpt-4o-mini', 'gpt-4o'] };
@@ -448,9 +461,9 @@ async function startServer() {
     res.json(maskedConfig);
   });
 
-  server.put("/api/ai/providers", (req, res) => {
+  server.put("/api/ai/providers", async (req, res) => {
     const newConfig = req.body;
-    const currentConfig = getAiProvidersConfig();
+    const currentConfig = await getAiProvidersConfig();
     
     // Merge configs, preserving actual API keys if the new one is masked
     for (const provider in newConfig) {
@@ -459,7 +472,7 @@ async function startServer() {
       }
     }
     
-    if (saveAiProvidersConfig(newConfig)) {
+    if (await saveAiProvidersConfig(newConfig)) {
       res.json({ success: true });
     } else {
       res.status(500).json({ error: "Failed to save configuration" });
