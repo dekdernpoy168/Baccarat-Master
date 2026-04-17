@@ -71,6 +71,7 @@ async function getApiKey(provider: string) {
   if (provider === 'gemini') return process.env.GEMINI_API_KEY;
   if (provider === 'deepseek') return process.env.DEEPSEEK_API_KEY;
   if (provider === 'groq') return process.env.GROQ_API_KEY;
+  if (provider === 'grok') return process.env.XAI_API_KEY;
   
   return undefined;
 }
@@ -163,7 +164,7 @@ interface McpServerConfig {
   token?: string;
 }
 
-async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'ollama', returnProvider?: boolean } = {}) {
+async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'grok' | 'ollama', returnProvider?: boolean } = {}) {
   const config = await getAiProvidersConfig();
   
   const hasOpenAI = (config.openai?.enabled && await getApiKey('openai')) || (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy");
@@ -171,19 +172,21 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
   const hasGemini = (config.gemini?.enabled && await getApiKey('gemini')) || (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy");
   const hasDeepseek = config.deepseek?.enabled && await getApiKey('deepseek');
   const hasGroq = config.groq?.enabled && await getApiKey('groq');
+  const hasGrok = (config.grok?.enabled && await getApiKey('grok')) || !!process.env.XAI_API_KEY;
   const hasOllama = config.ollama?.enabled;
 
   // Determine order of providers based on preference and availability
-  let providers: ('openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'ollama')[] = [];
+  let providers: ('openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'grok' | 'ollama')[] = [];
   
   if (options.preferredProvider) {
     providers.push(options.preferredProvider);
   }
   
-  // Add remaining available providers as fallbacks (Anthropic > OpenAI > Gemini > Groq)
+  // Add remaining available providers as fallbacks (Anthropic > OpenAI > Gemini > Grok > Groq)
   if (hasAnthropic && !providers.includes('anthropic')) providers.push('anthropic');
   if (hasOpenAI && !providers.includes('openai')) providers.push('openai');
   if (hasGemini && !providers.includes('gemini')) providers.push('gemini');
+  if (hasGrok && !providers.includes('grok')) providers.push('grok');
   if (hasGroq && !providers.includes('groq')) providers.push('groq');
   if (hasDeepseek && !providers.includes('deepseek')) providers.push('deepseek');
   if (hasOllama && !providers.includes('ollama')) providers.push('ollama');
@@ -355,6 +358,31 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
+      else if (provider === 'grok') {
+        const apiKey = await getApiKey('grok') || process.env.XAI_API_KEY;
+        const baseURL = config.grok?.proxyUrl || "https://api.x.ai/v1";
+        const grokClient = new OpenAI({ apiKey, baseURL });
+        
+        let finalPrompt = prompt;
+        if (options.json) {
+          if (!prompt.toLowerCase().includes('json')) {
+            finalPrompt += '\n\nPlease return the response in JSON format.';
+          }
+          if (options.schema) {
+            finalPrompt += `\n\nExpected JSON structure:\n${JSON.stringify(options.schema, null, 2)}`;
+          }
+        }
+        
+        // We use the OpenAI SDK to connect to x.ai since x.ai provides OpenAI compatible endpoints
+        const response = await grokClient.chat.completions.create({
+          model: "grok-4.20-reasoning", 
+          messages: [{ role: "user", content: finalPrompt }]
+        });
+        const text = response.choices[0].message.content || (options.json ? "{}" : "");
+        const parsed = options.json ? JSON.parse(text) : text;
+        return options.returnProvider ? { data: parsed, provider } : parsed;
+      }
+      
       else if (provider === 'ollama') {
         const baseURL = config.ollama?.proxyUrl || "http://localhost:11434/v1";
         const ollamaClient = new OpenAI({ apiKey: "ollama", baseURL });
@@ -459,6 +487,7 @@ async function startServer() {
     if (!config.openai) config.openai = { enabled: !!process.env.OPENAI_API_KEY, apiKey: process.env.OPENAI_API_KEY || '', proxyUrl: '', models: ['gpt-4o-mini', 'gpt-4o'] };
     if (!config.anthropic) config.anthropic = { enabled: !!process.env.ANTHROPIC_API_KEY, apiKey: process.env.ANTHROPIC_API_KEY || '', proxyUrl: '', models: ['claude-3-5-sonnet-20241022'] };
     if (!config.gemini) config.gemini = { enabled: !!process.env.GEMINI_API_KEY, apiKey: process.env.GEMINI_API_KEY || '', proxyUrl: '', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] };
+    if (!config.grok) config.grok = { enabled: !!process.env.XAI_API_KEY, apiKey: process.env.XAI_API_KEY || '', proxyUrl: 'https://api.x.ai/v1', models: ['grok-4.20-reasoning', 'grok-beta'] };
     
     // Mask API keys for security before sending to client
     const maskedConfig = { ...config };
@@ -529,6 +558,11 @@ async function startServer() {
       else if (provider === 'groq') {
         const groqClient = new OpenAI({ apiKey, baseURL: proxyUrl || "https://api.groq.com/openai/v1" });
         await groqClient.models.list();
+        return res.json({ success: true });
+      }
+      else if (provider === 'grok') {
+        const grokClient = new OpenAI({ apiKey, baseURL: proxyUrl || "https://api.x.ai/v1" });
+        await grokClient.models.list();
         return res.json({ success: true });
       }
       else if (provider === 'ollama') {
