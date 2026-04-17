@@ -210,8 +210,9 @@ export default {
       // TEST D1 ENDPOINTS (User Requested)
       // =============================================
       
-      // /api/setup: Create users table if not exists (using name field)
+      // /api/setup: Create users table if not exists
       if (normalizedPath === '/setup' && method === 'GET') {
+        const db = drizzle(env.DB);
         await db.run(sql`
           CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,14 +224,9 @@ export default {
 
       // /api/add: Add a test user
       if (normalizedPath === '/add' && method === 'GET') {
+        const db = drizzle(env.DB);
         const newUser = await db.insert(schema.users)
-          .values({ 
-            // Note: Schema has email/password but we'll use raw SQL if needed 
-            // or just follow the snippet's intent. 
-            // Since we're using the imported schema 'users', we need to match it.
-            // But the snippet uses 'name'. I'll use raw SQL to match the snippet's 'name' requirement.
-            name: 'Test User' 
-          } as any)
+          .values({ name: 'Test User' })
           .returning()
           .get();
 
@@ -239,6 +235,7 @@ export default {
 
       // /api/users: Get all users
       if (normalizedPath === '/users' && method === 'GET') {
+        const db = drizzle(env.DB);
         const allUsers = await db.select().from(schema.users).all();
         return json(allUsers);
       }
