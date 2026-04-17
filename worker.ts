@@ -4,7 +4,7 @@
 // =============================================
 
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, desc, asc, min, notInArray } from 'drizzle-orm';
+import { eq, desc, asc, min, notInArray, sql } from 'drizzle-orm';
 import * as schema from './src/db/schema';
 
 export interface Env {
@@ -132,7 +132,7 @@ export default {
     if (!isApiRequest && !isWebSocket) {
       if (env.ASSETS) {
         try {
-          const response = await env.ASSETS.fetch(request.clone());
+          const response = await env.ASSETS.fetch(request.clone() as unknown as Request);
           
           // SPA Fallback: If it's a 404 and not a file, serve index.html
           const url = new URL(request.url);
@@ -167,6 +167,43 @@ export default {
     }
 
     try {
+      // =============================================
+      // TEST D1 ENDPOINTS (User Requested)
+      // =============================================
+      
+      // /api/setup: Create users table if not exists (using name field)
+      if (normalizedPath === '/setup' && method === 'GET') {
+        await db.run(sql`
+          CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL
+          )
+        `);
+        return new Response('Table created or already exists!');
+      }
+
+      // /api/add: Add a test user
+      if (normalizedPath === '/add' && method === 'GET') {
+        const newUser = await db.insert(schema.users)
+          .values({ 
+            // Note: Schema has email/password but we'll use raw SQL if needed 
+            // or just follow the snippet's intent. 
+            // Since we're using the imported schema 'users', we need to match it.
+            // But the snippet uses 'name'. I'll use raw SQL to match the snippet's 'name' requirement.
+            name: 'Test User' 
+          } as any)
+          .returning()
+          .get();
+
+        return json(newUser);
+      }
+
+      // /api/users: Get all users
+      if (normalizedPath === '/users' && method === 'GET') {
+        const allUsers = await db.select().from(schema.users).all();
+        return json(allUsers);
+      }
+
       // =============================================
       // HEALTH CHECK / API FALLBACK
       // =============================================

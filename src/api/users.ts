@@ -11,8 +11,12 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { email, password } = req.body;
-  await db.insert(users).values({ email, password: password || 'default_password' });
+  const { name, email, password } = req.body;
+  await db.insert(users).values({ 
+    name: name || email?.split('@')[0] || 'Unknown User',
+    email, 
+    password: password || 'default_password' 
+  });
   res.status(201).json({ message: 'User created' });
 });
 
