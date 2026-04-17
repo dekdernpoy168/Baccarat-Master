@@ -6,13 +6,38 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, asc, min, notInArray, sql } from 'drizzle-orm';
 import * as schema from './src/db/schema';
-import { DurableObject } from "cloudflare:workers";
+import { DurableObject, WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 
 export interface Env {
   DB: D1Database;
   WEBSOCKET_MANAGER: DurableObjectNamespace<WebSocketManager>;
   MY_DURABLE_OBJECT: DurableObjectNamespace<MyDurableObject>;
+  SEND_EMAIL: any; // Email Rendering or Forwarding binding
+  HYPERDRIVE: { connectionString: string };
+  IMAGES: any;
+  BUCKET: R2Bucket;
+  AI: any;
+  MY_WORKFLOW: Workflow;
+  MY_QUEUE: Queue<any>;
   ASSETS?: Fetcher; // Supported when using Cloudflare Pages
+}
+
+// --- Cloudflare Workflows (Example) ---
+export class MyWorkflow extends WorkflowEntrypoint<Env> {
+  async run(event: WorkflowEvent<any>, step: WorkflowStep) {
+    const data = await step.do('initial step', async () => {
+      // Cast to any to access params if types are not fully updated
+      const params = (event as any).params;
+      return { msg: "Workflow started", payload: params };
+    });
+
+    await step.sleep('short delay', '10 seconds');
+
+    await step.do('final step', async () => {
+      console.log('Workflow finishing with data:', data);
+      return { status: "completed" };
+    });
+  }
 }
 
 // --- My Durable Object (Tutorial Example) ---
@@ -228,6 +253,41 @@ export default {
         const stub = env.MY_DURABLE_OBJECT.get(id);
         const greeting = await stub.sayHello();
         return new Response(greeting);
+      }
+
+      // /api/hyperdrive-test: Test Hyperdrive connection
+      if (normalizedPath === '/hyperdrive-test' && method === 'GET') {
+        return json({ 
+          message: 'Hyperdrive binding configured', 
+          connectionString: env.HYPERDRIVE?.connectionString || 'Not set' 
+        });
+      }
+
+      // /api/images-test: Placeholder for Images API (Basic check)
+      if (normalizedPath === '/images-test' && method === 'GET') {
+        return json({ message: 'Cloudflare Images binding detected' });
+      }
+
+      // /api/workflow-test: Trigger a new workflow instance
+      if (normalizedPath === '/workflow-test' && method === 'GET') {
+        const instance = await env.MY_WORKFLOW.create({
+          params: { time: new Date().toISOString() }
+        });
+        return json({ 
+          message: 'Workflow triggered', 
+          id: instance.id 
+        });
+      }
+
+      // /api/queue-test: Send a message to the Queue
+      if (normalizedPath === '/queue-test') {
+        await env.MY_QUEUE.send({
+          url: request.url,
+          method: request.method,
+          headers: Object.fromEntries(request.headers),
+          timestamp: new Date().toISOString()
+        });
+        return json({ message: 'Message sent to Queue!' });
       }
 
       // =============================================
@@ -475,4 +535,23 @@ export default {
       return error(e.message || 'Internal server error', 500);
     }
   },
+
+  async email(message: any, env: Env, ctx: ExecutionContext) {
+    // Forward the incoming email to a destination address
+    await message.forward("destination@example.com");
+    // Or send a new email using the send_email binding
+    await env.SEND_EMAIL.send({
+      from: message.to,
+      to: "recipient@example.com",
+      subject: "New email received",
+      text: `New email from ${message.from}`,
+    });
+  },
+
+  async queue(batch: MessageBatch<any>, env: Env, ctx: ExecutionContext) {
+    for (const message of batch.messages) {
+      console.log(`Received message from queue:`, message.body);
+      // Process your queue messages here
+    }
+  }
 };

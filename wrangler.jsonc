@@ -19,6 +19,50 @@
       "database_id": "1ec6974a-786d-44b3-bb06-dcdd738924ed"
     }
   ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "YOUR_HYPERDRIVE_ID_HERE"
+    }
+  ],
+  "send_email": [
+    {
+      "name": "SEND_EMAIL"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "baccarat-master-assets"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "workflows": [
+    {
+      "name": "MY_WORKFLOW",
+      "class_name": "MyWorkflow"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "MY_QUEUE",
+        "queue": "baccarat-master"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "baccarat-master",
+        "max_batch_size": 10,
+        "dead_letter_queue": "my-queue-dlq"
+      }
+    ]
+  },
   "durable_objects": {
     "bindings": [
       {
