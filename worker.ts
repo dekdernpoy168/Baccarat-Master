@@ -17,8 +17,8 @@ export interface Env {
   IMAGES: any;
   BUCKET: R2Bucket;
   AI: any;
-  MY_WORKFLOW: Workflow;
-  MY_QUEUE: Queue<any>;
+  MY_WORKFLOW: any;
+  MY_QUEUE: any;
   ASSETS?: Fetcher; // Supported when using Cloudflare Pages
 }
 
@@ -530,7 +530,7 @@ export default {
     }
   },
 
-  async email(message: any, env: Env, ctx: ExecutionContext) {
+  async email(message: any, env: Env, ctx: any) {
     // Forward the incoming email to a destination address
     await message.forward("destination@example.com");
     // Or send a new email using the send_email binding
@@ -542,7 +542,7 @@ export default {
     });
   },
 
-  async queue(batch: MessageBatch<any>, env: Env, ctx: ExecutionContext) {
+  async queue(batch: any, env: Env, ctx: any) {
     for (const message of batch.messages) {
       console.log(`Received message from queue:`, message.body);
       // Process your queue messages here
