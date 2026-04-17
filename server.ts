@@ -163,7 +163,7 @@ interface McpServerConfig {
   token?: string;
 }
 
-async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'ollama' } = {}) {
+async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'ollama', returnProvider?: boolean } = {}) {
   const config = await getAiProvidersConfig();
   
   const hasOpenAI = (config.openai?.enabled && await getApiKey('openai')) || (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy");
@@ -180,12 +180,12 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
     providers.push(options.preferredProvider);
   }
   
-  // Add remaining available providers as fallbacks
-  if (hasOpenAI && !providers.includes('openai')) providers.push('openai');
+  // Add remaining available providers as fallbacks (Anthropic > OpenAI > Gemini > Groq)
   if (hasAnthropic && !providers.includes('anthropic')) providers.push('anthropic');
+  if (hasOpenAI && !providers.includes('openai')) providers.push('openai');
   if (hasGemini && !providers.includes('gemini')) providers.push('gemini');
-  if (hasDeepseek && !providers.includes('deepseek')) providers.push('deepseek');
   if (hasGroq && !providers.includes('groq')) providers.push('groq');
+  if (hasDeepseek && !providers.includes('deepseek')) providers.push('deepseek');
   if (hasOllama && !providers.includes('ollama')) providers.push('ollama');
 
   if (providers.length === 0) {
@@ -216,7 +216,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         });
         console.log("OpenAI Usage:", response.usage);
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        return options.json ? JSON.parse(text) : text;
+        const parsed = options.json ? JSON.parse(text) : text;
+        return options.returnProvider ? { data: parsed, provider } : parsed;
       } 
       
       else if (provider === 'anthropic') {
@@ -258,7 +259,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           });
           console.log("Anthropic Tool Usage:", finalMessage.usage);
           const text = finalMessage.content[0].type === 'text' ? finalMessage.content[0].text : "";
-          return options.json ? JSON.parse(text) : text;
+          const parsed = options.json ? JSON.parse(text) : text;
+          return options.returnProvider ? { data: parsed, provider } : parsed;
         }
 
         const message = await anthropicClient.messages.create(anthropicParams);
@@ -267,15 +269,19 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         
         if (options.json) {
           try {
-            return JSON.parse(text);
+            const parsed = JSON.parse(text);
+            return options.returnProvider ? { data: parsed, provider } : parsed;
           } catch (e) {
             console.warn("Anthropic JSON parse failed, trying to extract JSON");
             const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) return JSON.parse(jsonMatch[0]);
+            if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                return options.returnProvider ? { data: parsed, provider } : parsed;
+            }
             throw e;
           }
         } else {
-          return text;
+          return options.returnProvider ? { data: text, provider } : text;
         }
       }
 
@@ -297,7 +303,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
         const result: any = await genAI.models.generateContent(modelParams);
         console.log("Gemini Usage:", result.usageMetadata);
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
-        return options.json ? JSON.parse(text) : text;
+        const parsed = options.json ? JSON.parse(text) : text;
+        return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
       else if (provider === 'deepseek') {
@@ -320,7 +327,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           response_format: options.json ? { type: "json_object" } : { type: "text" },
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        return options.json ? JSON.parse(text) : text;
+        const parsed = options.json ? JSON.parse(text) : text;
+        return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
       else if (provider === 'groq') {
@@ -343,7 +351,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           response_format: options.json ? { type: "json_object" } : { type: "text" },
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        return options.json ? JSON.parse(text) : text;
+        const parsed = options.json ? JSON.parse(text) : text;
+        return options.returnProvider ? { data: parsed, provider } : parsed;
       }
       
       else if (provider === 'ollama') {
@@ -365,7 +374,8 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
           response_format: options.json ? { type: "json_object" } : { type: "text" },
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
-        return options.json ? JSON.parse(text) : text;
+        const parsed = options.json ? JSON.parse(text) : text;
+        return options.returnProvider ? { data: parsed, provider } : parsed;
       }
     } catch (error: any) {
       console.warn(`${provider} failed:`, error.message);
@@ -575,24 +585,23 @@ async function startServer() {
   server.post("/api/ai/generate-meta-data", async (req, res) => {
     try {
       const { title } = req.body;
-      const prompt = `จากหัวข้อบทความ: "${title}"
-สร้างข้อมูลต่อไปนี้:
-1. metaDescription: ความยาว 140-160 ตัวอักษร ดึงดูดใจ มีหัวข้อบทความเป็นส่วนประกอบ
-2. tags: Keyword สำคัญ (คั่นด้วยลูกน้ำ) เช่น "สูตรบาคาร่า, เทคนิคทำกำไร"
-3. excerpt: คำโปรยสรุปเนื้อหา 70-100 คำ ในรูปแบบ AI Overview เน้นตอบคำถามผู้ใช้ทันที เพื่อเน้นการติดอันดับ Featured Snippets`;
-      const data = await callAI(prompt, {
+      const prompt = `คุณเป็นผู้เชี่ยวชาญ SEO ภาษาไทย หน้าที่ของคุณคือรับชื่อบทความต่อไปนี้ และตอบกลับเป็น JSON เท่านั้น
+ชื่อบทความ: "${title}"
+
+โครงสร้าง JSON ตามที่กำหนด:
+{
+"meta_title": "...",
+"meta_description": "...",
+"tags": ["...", "..."],
+"excerpt_ai": "..."
+}
+ทุกอย่างต้องเป็นภาษาไทยที่ดึงดูดใจและเน้นคำสำคัญที่เกี่ยวข้องกับบทความ`;
+
+      const result = await callAI(prompt, {
         json: true,
-        schema: {
-          type: Type.OBJECT,
-          properties: {
-            metaDescription: { type: Type.STRING },
-            tags: { type: Type.STRING },
-            excerpt: { type: Type.STRING }
-          },
-          required: ["metaDescription", "tags", "excerpt"]
-        }
+        returnProvider: true
       });
-      res.json(data);
+      res.json(result);
     } catch (error: any) {
       console.error("Meta Gen Error:", error);
       res.status(500).json({ error: error.message });

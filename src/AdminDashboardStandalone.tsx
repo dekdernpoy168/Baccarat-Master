@@ -656,6 +656,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
   const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [aiProviderStatus, setAiProviderStatus] = useState<{message: string, isFallback: boolean} | null>(null);
 
   const autoFillSEO = async () => {
     if (!currentArticle.title?.trim()) {
@@ -663,9 +664,10 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       return;
     }
     setIsAutoFilling(true);
+    setAiProviderStatus(null);
     try {
       const title = currentArticle.title.trim();
-      const metaTitle = title.length > 60 ? title.substring(0, 60) : title;
+      const defaultMetaTitle = title.length > 60 ? title.substring(0, 60) : title;
       
       const response = await fetch('/api/ai/generate-meta-data', {
         method: 'POST',
@@ -673,18 +675,30 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         body: JSON.stringify({ title })
       });
       if (!response.ok) throw new Error('Failed to generate meta data');
-      const data: any = await response.json();
+      const responseData: any = await response.json();
       
+      const seoData = responseData.data || {};
+      const usedProvider = responseData.provider || 'unknown';
+      
+      let message = `✅ สถานะปัจจุบัน: ใช้งาน ${usedProvider}`;
+      let isFallback = false;
+      if (usedProvider !== 'anthropic') {
+        message = `⚠️ ระบบสำรองทำงาน: ใช้งาน ${usedProvider} แทน (ตรวจสอบยอดเงินระดับสูง)`;
+        isFallback = true;
+      }
+      setAiProviderStatus({ message, isFallback });
+
       setCurrentArticle(prev => ({
         ...prev,
-        metaTitle: metaTitle,
-        metaDescription: data.metaDescription || prev.metaDescription,
-        tags: data.tags || prev.tags,
-        excerpt: data.excerpt || prev.excerpt
+        metaTitle: seoData.meta_title || defaultMetaTitle,
+        metaDescription: seoData.meta_description || seoData.metaDescription || prev.metaDescription,
+        tags: Array.isArray(seoData.tags) ? seoData.tags.join(', ') : (seoData.tags || prev.tags),
+        excerpt: seoData.excerpt_ai || seoData.excerpt || prev.excerpt
       }));
     } catch (err) {
       console.error(err);
       alert('เกิดข้อผิดพลาดในการดึงข้อมูล SEO');
+      setAiProviderStatus({ message: '❌ เกิดข้อผิดพลาดในการเชื่อมต่อ AI', isFallback: true });
     } finally {
       setIsAutoFilling(false);
     }
@@ -1708,8 +1722,15 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
 
 
             <div className="bg-black/50 p-6 rounded-2xl border border-gold/10 space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-bold flex items-center"><Search size={18} className="mr-2 text-gold" /> SEO Settings</h3>
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
+                <div className="flex items-center">
+                  <h3 className="text-white font-bold flex items-center"><Search size={18} className="mr-2 text-gold" /> SEO Settings</h3>
+                  {aiProviderStatus && (
+                    <span className={`ml-4 text-[10px] font-bold px-2 py-0.5 rounded-full ${aiProviderStatus.isFallback ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
+                      {aiProviderStatus.message}
+                    </span>
+                  )}
+                </div>
                 <button 
                   type="button"
                   onClick={autoFillSEO}
