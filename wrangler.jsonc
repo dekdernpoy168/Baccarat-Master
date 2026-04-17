@@ -35,9 +35,7 @@
     {
       "tag": "v1",
       "new_sqlite_classes": [
-        "MyDurableObject"
-      ],
-      "new_classes": [
+        "MyDurableObject",
         "WebSocketManager"
       ]
     }
