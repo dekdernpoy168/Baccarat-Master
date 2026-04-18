@@ -80,6 +80,7 @@ async function getApiKey(provider: string) {
 const r2Client = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT || `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  forcePathStyle: true,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
@@ -396,7 +397,7 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
         
         // We use the OpenAI SDK to connect to x.ai since x.ai provides OpenAI compatible endpoints
         const response = await grokClient.chat.completions.create({
-          model: "grok-beta", 
+          model: "grok-2", 
           messages: [{ role: "user", content: finalPrompt }]
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
@@ -1299,7 +1300,8 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
       res.json(images);
     } catch (error: any) {
       console.error("Error listing assets:", error);
-      res.status(500).json({ error: error.message });
+      // Return empty array instead of 500 error to avoid breaking the UI
+      res.json([]);
     }
   });
 

@@ -247,6 +247,43 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOp
   const [isGeneratingSecondaryKeywords, setIsGeneratingSecondaryKeywords] = useState(false);
   const [promptTemplate, setPromptTemplate] = useState('');
   const [isFetchingKeywords, setIsFetchingKeywords] = useState(false);
+  const [customRules, setCustomRules] = useState(`[ROLE]
+คุณคือผู้เชี่ยวชาญด้าน Content SEO และมีความรู้เกี่ยวกับเกมบาคาร่า
+
+[GOAL]
+เขียนบทความให้ความรู้เกี่ยวกับบาคาร่า โดยเน้น People-first content และผ่านหลัก E-E-A-T
+
+[IMPORTANT RULES]
+
+1. ห้ามใช้คำที่สื่อว่า “การันตีชนะ” หรือ “สูตรโกง”
+2. เนื้อหาต้องเป็นเชิงให้ความรู้เท่านั้น (Educational)
+3. ต้องมีการเตือนความเสี่ยงของการพนัน
+4. ใช้น้ำเสียงเป็นกลาง ไม่ชวนเล่น
+
+[CONTENT REQUIREMENTS]
+
+* อธิบายหลักการของบาคาร่าแบบเข้าใจง่าย
+* ใส่ข้อมูลเชิงวิเคราะห์ เช่น ความน่าจะเป็น
+* มี Insight ที่เหนือกว่าบทความทั่วไป
+* เขียนให้จบในหน้าเดียว
+
+[STRUCTURE]
+
+* Title (ชัดเจน ไม่ Clickbait)
+* Intro
+* H2 / H3
+* Bullet points
+* FAQ
+* Conclusion
+
+[EEAT]
+
+* เนื้อหาต้องดูน่าเชื่อถือ
+* อธิบายแบบผู้มีประสบการณ์
+* ไม่มีข้อมูลผิด
+
+[OUTPUT]
+บทความ SEO คุณภาพสูง พร้อมใช้งาน`);
 
   const fetchKeywordsData = async () => {
     if (!topic.trim()) return;
@@ -301,7 +338,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOp
   };
 
   useEffect(() => {
-    let generatedPrompt = `Please ignore all previous instructions. You are an expert copywriter who writes detailed and thoughtful blog articles. 
+    let generatedPrompt = `${customRules}\n\nPlease ignore all previous instructions. You are an expert copywriter who writes detailed and thoughtful blog articles. 
     Tone of voice: ${voiceTone}. 
     Writing style: ${writingStyle}. 
     Target audience: ${targetAudience}. 
@@ -323,7 +360,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOp
     }
 
     setPromptTemplate(generatedPrompt);
-  }, [voiceTone, writingStyle, targetAudience, template, totalWords, topic, language, keywords, anchorText, linkUrl]);
+  }, [voiceTone, writingStyle, targetAudience, template, totalWords, topic, language, keywords, anchorText, linkUrl, customRules]);
 
   if (!isOpen) return null;
 
@@ -345,6 +382,14 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOp
         </div>
 
         <div className="p-6 overflow-y-auto space-y-6">
+          <div className="space-y-1.5">
+            <label className="text-gray-400 text-[10px] font-bold uppercase">Custom Rules (Helpful Content):</label>
+            <textarea 
+              value={customRules}
+              onChange={e => setCustomRules(e.target.value)}
+              className="w-full bg-[#2d2f31] border border-white/10 rounded px-3 py-2 text-white text-xs outline-none focus:border-gold h-48"
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-gray-400 text-[10px] font-bold uppercase">Category:</label>
@@ -646,8 +691,15 @@ const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onCl
       setLoading(true);
       fetch('/api/assets')
         .then(r => r.json())
-        .then(data => { setAssets(data); setLoading(false); })
-        .catch(() => setLoading(false));
+        .then(data => { 
+          // Ensure data is an array
+          setAssets(Array.isArray(data) ? data : []); 
+          setLoading(false); 
+        })
+        .catch(() => {
+          setAssets([]);
+          setLoading(false);
+        });
     }
   }, [isOpen]);
 
@@ -686,6 +738,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [showPreview, setShowPreview] = useState(false);
 
   const [showPromptBuilder, setShowPromptBuilder] = useState(false);
+  const [promptTopic, setPromptTopic] = useState('');
+
+  const openPromptBuilder = () => {
+    setPromptTopic(`## ${currentArticle.title || ''}`);
+    setShowPromptBuilder(true);
+  };
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
   const [isGeneratingExcerpt, setIsGeneratingExcerpt] = useState(false);
   const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
@@ -2056,7 +2114,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 <div className="flex items-center gap-2">
                   <button 
                     type="button"
-                    onClick={() => setShowPromptBuilder(true)}
+                    onClick={openPromptBuilder}
                     className="bg-gray-800 hover:bg-gray-700 text-white border border-white/10 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all"
                   >
                     <div className="w-4 h-4 bg-white text-black rounded-full flex items-center justify-center text-[10px] font-black mr-2">K</div>
@@ -2096,6 +2154,17 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 value={currentArticle.content || ''} 
                 onChange={val => setCurrentArticle({...currentArticle, content: val})}
                 modules={modules}
+                onPaste={(e: any) => {
+                  const data = e.clipboardData.getData('text');
+                  if (data && data.match(/^(http|https):\/\/[^ "]+(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i)) {
+                    e.preventDefault();
+                    const quill = quillRef.current?.getEditor();
+                    if (quill) {
+                      const range = quill.getSelection();
+                      quill.insertEmbed(range?.index || 0, 'image', data);
+                    }
+                  }
+                }}
               />
             </div>
             
@@ -2207,7 +2276,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <PromptBuilderModal 
               isOpen={showPromptBuilder} 
               onClose={() => setShowPromptBuilder(false)} 
-              initialTopic={currentArticle.title || ''}
+              initialTopic={promptTopic}
               onExecute={(prompt) => {
                 setAiPrompt(prompt);
                 setShowPromptBuilder(false);
