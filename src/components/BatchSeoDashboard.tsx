@@ -97,9 +97,17 @@ export const BatchSeoDashboard: React.FC = () => {
         })
       });
       
+      console.log('API Response status:', response.status); // Debug log
+
       if (!response.ok) {
-        const errorData = await response.json() as any;
-        throw new Error(errorData.error || 'Failed to start batch processing');
+        let errorMsg = 'Failed to start batch processing';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (e) {
+          errorMsg = `Server error: ${response.statusText}`;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await response.json() as any;
