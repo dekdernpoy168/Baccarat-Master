@@ -830,13 +830,18 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         s.trim().toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       );
       
-      // รวม Slug ท้องถิ่นเข้ากับตัวเลือกจาก AI
-      const allOptions = Array.from(new Set([localSlug, ...aiOptions])).filter(Boolean);
+      // รวม Logic สร้าง Slug (2 ไทย, 2 อังกฤษ)
+      const baseSlug = localSlug; // Slug พื้นฐานที่ผ่านการ Clean แล้ว
       
-      if (allOptions.length > 0) {
-        setSlugOptions(allOptions);
-        setShowSlugSelection(true);
-      }
+      // สร้าง 4 ทางเลือก (ไทย 2, อังกฤษ 2)
+      // ตัวอย่างการสร้าง: ใช้ baseSlug เป็นหลัก
+      const thaiSlug1 = baseSlug; 
+      const thaiSlug2 = `${baseSlug}-baccarat`;
+      const engSlug1 = baseSlug.replace(/[^a-z0-9-]/g, '') || 'article';
+      const engSlug2 = `${engSlug1}-review`;
+      
+      setSlugOptions([thaiSlug1, thaiSlug2, engSlug1, engSlug2]);
+      setShowSlugSelection(true);
     } catch (err) {
       console.error(err);
       // หาก AI พลาด ให้ใช้เฉพาะ Slug ท้องถิ่น
