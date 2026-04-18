@@ -671,7 +671,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       const title = currentArticle.title.trim();
       const defaultMetaTitle = title.length > 60 ? title.substring(0, 60) : title;
       
-      const response = await fetch('/api/ai/generate-meta-data', {
+      const response = await fetch(`${window.location.origin}/api/ai/generate-meta-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title })

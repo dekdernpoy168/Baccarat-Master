@@ -308,8 +308,12 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
       else if (provider === 'gemini') {
         const apiKey = await getApiKey('gemini') || process.env.GEMINI_API_KEY;
         const genAI = new GoogleGenAI({ apiKey: apiKey || "" });
+        
+        // Dynamically get the model name from config, fallback to gemini-1.5-flash
+        const modelName = config.gemini?.models?.[0] || "gemini-1.5-flash";
+        
         const modelParams: any = {
-          model: "gemini-1.5-flash",
+          model: modelName,
           contents: [{ role: "user", parts: [{ text: prompt }] }],
         };
         
@@ -321,7 +325,7 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
         }
 
         const result: any = await genAI.models.generateContent(modelParams);
-        console.log("Gemini Usage:", result.usageMetadata);
+        console.log(`Gemini (${modelName}) Usage:`, result.usageMetadata);
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text || (options.json ? "{}" : "");
         const parsed = parseJsonFallback(text, provider, options);
         return options.returnProvider ? { data: parsed, provider } : parsed;
