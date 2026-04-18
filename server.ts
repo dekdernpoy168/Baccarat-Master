@@ -497,38 +497,19 @@ async function startServer() {
   server.use('/api/users', usersApi);
 
   // Cloudflare AI Integration
-async function runCloudflareAI(model: string, input: any) {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_AI_TOKEN;
-  
-  if (!accountId || !apiToken) {
-    throw new Error("Cloudflare AI configuration missing");
-  }
-
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
-    {
-      headers: { Authorization: `Bearer ${apiToken}` },
-      method: "POST",
-      body: JSON.stringify(input),
-    }
-  );
-  
-  const result = await response.json();
-  return result;
-}
+const cfOpenAI = new OpenAI({
+  apiKey: process.env.CLOUDFLARE_AI_TOKEN || "unused",
+  baseURL: `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
+});
 
 // Diagnostics route to test Cloudflare AI
 server.get("/api/ai/test-cf", async (req, res) => {
   try {
-    const input = {
-      messages: [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: "Hello, just a quick test." }
-      ]
-    };
-    const result = await runCloudflareAI("@cf/meta/llama-3-8b-instruct", input);
-    res.json({ status: "success", result });
+    const chatCompletion = await cfOpenAI.chat.completions.create({
+      messages: [{ role: "user", content: "Hello, just a quick test." }],
+      model: "@cf/meta/llama-3.1-8b-instruct",
+    });
+    res.json({ status: "success", result: chatCompletion });
   } catch (error: any) {
     console.error("Cloudflare Diagnostic Error:", error);
     res.status(500).json({ status: "error", message: error.message });
@@ -538,9 +519,12 @@ server.get("/api/ai/test-cf", async (req, res) => {
 // AI Proxy Routes
 server.post("/api/ai/run-cf", async (req, res) => {
   try {
-    const { model, input } = req.body;
-    const result = await runCloudflareAI(model, input);
-    res.json(result);
+    const { model, messages } = req.body;
+    const chatCompletion = await cfOpenAI.chat.completions.create({
+      messages,
+      model,
+    });
+    res.json(chatCompletion);
   } catch (error: any) {
     console.error("Cloudflare AI Error:", error);
     res.status(500).json({ error: error.message });
