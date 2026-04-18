@@ -830,17 +830,18 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         s.trim().toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       );
       
-      // รวม Logic สร้าง Slug (2 ไทย, 2 อังกฤษ)
-      const baseSlug = localSlug; // Slug พื้นฐานที่ผ่านการ Clean แล้ว
+       // รวม Logic สร้าง Slug (2 ไทย, 2 อังกฤษ)
+      const baseSlug = localSlug; 
       
-      // สร้าง 4 ทางเลือก (ไทย 2, อังกฤษ 2)
-      // ตัวอย่างการสร้าง: ใช้ baseSlug เป็นหลัก
-      const thaiSlug1 = baseSlug; 
-      const thaiSlug2 = `${baseSlug}-baccarat`;
-      const engSlug1 = baseSlug.replace(/[^a-z0-9-]/g, '') || 'article';
-      const engSlug2 = `${engSlug1}-review`;
+      // ดึงตัวเลือกจาก AI ถ้ามี (เพื่อเอามาเป็นทางเลือกภาษาอังกฤษ)
+      const aiEnglishOptions = aiOptions ? aiOptions.filter(s => /^[a-zA-Z0-9-]+$/.test(s)) : [];
       
-      setSlugOptions([thaiSlug1, thaiSlug2, engSlug1, engSlug2]);
+      const engSlug1 = aiEnglishOptions[0] || baseSlug.replace(/[^a-z0-9-]/g, '') || 'article-1';
+      const engSlug2 = aiEnglishOptions[1] || `${engSlug1}-baccarat`;
+      const engSlug3 = aiEnglishOptions[2] || `${engSlug1}-guide`;
+      const engSlug4 = aiEnglishOptions[3] || `${engSlug1}-review`;
+      
+      setSlugOptions([engSlug1, engSlug2, engSlug3, engSlug4]);
       setShowSlugSelection(true);
     } catch (err) {
       console.error(err);

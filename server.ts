@@ -551,7 +551,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
       const result = await callAI(prompt, {
         json: true,
         returnProvider: true,
-        preferredProvider: 'gemini'
+        preferredProvider: 'openai'
       });
       res.json(result);
     } catch (error: any) {
@@ -675,10 +675,10 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
   server.post("/api/ai/generate-slug", async (req, res) => {
     try {
       const { title } = req.body;
-      const prompt = `Generate 4 SEO-friendly URL slug options for this article title: "${title}". 2 options MUST be in Thai Language (using Thai characters and hyphens), and 2 options MUST be in English (using English letters and hyphens). Use only lowercase characters and hyphens. Do not use any spaces.`;
+      const prompt = `Generate 4 SEO-friendly URL slug options for this article title: "${title}". ALL 4 options MUST be in English Language (using English letters and hyphens). Use only lowercase characters and hyphens. Do not use any spaces.`;
       const data = await callAI(prompt, {
         json: true,
-        preferredProvider: 'groq',
+        preferredProvider: 'openai',
         schema: {
           type: Type.OBJECT,
           properties: {
