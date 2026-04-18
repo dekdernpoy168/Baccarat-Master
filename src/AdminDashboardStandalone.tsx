@@ -1339,6 +1339,72 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
           }
         };
         reader.readAsArrayBuffer(file);
+      } else if (extension === 'xlsx' || extension === 'xls') {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+          if (json.length > 0) {
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const row of json) {
+              try {
+                const title = row.Title?.toString() || 'Untitled';
+                const slug = row.Slug?.toString() || title.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `untitled-${Math.floor(Math.random()*10000)}`;
+                const articleData = {
+                  title: title,
+                  slug: slug,
+                  content: row.Content?.toString() || '',
+                  category: row.Category?.toString() || 'General',
+                  status: 'draft',
+                  publishedAt: null,
+                  author: row.Author?.toString() || 'Admin',
+                  image: row.ImageURL?.toString() || '',
+                  excerpt: '',
+                  tags: row.Tags?.toString() || '',
+                  faqs: row.FAQs?.toString() || '[]',
+                  type: filterType || 'post',
+                  metaTitle: row.MetaTitle?.toString() || '',
+                  metaDescription: row.MetaDescription?.toString() || '',
+                };
+
+                const res = await fetch('/api/articles', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(articleData)
+                });
+                
+                if (res.ok) {
+                  successCount++;
+                } else {
+                  errorCount++;
+                  console.error('Failed to import row:', row, res.statusText);
+                }
+              } catch (err) {
+                 errorCount++;
+                 console.error('Error importing row:', err);
+              }
+            }
+            
+            alert(`นำเข้าไฟล์ Excel และสร้างฉบับร่างเรียบร้อยแล้ว!\nสำเร็จ: ${successCount} รายการ\nล้มเหลว: ${errorCount} รายการ`);
+            setIsEditing(false); // Close edit modal
+            setCurrentArticle({});
+            loadData(); // Reload list
+            if (propsFetchArticles) propsFetchArticles();
+          } else {
+            setError('ไม่พบข้อมูลในไฟล์ Excel');
+          }
+          if (e.target) {
+            e.target.value = ''; // Reset input so same file can be uploaded again
+          }
+          setLoading(false);
+        };
+        reader.readAsArrayBuffer(file);
       } else if (['txt', 'md', 'html', 'rtf'].includes(extension || '')) {
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -1369,7 +1435,40 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     }
   };
 
-  const exportArticles = (format: 'xlsx' | 'txt' | 'html') => {
+  const exportArticles = (format: 'xlsx' | 'txt' | 'html' | 'template') => {
+    if (format === 'template') {
+      const templateData = [{
+        Title: "ชื่อหัวข้อบทความ",
+        Tags: "แท็ก1, แท็ก2, แท็ก3",
+        Slug: "url-slug-example",
+        MetaTitle: "SEO Meta Title (ไม่เกิน 60 ตัวอักษร)",
+        MetaDescription: "SEO Meta Description (ไม่เกิน 160 ตัวอักษร)",
+        Category: "ชื่อหมวดหมู่ (ถ้ามี)",
+        ImageURL: "https://example.com/image.jpg",
+        Author: "ผู้เขียน",
+        Content: "<p>เนื้อหาบทความ (รองรับ HTML)</p>",
+        FAQs: '[{"question": "คำถามตัวอย่าง", "answer": "คำตอบตัวอย่าง"}]'
+      }];
+      const ws = XLSX.utils.json_to_sheet(templateData);
+      const wscols = [
+        {wch: 30}, // Title
+        {wch: 20}, // Tags
+        {wch: 25}, // Slug
+        {wch: 40}, // MetaTitle
+        {wch: 60}, // MetaDescription
+        {wch: 20}, // Category
+        {wch: 30}, // ImageURL
+        {wch: 15}, // Author
+        {wch: 60}, // Content
+        {wch: 40}  // FAQs
+      ];
+      ws['!cols'] = wscols;
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Import_Template");
+      XLSX.writeFile(wb, "Article_Import_Template.xlsx");
+      return;
+    }
+
     const data = filteredArticles.map(article => ({
       Title: article.title,
       Slug: article.slug,
@@ -1712,61 +1811,85 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             </div>
           </div>
           
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 md:mb-12">
-            <div></div> {/* Empty div to push buttons right if health check is visible */}
-            <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
-          <div className="flex gap-2">
-            <button 
-              onClick={() => exportArticles('xlsx')}
-              className="bg-green-500/10 text-green-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-green-500/20 border border-green-500/30 transition-all flex items-center justify-center text-sm md:text-base"
-            >
-              <Download size={18} className="mr-2" /> Excel
-            </button>
-            <button 
-              onClick={() => exportArticles('html')}
-              className="bg-blue-500/10 text-blue-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex items-center justify-center text-sm md:text-base"
-            >
-              <Download size={18} className="mr-2" /> Word/Docs
-            </button>
-            <button 
-              onClick={() => exportArticles('txt')}
-              className="bg-gray-500/10 text-gray-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-500/20 border border-gray-500/30 transition-all flex items-center justify-center text-sm md:text-base"
-            >
-              <Download size={18} className="mr-2" /> Text
-            </button>
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-4 md:mb-8">
+            <div className="hidden xl:block"></div> {/* Empty div to push buttons right if health check is visible */}
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full xl:w-auto justify-start xl:justify-end">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={() => exportArticles('xlsx')}
+                  className="flex-1 sm:flex-none bg-green-500/10 text-green-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-green-500/20 border border-green-500/30 transition-all flex items-center justify-center text-sm md:text-base"
+                >
+                  <Download size={18} className="mr-2" /> Excel
+                </button>
+                <button 
+                  onClick={() => exportArticles('html')}
+                  className="flex-1 sm:flex-none bg-blue-500/10 text-blue-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-blue-500/20 border border-blue-500/30 transition-all flex items-center justify-center text-sm md:text-base"
+                >
+                  <Download size={18} className="mr-2" /> Word/Docs
+                </button>
+                <button 
+                  onClick={() => exportArticles('txt')}
+                  className="flex-1 sm:flex-none bg-gray-500/10 text-gray-500 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-500/20 border border-gray-500/30 transition-all flex items-center justify-center text-sm md:text-base"
+                >
+                  <Download size={18} className="mr-2" /> Text
+                </button>
+                <button 
+                  onClick={() => exportArticles('template')}
+                  className="flex-1 sm:flex-none bg-gold/10 text-gold px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gold/20 border border-gold/30 transition-all flex items-center justify-center text-sm md:text-base"
+                  title="ดาวน์โหลดฟอร์ม (Template) สำหรับนำเข้าข้อมูลจาก Excel"
+                >
+                  <FileText size={18} className="mr-2" /> โหลดฟอร์มนำเข้า (.xlsx)
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                <button 
+                  onClick={brainstormTopics}
+                  disabled={isBrainstorming}
+                  className="flex-1 sm:flex-none bg-gold/10 text-gold px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gold/20 border border-gold/30 transition-all flex items-center justify-center text-sm md:text-base disabled:opacity-50"
+                >
+                  {isBrainstorming ? (
+                    <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
+                  ) : (
+                    <Sparkles size={18} className="mr-2" />
+                  )}
+                  ระดมสมอง
+                </button>
+                <button 
+                  onClick={() => setIsManagingCategories(true)}
+                  className="flex-1 sm:flex-none bg-gray-800 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center text-sm md:text-base"
+                >
+                  <Target size={18} className="mr-2 text-gold" /> หมวดหมู่
+                </button>
+                <label className="flex-1 sm:flex-none bg-blue-500 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-blue-600 transition-all flex items-center justify-center text-sm md:text-base cursor-pointer shadow-lg shadow-blue-500/20">
+                  {loading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  ) : (
+                    <Upload size={18} className="mr-2" />
+                  )}
+                  Import Excel
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept=".xlsx,.xls" 
+                    onChange={handleFileUpload}
+                    disabled={loading}
+                  />
+                </label>
+                <button 
+                  onClick={() => { setIsEditing(true); setCurrentArticle({ type: filterType }); }}
+                  className="flex-1 sm:flex-none gold-bg-gradient text-baccarat-black px-6 py-2 md:px-8 md:py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center justify-center text-sm md:text-base shadow-lg shadow-gold/10"
+                >
+                  <Plus size={18} className="mr-2" /> {filterType === 'post' ? 'เพิ่มบทความ' : 'เพิ่มหน้าเพจ'}
+                </button>
+              </div>
+            </div>
           </div>
-          <button 
-            onClick={brainstormTopics}
-            disabled={isBrainstorming}
-            className="flex-1 md:flex-none bg-gold/10 text-gold px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gold/20 border border-gold/30 transition-all flex items-center justify-center text-sm md:text-base disabled:opacity-50"
-          >
-            {isBrainstorming ? (
-              <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div>
-            ) : (
-              <Sparkles size={18} className="mr-2" />
-            )}
-            ระดมสมอง
-          </button>
-          <button 
-            onClick={() => setIsManagingCategories(true)}
-            className="flex-1 md:flex-none bg-gray-800 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center text-sm md:text-base"
-          >
-            <Target size={18} className="mr-2 text-gold" /> หมวดหมู่
-          </button>
-          <button 
-            onClick={() => { setIsEditing(true); setCurrentArticle({ type: filterType }); }}
-            className="flex-1 md:flex-none gold-bg-gradient text-baccarat-black px-6 py-2 md:px-8 md:py-3 rounded-full font-black hover:scale-105 transition-transform flex items-center justify-center text-sm md:text-base shadow-lg shadow-gold/10"
-          >
-            <Plus size={18} className="mr-2" /> {filterType === 'post' ? 'เพิ่มบทความ' : 'เพิ่มหน้าเพจ'}
-          </button>
-        </div>
-      </div>
 
-      <div className="flex bg-gray-900/50 p-1 rounded-2xl border border-gold/10 w-fit mb-8">
+      <div className="flex bg-gray-900/50 p-1 rounded-2xl border border-gold/10 w-fit max-w-full mb-8 overflow-x-auto custom-scrollbar">
         <button
           onClick={() => setFilterType('post')}
           className={cn(
-            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+            "px-4 md:px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap",
             filterType === 'post' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
           )}
         >
@@ -1776,7 +1899,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         <button
           onClick={() => setFilterType('page')}
           className={cn(
-            "px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2",
+            "px-4 md:px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap",
             filterType === 'page' ? "bg-gold text-black shadow-lg" : "text-gray-400 hover:text-white"
           )}
         >
@@ -1798,24 +1921,24 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
               </h2>
               <p className="text-gray-500 text-xs">จัดการเนื้อหาและสถานะการเผยแพร่</p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
               <button 
                 disabled={loading}
                 type="button"
                 onClick={(e) => handleSave(e, 'draft')}
-                className="bg-gray-800 text-white px-6 py-2.5 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center disabled:opacity-50 text-sm border border-white/5"
+                className="flex-1 md:flex-none bg-gray-800 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center disabled:opacity-50 text-[10px] md:text-sm border border-white/5"
               >
-                {loading ? '...' : <><FileText size={18} className="mr-2 text-gold" /> บันทึกฉบับร่าง</>}
+                {loading ? '...' : <><FileText size={16} className="mr-1 md:mr-2 text-gold" /> บันทึกฉบับร่าง</>}
               </button>
               <button 
                 disabled={loading}
                 type="button"
                 onClick={(e) => handleSave(e, 'published')}
-                className="gold-bg-gradient text-baccarat-black px-8 py-2.5 rounded-full font-black hover:scale-105 transition-all flex items-center disabled:opacity-50 text-sm shadow-lg shadow-gold/10"
+                className="flex-[2] md:flex-none gold-bg-gradient text-baccarat-black px-4 md:px-8 py-2 md:py-2.5 rounded-full font-black hover:scale-105 transition-all flex items-center justify-center disabled:opacity-50 text-xs md:text-sm shadow-lg shadow-gold/10 whitespace-nowrap"
               >
-                {loading ? '...' : <><Save size={18} className="mr-2" /> {currentArticle.type === 'page' ? 'เผยแพร่หน้าเพจ' : 'เผยแพร่บทความ'}</>}
+                {loading ? '...' : <><Save size={16} className="mr-1 md:mr-2" /> {currentArticle.type === 'page' ? 'เผยแพร่หน้าเพจ' : 'เผยแพร่บทความ'}</>}
               </button>
-              <button onClick={() => setIsEditing(false)} className="ml-2 p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-all"><X size={24} /></button>
+              <button onClick={() => setIsEditing(false)} className="ml-1 md:ml-2 p-1.5 md:p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-all flex-shrink-0"><X size={20} className="md:w-6 md:h-6" /></button>
             </div>
           </div>
 
@@ -1829,9 +1952,9 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <div className="flex items-center gap-4 p-4 bg-gold/5 border border-gold/20 rounded-2xl mb-6">
               <div className="flex-grow">
                 <p className="text-gold font-bold text-sm mb-1 flex items-center">
-                  <Upload size={16} className="mr-2" /> นำเข้าเนื้อหาจากไฟล์
+                  <Upload size={16} className="mr-2" /> นำเข้าข้อมูล / เนื้อหาจากไฟล์
                 </p>
-                <p className="text-gray-400 text-xs">รองรับ .docx, .pdf, .txt, .md, .html, .rtf</p>
+                <p className="text-gray-400 text-xs">หากเป็นเทมเพลต .xlsx ระบบจะนำเข้าข้อมูลในตารางทั้งหมดแล้วบันทึกเป็น 'ฉบับร่าง' ทันที</p>
               </div>
               <label className="bg-gold text-baccarat-black px-4 py-2 rounded-xl font-bold text-sm cursor-pointer hover:scale-105 transition-transform flex items-center">
                 {loading ? (
@@ -1843,7 +1966,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 <input 
                   type="file" 
                   className="hidden" 
-                  accept=".docx,.pdf,.txt,.md,.html,.rtf" 
+                  accept=".xlsx,.xls,.docx,.pdf,.txt,.md,.html,.rtf" 
                   onChange={handleFileUpload}
                   disabled={loading}
                 />
@@ -2295,37 +2418,41 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
               }}
             />
 
-            <div className="flex justify-end space-x-4">
-              <button 
-                type="button"
-                onClick={() => setShowPreview(true)}
-                className="px-8 py-3 rounded-full text-gold font-bold hover:bg-gold/10 transition-colors flex items-center"
-              >
-                <Eye size={20} className="mr-2" /> ดูตัวอย่าง
-              </button>
-              <button 
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="px-8 py-3 rounded-full text-gray-400 font-bold hover:text-white transition-colors"
-              >
-                ยกเลิก
-              </button>
-              <button 
-                disabled={loading}
-                type="button"
-                onClick={(e) => handleSave(e, 'draft')}
-                className="bg-gray-800 text-white px-8 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center disabled:opacity-50"
-              >
-                {loading ? 'กำลังบันทึก...' : <><FileText size={20} className="mr-2" /> บันทึกฉบับร่าง</>}
-              </button>
-              <button 
-                disabled={loading}
-                type="button"
-                onClick={(e) => handleSave(e, 'published')}
-                className="gold-bg-gradient text-baccarat-black px-12 py-3 rounded-full font-black text-lg flex items-center disabled:opacity-50"
-              >
-                {loading ? 'กำลังบันทึก...' : <><Save size={20} className="mr-2" /> เผยแพร่บทความ</>}
-              </button>
+            <div className="flex flex-col md:flex-row justify-end space-y-4 md:space-y-0 md:space-x-4 w-full">
+              <div className="flex w-full md:w-auto gap-4">
+                <button 
+                  type="button"
+                  onClick={() => setShowPreview(true)}
+                  className="flex-1 md:flex-none px-4 py-3 rounded-full text-gold border border-gold/30 font-bold hover:bg-gold/10 transition-colors flex items-center justify-center"
+                >
+                  <Eye size={20} className="mr-2" /> <span className="hidden sm:inline">ดูตัวอย่าง</span><span className="sm:hidden">พรีวิว</span>
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 md:flex-none px-4 py-3 rounded-full text-gray-400 border border-white/10 font-bold hover:text-white hover:bg-white/5 transition-colors flex items-center justify-center"
+                >
+                  <span className="hidden sm:inline">ยกเลิก</span><span className="sm:hidden">ปิด</span>
+                </button>
+              </div>
+              <div className="flex w-full md:w-auto gap-4">
+                <button 
+                  disabled={loading}
+                  type="button"
+                  onClick={(e) => handleSave(e, 'draft')}
+                  className="flex-1 md:flex-none bg-gray-800 text-white px-4 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center disabled:opacity-50"
+                >
+                  {loading ? '...' : <><FileText size={20} className="sm:mr-2" /> <span className="hidden sm:inline">บันทึกฉบับร่าง</span><span className="sm:hidden">ร่าง</span></>}
+                </button>
+                <button 
+                  disabled={loading}
+                  type="button"
+                  onClick={(e) => handleSave(e, 'published')}
+                  className="flex-1 md:flex-none gold-bg-gradient text-baccarat-black px-6 py-3 rounded-full font-black md:text-lg flex items-center justify-center disabled:opacity-50 shadow-lg shadow-gold/20"
+                >
+                  {loading ? '...' : <><Save size={20} className="sm:mr-2" /> <span className="hidden sm:inline">เผยแพร่บทความ</span><span className="sm:hidden">เผยแพร่</span></>}
+                </button>
+              </div>
             </div>
           </form>
 
@@ -2435,35 +2562,35 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 mb-6">
+          <div className="flex overflow-x-auto items-center gap-2 mb-6 custom-scrollbar pb-2 w-full">
             <button 
               onClick={() => setFilterStatus('all')}
-              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'all' ? "bg-gold text-baccarat-black border-gold" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+              className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'all' ? "bg-gold text-baccarat-black border-gold" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
               ทั้งหมด ({articles.length})
             </button>
             <button 
               onClick={() => setFilterStatus('published')}
-              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'published' ? "bg-green-500 text-white border-green-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+              className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'published' ? "bg-green-500 text-white border-green-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
               เผยแพร่แล้ว ({articles.filter(a => a.status !== 'draft' && (!a.publishedAt || new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) <= new Date())).length})
             </button>
             <button 
               onClick={() => setFilterStatus('draft')}
-              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'draft' ? "bg-yellow-500 text-black border-yellow-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+              className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'draft' ? "bg-yellow-500 text-black border-yellow-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
               ฉบับร่าง ({articles.filter(a => a.status === 'draft').length})
             </button>
             <button 
               onClick={() => setFilterStatus('scheduled')}
-              className={cn("px-4 py-2 rounded-full text-xs font-bold transition-all border", filterStatus === 'scheduled' ? "bg-blue-500 text-white border-blue-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
+              className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'scheduled' ? "bg-blue-500 text-white border-blue-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
               ตั้งเวลา ({articles.filter(a => a.status !== 'draft' && a.publishedAt && new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) > new Date()).length})
             </button>
           </div>
 
-          <div className="bg-gray-900 border border-gold/20 rounded-3xl overflow-hidden">
-            <table className="w-full text-left">
+          <div className="bg-gray-900 border border-gold/20 rounded-3xl overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left min-w-[800px]">
             <thead>
               <tr className="bg-black/50 border-b border-gold/20">
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs">บทความ</th>
