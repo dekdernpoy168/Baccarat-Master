@@ -642,7 +642,8 @@ async function startServer() {
 
       const result = await callAI(prompt, {
         json: true,
-        returnProvider: true
+        returnProvider: true,
+        preferredProvider: 'gemini'
       });
       res.json(result);
     } catch (error: any) {
