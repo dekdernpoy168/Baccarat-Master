@@ -197,7 +197,14 @@ async function callAI(prompt: string, options: { json?: boolean, schema?: any, u
 
   let lastError: any = null;
 
-  const parseJsonFallback = (text: string, provider: string, options: AIProviderOptions) => {
+  interface AIProviderOptions {
+  json?: boolean;
+  schema?: any;
+  returnProvider?: boolean;
+  preferredProvider?: string;
+}
+
+const parseJsonFallback = (text: string, provider: string, options: AIProviderOptions) => {
     if (!options.json) return text;
     try {
       return JSON.parse(text);
@@ -490,6 +497,31 @@ async function startServer() {
   server.use('/api/users', usersApi);
 
   // AI Proxy Routes
+  server.post("/api/ai/generate-meta-data", async (req, res) => {
+    try {
+      const { title } = req.body;
+      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย รับรายชื่อหัวข้อบทความต่อไปนี้ แล้วตอบกลับเป็น JSON ที่ระบุเท่านั้น \`{ "meta_title": "...", "meta_description": "...", "tags": ["..."], "excerpt_ai": "..." }\` เน้น Keyword บาคาร่า และความเชื่อมั่น ห้ามมีคำฟุ่มเฟือย ความยาว Meta Description ต้องไม่เกิน 160 ตัวอักษร
+ชื่อบทความ: "${title}"
+โครงสร้าง JSON ตามที่กำหนด (ต้องตอบแค่นี้เท่านั้น ห้ามมีคำอธิบาย):
+{
+  "meta_title": "...",
+  "meta_description": "...",
+  "tags": ["...", "..."],
+  "excerpt_ai": "เขียนสรุปบทความเป็นสไตล์ AI Overview (70-100 คำ) โดยเน้นการตอบคำถามที่ผู้ใช้สงสัยทันที เพื่อใช้ชิงพื้นที่ Featured Snippet บน Google"
+}`;
+
+      const result = await callAI(prompt, {
+        json: true,
+        returnProvider: true,
+        preferredProvider: 'gemini'
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Meta Gen Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   server.get("/api/ai/providers", async (req, res) => {
     const config = await getAiProvidersConfig();
     
@@ -623,31 +655,6 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       console.error("Slug Gen Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  server.post("/api/ai/generate-meta-data", async (req, res) => {
-    try {
-      const { title } = req.body;
-      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย รับรายชื่อหัวข้อบทความต่อไปนี้ แล้วตอบกลับเป็น JSON ที่ระบุเท่านั้น \`{ "meta_title": "...", "meta_description": "...", "tags": ["..."], "excerpt_ai": "..." }\` เน้น Keyword บาคาร่า และความเชื่อมั่น ห้ามมีคำฟุ่มเฟือย ความยาว Meta Description ต้องไม่เกิน 160 ตัวอักษร
-ชื่อบทความ: "${title}"
-โครงสร้าง JSON ตามที่กำหนด (ต้องตอบแค่นี้เท่านั้น ห้ามมีคำอธิบาย):
-{
-  "meta_title": "...",
-  "meta_description": "...",
-  "tags": ["...", "..."],
-  "excerpt_ai": "เขียนสรุปบทความเป็นสไตล์ AI Overview (70-100 คำ) โดยเน้นการตอบคำถามที่ผู้ใช้สงสัยทันที เพื่อใช้ชิงพื้นที่ Featured Snippet บน Google"
-}`;
-
-      const result = await callAI(prompt, {
-        json: true,
-        returnProvider: true,
-        preferredProvider: 'gemini'
-      });
-      res.json(result);
-    } catch (error: any) {
-      console.error("Meta Gen Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
