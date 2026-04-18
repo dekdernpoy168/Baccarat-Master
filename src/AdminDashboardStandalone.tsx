@@ -852,6 +852,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
 
   // Fetch data on mount
   const loadData = async () => {
+    setLoading(true);
     try {
       const [articlesRes, categoriesRes] = await Promise.all([
         fetch('/api/articles'),
@@ -873,6 +874,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     } catch (err: any) {
       console.error("Fetch Error:", err);
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -883,6 +886,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   useEffect(() => {
     if (propsCategories) setCategories(propsCategories);
   }, [propsCategories]);
+
+  useEffect(() => {
+    if (typeof propsLoading !== 'undefined') {
+      setLoading(propsLoading);
+    }
+  }, [propsLoading]);
 
   useEffect(() => {
     loadData();
