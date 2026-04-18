@@ -518,6 +518,23 @@ async function runCloudflareAI(model: string, input: any) {
   return result;
 }
 
+// Diagnostics route to test Cloudflare AI
+server.get("/api/ai/test-cf", async (req, res) => {
+  try {
+    const input = {
+      messages: [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: "Hello, just a quick test." }
+      ]
+    };
+    const result = await runCloudflareAI("@cf/meta/llama-3-8b-instruct", input);
+    res.json({ status: "success", result });
+  } catch (error: any) {
+    console.error("Cloudflare Diagnostic Error:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
 // AI Proxy Routes
 server.post("/api/ai/run-cf", async (req, res) => {
   try {
