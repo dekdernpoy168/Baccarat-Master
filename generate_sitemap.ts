@@ -20,12 +20,17 @@ async function generateSitemap() {
   try {
     console.log('Generating sitemap.xml and robots.txt...');
     let articles = [];
+    let categories = [];
     try {
       const articlesRef = collection(db, 'articles');
-      const snapshot = await getDocs(articlesRef);
-      articles = snapshot.docs.map(doc => doc.data());
+      const articlesSnapshot = await getDocs(articlesRef);
+      articles = articlesSnapshot.docs.map(doc => doc.data());
+      
+      const categoriesRef = collection(db, 'categories');
+      const categoriesSnapshot = await getDocs(categoriesRef);
+      categories = categoriesSnapshot.docs.map(doc => doc.data());
     } catch (dbError) {
-      console.warn('Warning: Could not fetch articles from Firestore (possibly quota exceeded). Generating basic sitemap.', dbError.message);
+      console.warn('Warning: Could not fetch from Firestore.', dbError.message);
     }
 
     const baseUrl = 'https://huisache.com';
@@ -42,6 +47,17 @@ async function generateSitemap() {
       xml += '  </url>\n';
     });
 
+    // Dynamic categories
+    categories.forEach(category => {
+      if (category.slug) {
+        xml += '  <url>\n';
+        xml += `    <loc>${baseUrl}/category/${category.slug}</loc>\n`;
+        xml += '    <changefreq>weekly</changefreq>\n';
+        xml += '    <priority>0.7</priority>\n';
+        xml += '  </url>\n';
+      }
+    });
+
     // Dynamic articles
     const now = new Date();
     articles.forEach(article => {
@@ -55,8 +71,11 @@ async function generateSitemap() {
       
       if (isPublished && article.slug) {
         const updatedAt = article.updatedAt ? new Date(article.updatedAt.seconds ? article.updatedAt.seconds * 1000 : article.updatedAt) : new Date();
+        const category = categories.find(c => c.name === article.category);
+        const catSlug = category ? category.slug : 'guide';
+        
         xml += '  <url>\n';
-        xml += `    <loc>${baseUrl}/articles/${article.slug}</loc>\n`;
+        xml += `    <loc>${baseUrl}/category/${catSlug}/${article.slug}</loc>\n`;
         xml += `    <lastmod>${updatedAt.toISOString()}</lastmod>\n`;
         xml += '    <changefreq>weekly</changefreq>\n';
         xml += '    <priority>0.7</priority>\n';

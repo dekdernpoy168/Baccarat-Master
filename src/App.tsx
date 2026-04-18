@@ -282,10 +282,9 @@ const Footer = () => (
         <div>
           <h3 className="text-gold font-bold mb-6 uppercase tracking-wider">หมวดหมู่</h3>
           <ul className="space-y-4 text-gray-400 text-sm">
-            <li><Link to="/articles/basic-guide" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> วิธีเล่นเบื้องต้น</Link></li>
-            <li><Link to="/articles/money-management-technique" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> เทคนิคการเดินเงิน</Link></li>
-            <li><Link to="/articles/card-pattern-reading" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> การอ่านเค้าไพ่</Link></li>
-            <li><Link to="/articles/pro-level-tricks" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> ทริคระดับเซียน</Link></li>
+            <li><Link to="/category/basic-guide" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> วิธีเล่นเบื้องต้น</Link></li>
+            <li><Link to="/category/free-baccarat-formula" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> สูตรบาคาร่า</Link></li>
+            <li><Link to="/category/pro-level-tricks" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> ทริคระดับเซียน</Link></li>
           </ul>
         </div>
 
@@ -350,7 +349,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
       whileHover={{ y: -10 }}
       className="bg-gray-900/50 border border-gold/10 rounded-2xl overflow-hidden article-card group flex flex-col h-full"
     >
-      <Link to={`/articles/${article.categorySlug || 'guide'}/${article.slug}`} className="relative h-56 overflow-hidden block">
+      <Link to={`/category/${article.categorySlug || 'guide'}/${article.slug}`} className="relative h-56 overflow-hidden block">
         <img 
           src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`)} 
           alt={article.title} 
@@ -369,7 +368,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
         </div>
       </Link>
       <div className="p-6 flex flex-col flex-grow">
-        <Link to={`/articles/${article.categorySlug || 'guide'}/${article.slug}`}>
+        <Link to={`/category/${article.categorySlug || 'guide'}/${article.slug}`}>
           <h3 className="text-xl font-bold text-white mb-3 group-hover:text-gold transition-colors line-clamp-2">
             {article.title}
           </h3>
@@ -385,7 +384,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
             </span>
           </div>
           <Link 
-            to={`/articles/${article.categorySlug || 'guide'}/${article.slug}`}
+            to={`/category/${article.categorySlug || 'guide'}/${article.slug}`}
             className="gold-bg-gradient text-baccarat-black px-5 py-2 rounded-xl text-xs font-black flex items-center shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-all hover:scale-105"
           >
             อ่านต่อ <ChevronRight size={14} className="ml-1.5" />
@@ -1339,12 +1338,12 @@ const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], u
           <ChevronRight size={16} className="mx-2 flex-shrink-0" />
           <Link to="/articles" className="hover:underline flex-shrink-0">บทความ</Link>
           <ChevronRight size={16} className="mx-2 flex-shrink-0" />
-          <Link to={`/articles/${article.categorySlug || 'guide'}`} className="hover:underline flex-shrink-0">
+          <Link to={`/category/${article.categorySlug || 'guide'}`} className="hover:underline flex-shrink-0">
             {article.category}
           </Link>
         </div>
         <div className="mb-8">
-          <Link to={`/articles/${article.categorySlug || 'guide'}`}>
+          <Link to={`/category/${article.categorySlug || 'guide'}`}>
             <span className="bg-baccarat-red text-white text-xs font-bold px-4 py-1.5 rounded-full border border-gold/50 cursor-pointer hover:bg-red-700 transition-colors">
               {article.category}
             </span>
@@ -4361,8 +4360,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage articles={articles} user={user} />} />
             <Route path="/articles" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
-            <Route path="/articles/:categorySlug" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
-            <Route path="/articles/:categorySlug/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/category/:categorySlug" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/category/:categorySlug/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
