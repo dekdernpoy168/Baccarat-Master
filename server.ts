@@ -496,8 +496,41 @@ async function startServer() {
   server.use(express.json({ limit: '50mb' }));
   server.use('/api/users', usersApi);
 
-  // AI Proxy Routes
-  server.post("/api/ai/generate-meta-data", async (req, res) => {
+  // Cloudflare AI Integration
+async function runCloudflareAI(model: string, input: any) {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_AI_TOKEN;
+  
+  if (!accountId || !apiToken) {
+    throw new Error("Cloudflare AI configuration missing");
+  }
+
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
+    {
+      headers: { Authorization: `Bearer ${apiToken}` },
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+  
+  const result = await response.json();
+  return result;
+}
+
+// AI Proxy Routes
+server.post("/api/ai/run-cf", async (req, res) => {
+  try {
+    const { model, input } = req.body;
+    const result = await runCloudflareAI(model, input);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Cloudflare AI Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+server.post("/api/ai/generate-meta-data", async (req, res) => {
     try {
       const { title } = req.body;
       const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย รับรายชื่อหัวข้อบทความต่อไปนี้ แล้วตอบกลับเป็น JSON ที่ระบุเท่านั้น \`{ "meta_title": "...", "meta_description": "...", "tags": ["..."], "excerpt_ai": "..." }\` เน้น Keyword บาคาร่า และความเชื่อมั่น ห้ามมีคำฟุ่มเฟือย ความยาว Meta Description ต้องไม่เกิน 160 ตัวอักษร
