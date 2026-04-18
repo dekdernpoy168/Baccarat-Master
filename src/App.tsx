@@ -503,122 +503,6 @@ const TermsPage = () => (
   </div>
 );
 
-// --- User List Component (D1 Integration) ---
-const UserList = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/users');
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data = await response.json() as any[];
-      setUsers(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const addUser = async () => {
-    try {
-      await fetch('/api/add');
-      fetchUsers();
-    } catch (err) {
-      console.error('Failed to add user', err);
-    }
-  };
-
-  const setupDatabase = async () => {
-    try {
-      await fetch('/api/setup');
-      fetchUsers();
-    } catch (err) {
-      console.error('Failed to setup database', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 md:p-12 mt-20">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-gold/10 rounded-2xl border border-gold/20">
-            <Database className="text-gold w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-white uppercase tracking-tight">ระบบทดสอบ D1 Database</h2>
-            <p className="text-gray-400 text-sm">ข้อมูลผู้ใช้งานล่าสุดจากฐานข้อมูลระบบ Cloudflare D1</p>
-          </div>
-        </div>
-        <div className="flex gap-4">
-          <button 
-            onClick={fetchUsers}
-            className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white"
-            title="รีเฟรชข้อมูล"
-          >
-            <RefreshCw size={20} className={cn(loading && "animate-spin")} />
-          </button>
-          <button 
-            onClick={addUser}
-            className="px-6 py-3 gold-bg-gradient text-baccarat-black rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-all shadow-lg shadow-gold/20"
-          >
-            <Plus size={18} /> เพิ่มผู้ใช้ทดสอบ
-          </button>
-          <button 
-            onClick={setupDatabase}
-            className="px-6 py-3 bg-white/5 border border-white/10 text-gray-400 hover:text-white rounded-xl font-bold transition-all text-xs"
-          >
-            Setup Table
-          </button>
-        </div>
-      </div>
-
-      {error ? (
-        <div className="p-12 text-center bg-baccarat-red/5 border border-baccarat-red/20 rounded-2xl">
-          <p className="text-baccarat-red mb-4">ยังไม่ได้สร้างตารางในฐานข้อมูล หรือเกิดข้อผิดพลาด</p>
-          <button 
-            onClick={setupDatabase}
-            className="bg-baccarat-red text-white px-8 py-3 rounded-xl font-bold"
-          >
-            กดเพื่อ Setup ฐานข้อมูล
-          </button>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="p-12 text-center bg-white/2 rounded-2xl border border-dashed border-white/10 text-gray-500">
-          {loading ? "กำลังโหลด..." : "ไม่พบข้อมูลผู้ใช้งานในระบบ"}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {users.map((u) => (
-            <motion.div 
-              key={u.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="p-6 bg-gray-900/50 border border-white/5 rounded-2xl flex items-center gap-4 group hover:border-gold/30 transition-all"
-            >
-              <div className="w-12 h-12 bg-gold/10 rounded-full flex items-center justify-center text-gold font-black border border-gold/20 group-hover:bg-gold/20 transition-all">
-                {u.name?.charAt(0) || 'U'}
-              </div>
-              <div>
-                <div className="text-white font-bold group-hover:text-gold transition-colors">{u.name}</div>
-                <div className="text-gray-500 text-xs">ID: #{u.id}</div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
 // --- Pages ---
 
 const AboutPage = () => {
@@ -798,11 +682,11 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
               <Sparkles className="text-gold w-4 h-4 animate-pulse" />
               <span className="text-gold text-xs font-bold uppercase tracking-[0.3em]">Baccarat Master Guide 2026</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white mb-6 leading-tight tracking-tighter">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white mb-4 leading-tight tracking-tighter">
               คัมภีร์ลับ <span className="gold-gradient">เซียนบาคาร่า</span>
               <span className="block text-xl sm:text-2xl md:text-4xl lg:text-5xl opacity-90 mt-2 md:mt-4">ชนะทุกเกมแบบมือโปร!</span>
             </h1>
-            <p className="text-xl text-gray-300 mb-12 leading-relaxed max-w-xl">
+            <p className="text-xl text-gray-300 mb-8 leading-relaxed max-w-xl">
               ยินดีต้อนรับสู่แหล่งรวมข้อมูลบาคาร่าที่ใหญ่ที่สุดในไทย เราเจาะลึกทุกกลยุทธ์ 
               ตั้งแต่พื้นฐานไปจนถึงเทคนิคขั้นสูง เผยแพร่แบบไม่มีกั๊ก เพื่อให้คุณเป็นผู้ชนะในระยะยาว
             </p>
@@ -905,8 +789,6 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
             </motion.div>
           ))}
         </div>
-
-        <UserList />
 
         {/* Detailed Strategy Overview Section */}
         <div className="bg-white/5 border border-white/10 rounded-[2rem] md:rounded-[3rem] p-8 md:p-20 relative overflow-hidden">
