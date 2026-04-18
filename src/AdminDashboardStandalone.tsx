@@ -225,7 +225,7 @@ const BrainstormModal = ({ isOpen, onClose, topics, onSelect }: { isOpen: boolea
   );
 };
 
-const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, onClose: () => void, onExecute: (prompt: string) => void }) => {
+const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOpen: boolean, onClose: () => void, onExecute: (prompt: string) => void, initialTopic: string }) => {
   const [category, setCategory] = useState('Copywriting');
   const [subCategory, setSubCategory] = useState('Blog Writing');
   const [template, setTemplate] = useState('Generate Paragraph Of Text');
@@ -235,7 +235,11 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute }: { isOpen: boolean, o
   const [targetAudience, setTargetAudience] = useState('General');
   const [anchorText, setAnchorText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [topic, setTopic] = useState('');
+  const [topic, setTopic] = useState(initialTopic);
+
+  useEffect(() => {
+    setTopic(initialTopic);
+  }, [initialTopic]);
   const [totalWords, setTotalWords] = useState('1000');
   const [keywords, setKeywords] = useState('');
   const [primaryKeyword, setPrimaryKeyword] = useState('');
@@ -633,6 +637,39 @@ const SelectionModal = ({
   );
 };
 
+const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onClose: () => void, onSelect: (url: string) => void }) => {
+  const [assets, setAssets] = useState<{url: string}[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true);
+      fetch('/api/assets')
+        .then(r => r.json())
+        .then(data => { setAssets(data); setLoading(false); })
+        .catch(() => setLoading(false));
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-zinc-900 border border-gold/20 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl max-h-[80vh] flex flex-col">
+        <div className="p-6 border-b border-gold/10 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">เลือกรูปภาพจาก R2</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={24} /></button>
+        </div>
+        <div className="p-6 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4">
+          {loading ? <p className="text-white">กำลังโหลด...</p> : assets.map((asset, i) => (
+             <img key={i} src={asset.url} alt={`Asset ${i}`} onClick={() => onSelect(asset.url)} className="cursor-pointer border border-white/10 hover:border-gold rounded-lg" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, setArticles: propsSetArticles, setCategories: propsSetCategories, loading: propsLoading, fetchArticles: propsFetchArticles }: { articles?: Article[], categories?: string[], setArticles?: (articles: Article[]) => void, setCategories?: (categories: string[]) => void, loading?: boolean, fetchArticles?: () => void }) => {
   const [articles, setArticles] = useState<Article[]>(propsArticles || []);
@@ -743,6 +780,9 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   };
   const [brainstormResults, setBrainstormResults] = useState<string[]>([]);
   const [showBrainstormModal, setShowBrainstormModal] = useState(false);
+  const [showAssetPicker, setShowAssetPicker] = useState(false);
+  const quillRef = React.useRef<any>(null);
+
   const [generatedLogo, setGeneratedLogo] = useState<string | null>(localStorage.getItem('baccarat_master_logo'));
   const [slugOptions, setSlugOptions] = useState<string[]>([]);
   const [excerptOptions, setExcerptOptions] = useState<string[]>([]);
@@ -2046,16 +2086,31 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   </button>
                 </div>
               </div>
-              <div className="text-sm text-gray-400 mb-2">
-                เวลาอ่านโดยประมาณ: {calculateReadTime(currentArticle.content || '')}
+              <div className="text-sm text-gray-400 mb-2 flex justify-between">
+                <span>เวลาอ่านโดยประมาณ: {calculateReadTime(currentArticle.content || '')}</span>
+                <button type="button" onClick={() => setShowAssetPicker(true)} className="text-gold text-xs font-bold hover:underline">เพิ่มรูปจาก R2</button>
               </div>
               <ReactQuill 
+                ref={quillRef}
                 theme="snow" 
                 value={currentArticle.content || ''} 
                 onChange={val => setCurrentArticle({...currentArticle, content: val})}
                 modules={modules}
               />
             </div>
+            
+            <AssetPickerModal 
+              isOpen={showAssetPicker}
+              onClose={() => setShowAssetPicker(false)}
+              onSelect={(url) => {
+                const quill = quillRef.current?.getEditor();
+                if (quill) {
+                    const range = quill.getSelection();
+                    quill.insertEmbed(range?.index || 0, 'image', url);
+                }
+                setShowAssetPicker(false);
+              }}
+            />
 
             <div className="space-y-4 p-6 bg-gray-900/50 border border-gold/10 rounded-2xl">
               <div className="flex items-center justify-between">
@@ -2152,6 +2207,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <PromptBuilderModal 
               isOpen={showPromptBuilder} 
               onClose={() => setShowPromptBuilder(false)} 
+              initialTopic={currentArticle.title || ''}
               onExecute={(prompt) => {
                 setAiPrompt(prompt);
                 setShowPromptBuilder(false);

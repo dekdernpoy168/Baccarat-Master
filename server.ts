@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
 import multer from "multer";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { exec, query } from './src/db.js';
 import { db } from './src/db/index.js';
 import { users } from './src/db/schema.js';
@@ -100,12 +100,12 @@ const openai = new OpenAI({
 });
 
 // Configure Anthropic Client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || "dummy",
-  defaultHeaders: {
-    "anthropic-beta": "mcp-client-2025-11-20,message-batches-2024-09-24"
-  }
-});
+// const anthropic = new Anthropic({
+//   apiKey: process.env.ANTHROPIC_API_KEY || "dummy",
+//   defaultHeaders: {
+//     "anthropic-beta": "mcp-client-2025-11-20,message-batches-2024-09-24"
+//   }
+// });
 
 // Define AI Tools
 const keywordTool = betaZodTool({
@@ -396,7 +396,7 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
         
         // We use the OpenAI SDK to connect to x.ai since x.ai provides OpenAI compatible endpoints
         const response = await grokClient.chat.completions.create({
-          model: "grok-2", 
+          model: "grok-beta", 
           messages: [{ role: "user", content: finalPrompt }]
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
@@ -717,7 +717,13 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
   server.post("/api/ai/generate-excerpt", async (req, res) => {
     try {
       const { title } = req.body;
-      const prompt = `เขียนคำโปรย (Excerpt) สั้นๆ ประมาณ 1-2 ประโยค จำนวน 3 ตัวเลือก สำหรับบทความหัวข้อ: "${title}". เน้นความน่าสนใจและดึงดูดผู้อ่าน.`;
+      const prompt = `เขียนคำโปรย (Excerpt) แบบ AI Overview สำหรับบทความหัวข้อ: "${title}". 
+      ข้อกำหนด:
+      - เขียนสรุปเนื้อหาสั้นๆ กระชับ ตอบโจทย์สิ่งที่ผู้ใช้ค้นหาทันที
+      - ใช้ภาษาที่เป็นธรรมชาติ ทันสมัย เหมือน AI สรุปข้อมูล
+      - ทำมา 3 ตัวเลือกที่แตกต่างกัน
+      - ความยาวไม่เกิน 100 คำต่อตัวเลือก
+      - ตอบกลับเป็น JSON เท่านั้นในรูปแบบ { "options": ["ตัวเลือกที่ 1", "ตัวเลือกที่ 2", "ตัวเลือกที่ 3"] }`;
       const data = await callAI(prompt, {
         json: true,
         schema: {
@@ -1277,6 +1283,26 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
   });
 
   // --- Image Upload (Cloudflare R2) ---
+  server.get("/api/assets", async (req, res) => {
+    try {
+      const bucketName = process.env.R2_BUCKET_NAME || "baccarat-master-assets";
+      const command = new ListObjectsV2Command({ Bucket: bucketName });
+      const response = await r2Client.send(command);
+      const publicUrlBase = process.env.R2_PUBLIC_DEV_URL || `https://${bucketName}.r2.dev`;
+      
+      const images = (response.Contents || [])
+        .filter(item => item.Key && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.Key))
+        .map(item => ({
+          key: item.Key,
+          url: `${publicUrlBase}/${item.Key}`
+        }));
+      res.json(images);
+    } catch (error: any) {
+      console.error("Error listing assets:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   server.post("/api/upload", upload.single("image"), async (req, res) => {
     try {
       if (!req.file) {
