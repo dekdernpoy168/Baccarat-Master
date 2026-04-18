@@ -6,6 +6,7 @@ export interface Article {
   excerpt: string;
   content: string;
   category: string;
+  categorySlug?: string;
   date: string;
   author: string;
   image: string;

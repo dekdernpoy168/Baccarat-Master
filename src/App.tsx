@@ -282,10 +282,10 @@ const Footer = () => (
         <div>
           <h3 className="text-gold font-bold mb-6 uppercase tracking-wider">หมวดหมู่</h3>
           <ul className="space-y-4 text-gray-400 text-sm">
-            <li><Link to="/articles?category=วิธีเล่นเบื้องต้น" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> วิธีเล่นเบื้องต้น</Link></li>
-            <li><Link to="/articles?category=เทคนิคการเดินเงิน" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> เทคนิคการเดินเงิน</Link></li>
-            <li><Link to="/articles?category=การอ่านเค้าไพ่" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> การอ่านเค้าไพ่</Link></li>
-            <li><Link to="/articles?category=ทริคระดับเซียน" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> ทริคระดับเซียน</Link></li>
+            <li><Link to="/articles/basic-guide" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> วิธีเล่นเบื้องต้น</Link></li>
+            <li><Link to="/articles/money-management-technique" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> เทคนิคการเดินเงิน</Link></li>
+            <li><Link to="/articles/card-pattern-reading" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> การอ่านเค้าไพ่</Link></li>
+            <li><Link to="/articles/pro-level-tricks" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> ทริคระดับเซียน</Link></li>
           </ul>
         </div>
 
@@ -350,7 +350,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
       whileHover={{ y: -10 }}
       className="bg-gray-900/50 border border-gold/10 rounded-2xl overflow-hidden article-card group flex flex-col h-full"
     >
-      <Link to={`/articles/${article.slug}`} className="relative h-56 overflow-hidden block">
+      <Link to={`/articles/${article.categorySlug || 'guide'}/${article.slug}`} className="relative h-56 overflow-hidden block">
         <img 
           src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`)} 
           alt={article.title} 
@@ -369,7 +369,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
         </div>
       </Link>
       <div className="p-6 flex flex-col flex-grow">
-        <Link to={`/articles/${article.slug}`}>
+        <Link to={`/articles/${article.categorySlug || 'guide'}/${article.slug}`}>
           <h3 className="text-xl font-bold text-white mb-3 group-hover:text-gold transition-colors line-clamp-2">
             {article.title}
           </h3>
@@ -385,7 +385,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
             </span>
           </div>
           <Link 
-            to={`/articles/${article.slug}`}
+            to={`/articles/${article.categorySlug || 'guide'}/${article.slug}`}
             className="gold-bg-gradient text-baccarat-black px-5 py-2 rounded-xl text-xs font-black flex items-center shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-all hover:scale-105"
           >
             อ่านต่อ <ChevronRight size={14} className="ml-1.5" />
@@ -1195,22 +1195,25 @@ const ArticlesPage = ({ articles, user, loading }: { articles: Article[], user: 
   const isAdmin = user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
   const publishedArticles = articles.filter(a => (isAdmin || isPublished(a)) && (a.type === 'post' || !a.type));
   const location = useLocation();
+  const { categorySlug } = useParams<{ categorySlug?: string }>();
   const searchParams = new URLSearchParams(location.search);
-  const categoryFilter = searchParams.get('category');
   const tagFilter = searchParams.get('tag');
 
   const filteredArticles = publishedArticles.filter(a => {
-    const categoryMatch = categoryFilter ? a.category === categoryFilter : true;
+    const categoryMatch = categorySlug ? a.categorySlug === categorySlug : true;
     const tagMatch = tagFilter ? (a.tags && a.tags.split(',').map(t => t.trim()).includes(tagFilter)) : true;
     return categoryMatch && tagMatch;
   });
+
+  // Get the display-friendly category name for the title
+  const displayCategory = categorySlug && filteredArticles.length > 0 ? filteredArticles[0].category : categorySlug;
 
   const [visibleCount, setVisibleCount] = useState(9);
   
   // Reset visible count when category or tag changes
   useEffect(() => {
     setVisibleCount(9);
-  }, [categoryFilter, tagFilter]);
+  }, [categorySlug, tagFilter]);
 
   const displayedArticles = filteredArticles.slice(0, visibleCount);
   const hasMore = visibleCount < filteredArticles.length;
@@ -1222,19 +1225,19 @@ const ArticlesPage = ({ articles, user, loading }: { articles: Article[], user: 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <SEO 
-        title={categoryFilter ? `บทความหมวดหมู่: ${categoryFilter}` : "บทความบาคาร่าทั้งหมด"} 
+        title={displayCategory ? `บทความหมวดหมู่: ${displayCategory}` : "บทความบาคาร่าทั้งหมด"} 
         description="รวมบทความ เทคนิค และสูตรบาคาร่าที่อัพเดทล่าสุด เพื่อช่วยให้คุณเป็นเซียนบาคาร่า" 
       />
       <div className="mb-16 text-center">
         <h1 className="text-3xl md:text-5xl font-black text-white mb-6">
-          {categoryFilter ? (
-            <>คลังบทความ <span className="gold-gradient">{categoryFilter}</span></>
+          {displayCategory ? (
+            <>คลังบทความ <span className="gold-gradient">{displayCategory}</span></>
           ) : (
             <>คลังบทความ <span className="gold-gradient">บาคาร่า</span></>
           )}
         </h1>
         <p className="text-gray-400 max-w-2xl mx-auto mb-6">
-          {categoryFilter === 'สูตรบาคาร่าฟรี' 
+          {displayCategory === 'สูตรบาคาร่าฟรี' 
             ? 'รวบรวมสูตรบาคาร่าฟรี เทคนิคการเดินเงิน และวิธีการอ่านเค้าไพ่ที่แม่นยำที่สุด เพื่อเพิ่มโอกาสชนะให้กับคุณ'
             : 'รวบรวมทุกเรื่องราวเกี่ยวกับบาคาร่า ตั้งแต่วิธีเล่น สูตรเดินเงิน การอ่านเค้าไพ่ และเทคนิคต่างๆ ที่จะช่วยให้คุณเป็นมืออาชีพ'}
         </p>
@@ -1331,13 +1334,21 @@ const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], u
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <Link to="/articles" className="text-gold flex items-center mb-8 hover:underline">
-          <ChevronRight size={20} className="rotate-180 mr-2" /> กลับไปหน้าบทความ
-        </Link>
-        <div className="mb-8">
-          <span className="bg-baccarat-red text-white text-xs font-bold px-4 py-1.5 rounded-full border border-gold/50">
+        <div className="flex items-center text-gold mb-8 text-sm md:text-base whitespace-nowrap overflow-x-auto pb-2">
+          <Link to="/" className="hover:underline flex-shrink-0">หน้าแรก</Link>
+          <ChevronRight size={16} className="mx-2 flex-shrink-0" />
+          <Link to="/articles" className="hover:underline flex-shrink-0">บทความ</Link>
+          <ChevronRight size={16} className="mx-2 flex-shrink-0" />
+          <Link to={`/articles/${article.categorySlug || 'guide'}`} className="hover:underline flex-shrink-0">
             {article.category}
-          </span>
+          </Link>
+        </div>
+        <div className="mb-8">
+          <Link to={`/articles/${article.categorySlug || 'guide'}`}>
+            <span className="bg-baccarat-red text-white text-xs font-bold px-4 py-1.5 rounded-full border border-gold/50 cursor-pointer hover:bg-red-700 transition-colors">
+              {article.category}
+            </span>
+          </Link>
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mt-6 mb-6 leading-tight">
             {article.title}
           </h1>
@@ -4350,7 +4361,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage articles={articles} user={user} />} />
             <Route path="/articles" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
-            <Route path="/articles/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/articles/:categorySlug" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/articles/:categorySlug/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -4386,7 +4398,6 @@ export default function App() {
                 )
               } 
             />
-            <Route path="/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
           </Routes>
         </main>
         <Footer />

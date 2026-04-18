@@ -1248,27 +1248,29 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
     const rows = await query(
       `
       SELECT
-        id,
-        title,
-        slug,
-        excerpt,
-        content,
-        image,
-        category,
-        tags,
-        meta_title AS metaTitle,
-        meta_description AS metaDescription,
-        meta_keywords AS metaKeywords,
-        faqs,
-        author,
-        status,
-        type,
-        date,
-        published_at AS publishedAt,
-        created_at AS createdAt,
-        updated_at AS updatedAt
-      FROM articles
-      WHERE id = ?
+        a.id,
+        a.title,
+        a.slug,
+        a.excerpt,
+        a.content,
+        a.image,
+        a.category,
+        c.slug AS categorySlug,
+        a.tags,
+        a.meta_title AS metaTitle,
+        a.meta_description AS metaDescription,
+        a.meta_keywords AS metaKeywords,
+        a.faqs,
+        a.author,
+        a.status,
+        a.type,
+        a.date,
+        a.published_at AS publishedAt,
+        a.created_at AS createdAt,
+        a.updated_at AS updatedAt
+      FROM articles a
+      LEFT JOIN categories c ON a.category = c.name
+      WHERE a.id = ?
       LIMIT 1
       `,
       [id]
@@ -1344,27 +1346,29 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
       const rows = await query(
         `
         SELECT
-          id,
-          title,
-          slug,
-          excerpt,
-          content,
-          image,
-          category,
-          tags,
-          meta_title AS metaTitle,
-          meta_description AS metaDescription,
-          meta_keywords AS metaKeywords,
-          faqs,
-          author,
-          status,
-          type,
-          date,
-          published_at AS publishedAt,
-          created_at AS createdAt,
-          updated_at AS updatedAt
-        FROM articles
-        ORDER BY datetime(created_at) DESC, id DESC
+          a.id,
+          a.title,
+          a.slug,
+          a.excerpt,
+          a.content,
+          a.image,
+          a.category,
+          c.slug AS categorySlug,
+          a.tags,
+          a.meta_title AS metaTitle,
+          a.meta_description AS metaDescription,
+          a.meta_keywords AS metaKeywords,
+          a.faqs,
+          a.author,
+          a.status,
+          a.type,
+          a.date,
+          a.published_at AS publishedAt,
+          a.created_at AS createdAt,
+          a.updated_at AS updatedAt
+        FROM articles a
+        LEFT JOIN categories c ON a.category = c.name
+        ORDER BY datetime(a.created_at) DESC, a.id DESC
         `
       );
       res.json(rows);
