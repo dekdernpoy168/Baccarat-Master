@@ -71,11 +71,9 @@ async function generateSitemap() {
       
       if (isPublished && article.slug) {
         const updatedAt = article.updatedAt ? new Date(article.updatedAt.seconds ? article.updatedAt.seconds * 1000 : article.updatedAt) : new Date();
-        const category = categories.find(c => c.name === article.category);
-        const catSlug = category ? category.slug : 'guide';
         
         xml += '  <url>\n';
-        xml += `    <loc>${baseUrl}/category/${catSlug}/${article.slug}</loc>\n`;
+        xml += `    <loc>${baseUrl}/${article.slug}</loc>\n`;
         xml += `    <lastmod>${updatedAt.toISOString()}</lastmod>\n`;
         xml += '    <changefreq>weekly</changefreq>\n';
         xml += '    <priority>0.7</priority>\n';

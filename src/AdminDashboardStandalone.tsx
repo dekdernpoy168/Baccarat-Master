@@ -36,7 +36,8 @@ import {
   Eye,
   Calendar,
   Tag,
-  Copy
+  Copy,
+  User
 } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import { calculateReadTime } from './lib/readTime';
@@ -53,8 +54,7 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   onAuthStateChanged, 
-  signOut,
-  User
+  signOut
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
@@ -846,6 +846,11 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [excerptOptions, setExcerptOptions] = useState<string[]>([]);
   const [showSlugSelection, setShowSlugSelection] = useState(false);
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
+  const [authors, setAuthors] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/authors').then(res => res.json()).then(data => setAuthors(data as any[])).catch(console.error);
+  }, []);
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
   const [filterType, setFilterType] = useState<'post' | 'page'>('post');
@@ -1865,10 +1870,16 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 </button>
                 <button 
                   onClick={() => setIsManagingCategories(true)}
-                  className="flex-1 sm:flex-none bg-gray-800 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center text-sm md:text-base"
+                  className="flex-1 sm:flex-none bg-gray-800 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center text-sm md:text-base relative group"
                 >
                   <Target size={18} className="mr-2 text-gold" /> หมวดหมู่
                 </button>
+                <Link 
+                  to="/admin/author"
+                  className="flex-1 sm:flex-none bg-gray-800 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center text-sm md:text-base relative group"
+                >
+                  <User size={18} className="mr-2 text-gold" /> ผู้เขียน
+                </Link>
                 <label className="flex-1 sm:flex-none bg-blue-500 text-white px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-blue-600 transition-all flex items-center justify-center text-sm md:text-base cursor-pointer shadow-lg shadow-blue-500/20">
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
@@ -2183,6 +2194,21 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   </select>
                 </div>
               </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-gold text-sm font-bold flex items-center"><User size={16} className="mr-2" /> ผู้เขียน (Author)</label>
+                <div className="flex flex-col space-y-2">
+                  <select 
+                    value={currentArticle.author_id || ''} 
+                    onChange={e => setCurrentArticle({...currentArticle, author_id: e.target.value ? parseInt(e.target.value, 10) : undefined})}
+                    className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none cursor-pointer"
+                  >
+                    <option value="">เลือกผู้เขียน... (ค่าเริ่มต้น: Admin)</option>
+                    {authors.map(author => (
+                      <option key={author.id} value={author.id}>{author.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2286,6 +2312,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 value={currentArticle.content || ''} 
                 onChange={val => setCurrentArticle({...currentArticle, content: val})}
                 modules={modules}
+                // @ts-ignore
                 onPaste={(e: any) => {
                   const data = e.clipboardData.getData('text');
                   if (data && data.match(/^(http|https):\/\/[^ "]+(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i)) {

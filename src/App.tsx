@@ -39,7 +39,8 @@ import {
   Database,
   Clock,
   Copy,
-  Settings2
+  Settings2,
+  User as UserIcon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import ReactQuill from 'react-quill-new';
@@ -48,6 +49,10 @@ import { format } from 'date-fns';
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { io } from 'socket.io-client';
+import AuthorManagement from './components/AuthorManagement';
+import { BatchSeoDashboard } from './components/BatchSeoDashboard';
+import { McpSettings } from './components/McpSettings';
+import StandaloneAdminDashboard from './AdminDashboardStandalone';
 
 // Initialize PDF.js worker
 if (typeof window !== 'undefined') {
@@ -59,15 +64,18 @@ import {
   GoogleAuthProvider, 
   onAuthStateChanged, 
   signOut,
-  User
 } from 'firebase/auth';
+
+interface User {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}
 import { auth, googleProvider } from './firebase';
 import { Article, ARTICLES } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
-import { BatchSeoDashboard } from './components/BatchSeoDashboard';
-import { McpSettings } from './components/McpSettings';
-import StandaloneAdminDashboard from './AdminDashboardStandalone';
 
 // --- Types & Constants ---
 
@@ -349,7 +357,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
       whileHover={{ y: -10 }}
       className="bg-gray-900/50 border border-gold/10 rounded-2xl overflow-hidden article-card group flex flex-col h-full"
     >
-      <Link to={`/category/${article.categorySlug || 'guide'}/${article.slug}`} className="relative h-56 overflow-hidden block">
+      <Link to={`/${article.slug}`} className="relative h-56 overflow-hidden block">
         <img 
           src={article.image?.startsWith('data:image') ? article.image : (article.image || `https://picsum.photos/seed/${article.slug || 'baccarat'}/800/400`)} 
           alt={article.title} 
@@ -368,7 +376,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
         </div>
       </Link>
       <div className="p-6 flex flex-col flex-grow">
-        <Link to={`/category/${article.categorySlug || 'guide'}/${article.slug}`}>
+        <Link to={`/${article.slug}`}>
           <h3 className="text-xl font-bold text-white mb-3 group-hover:text-gold transition-colors line-clamp-2">
             {article.title}
           </h3>
@@ -384,7 +392,7 @@ const ArticleCard = ({ article }: { article: Article; key?: string | number }) =
             </span>
           </div>
           <Link 
-            to={`/category/${article.categorySlug || 'guide'}/${article.slug}`}
+            to={`/${article.slug}`}
             className="gold-bg-gradient text-baccarat-black px-5 py-2 rounded-xl text-xs font-black flex items-center shadow-lg shadow-gold/20 hover:shadow-gold/40 transition-all hover:scale-105"
           >
             อ่านต่อ <ChevronRight size={14} className="ml-1.5" />
@@ -1279,7 +1287,7 @@ const ArticlesPage = ({ articles, user, loading }: { articles: Article[], user: 
   );
 };
 
-const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], user: User | null, loading: boolean }) => {
+const ArticleDetailPage = ({ articles, authors, user, loading }: { articles: Article[], authors: any[], user: User | null, loading: boolean }) => {
   const { slug } = useParams();
   const isAdmin = user?.email === ADMIN_EMAIL;
   
@@ -1296,6 +1304,9 @@ const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], u
 
   if (!article || (!isAdmin && !isPublished(article))) return <div className="text-center py-20 text-white">ไม่พบเนื้อหาที่ต้องการ หรือบทความยังไม่ถึงเวลาเผยแพร่</div>;
 
+  const authorData = authors.find(auth => auth.id === article.author_id);
+  const authorName = authorData?.name || article.author || 'Admin';
+
   const schema = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -1306,7 +1317,7 @@ const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], u
     "dateModified": new Date(article.updatedAt.seconds ? article.updatedAt.seconds * 1000 : article.updatedAt).toISOString(),
     "author": {
       "@type": "Person",
-      "name": "Baccarat Master"
+      "name": authorName
     },
     "publisher": {
       "@type": "Organization",
@@ -1352,7 +1363,7 @@ const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], u
             {article.title}
           </h1>
           <div className="flex items-center text-gray-500 text-sm space-x-6">
-            <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {article.author}</span>
+            <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {authorName}</span>
             <span className="flex items-center"><Target size={16} className="mr-2" /> {article.date}</span>
             <span className="flex items-center"><Clock size={16} className="mr-2" /> {calculateReadTime(article.content)}</span>
           </div>
@@ -1364,6 +1375,32 @@ const ArticleDetailPage = ({ articles, user, loading }: { articles: Article[], u
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
         </div>
+
+        {/* Author Bio Section */}
+        {authorData && (
+          <div className="mt-16 p-8 bg-gray-900/50 border border-gold/20 rounded-3xl flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left transition-all hover:border-gold/40">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-gold/50 flex-shrink-0 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+              {authorData.avatarUrl ? (
+                <img src={authorData.avatarUrl} alt={authorData.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gray-800 flex items-center justify-center text-gold">
+                  <UserIcon size={48} />
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="flex flex-col md:flex-row md:items-center gap-2 mb-3">
+                <h3 className="text-2xl font-bold text-white">{authorData.name}</h3>
+                <span className="bg-gold/10 text-gold text-xs font-bold px-3 py-1 rounded-full border border-gold/20 w-fit mx-auto md:mx-0">
+                  {authorData.position}
+                </span>
+              </div>
+              <p className="text-gray-400 leading-relaxed italic border-l-2 border-gold/30 pl-4">
+                "{authorData.description}"
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="mt-20 p-8 bg-gray-900 border border-gold/30 rounded-3xl text-center">
           <h3 className="text-2xl font-bold text-white mb-4">สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
@@ -4228,6 +4265,7 @@ export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
+  const [authors, setAuthors] = useState<any[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' } | null>(null);
@@ -4270,6 +4308,18 @@ export default function App() {
     }
   }, []);
 
+  // Fetch Authors
+    const fetchAuthors = useCallback(async () => {
+      try {
+        const response = await fetch('/api/authors');
+        if (!response.ok) throw new Error('Failed to fetch authors');
+        const data = await response.json();
+        setAuthors(data as any[]);
+      } catch (error) {
+        console.error("API Error (Authors):", error);
+      }
+    }, []);
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 3000);
@@ -4297,6 +4347,7 @@ export default function App() {
 
     fetchArticles();
     fetchCategories();
+    fetchAuthors();
 
     // Socket.io for real-time updates
     console.log('Initializing socket.io client...');
@@ -4361,7 +4412,6 @@ export default function App() {
             <Route path="/" element={<HomePage articles={articles} user={user} />} />
             <Route path="/articles" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
             <Route path="/category/:categorySlug" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
-            <Route path="/category/:categorySlug/:slug" element={<ArticleDetailPage articles={articles} user={user} loading={articlesLoading} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -4397,6 +4447,20 @@ export default function App() {
                 )
               } 
             />
+            <Route 
+              path="/admin/author" 
+              element={
+                user?.email === ADMIN_EMAIL ? (
+                  <div className="max-w-7xl mx-auto px-4 py-12">
+                     <AuthorManagement />
+                  </div>
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
+            />
+            {/* Fallback pattern for Articles */}
+            <Route path="/:slug" element={<ArticleDetailPage articles={articles} authors={authors} user={user} loading={articlesLoading} />} />
           </Routes>
         </main>
         <Footer />

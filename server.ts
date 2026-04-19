@@ -168,12 +168,18 @@ interface McpServerConfig {
 async function callAI(prompt: string, options: { json?: boolean, schema?: any, useTools?: boolean, mcpServers?: McpServerConfig[], preferredProvider?: 'openai' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'grok' | 'ollama', returnProvider?: boolean } = {}) {
   const config = await getAiProvidersConfig();
   
-  const hasOpenAI = (config.openai?.enabled && await getApiKey('openai')) || (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== "dummy");
-  const hasAnthropic = (config.anthropic?.enabled && await getApiKey('anthropic')) || (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== "dummy");
-  const hasGemini = (config.gemini?.enabled && await getApiKey('gemini')) || (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy");
+  const isDummy = (key: string | undefined) => {
+    if (!key) return true;
+    const k = key.toLowerCase();
+    return k === 'dummy' || k.includes('your-api-key') || k.includes('replace-me') || k.includes('insert-key');
+  };
+
+  const hasOpenAI = (config.openai?.enabled && await getApiKey('openai')) || (!isDummy(process.env.OPENAI_API_KEY));
+  const hasAnthropic = (config.anthropic?.enabled && await getApiKey('anthropic')) || (!isDummy(process.env.ANTHROPIC_API_KEY));
+  const hasGemini = (config.gemini?.enabled && await getApiKey('gemini')) || (!isDummy(process.env.GEMINI_API_KEY));
   const hasDeepseek = config.deepseek?.enabled && await getApiKey('deepseek');
   const hasGroq = config.groq?.enabled && await getApiKey('groq');
-  const hasGrok = (config.grok?.enabled && await getApiKey('grok')) || !!process.env.XAI_API_KEY;
+  const hasGrok = (config.grok?.enabled && await getApiKey('grok')) || !isDummy(process.env.XAI_API_KEY);
   const hasOllama = config.ollama?.enabled;
 
   // Determine order of providers based on preference and availability
@@ -308,10 +314,11 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
 
       else if (provider === 'gemini') {
         const apiKey = await getApiKey('gemini') || process.env.GEMINI_API_KEY;
-        const genAI = new GoogleGenAI({ apiKey: apiKey || "" });
+        if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+        const genAI = new GoogleGenAI({ apiKey });
         
-        // Dynamically get the model name from config, fallback to gemini-1.5-flash
-        const modelName = config.gemini?.models?.[0] || "gemini-1.5-flash";
+        // Use recommended model from skill
+        const modelName = config.gemini?.models?.[0] || 'gemini-3-flash-preview';
         
         const modelParams: any = {
           model: modelName,
@@ -397,7 +404,7 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
         
         // We use the OpenAI SDK to connect to x.ai since x.ai provides OpenAI compatible endpoints
         const response = await grokClient.chat.completions.create({
-          model: "grok-2", 
+          model: config.grok?.models?.[0] || "grok-2-1212", 
           messages: [{ role: "user", content: finalPrompt }]
         });
         const text = response.choices[0].message.content || (options.json ? "{}" : "");
@@ -428,6 +435,9 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
         return options.returnProvider ? { data: parsed, provider } : parsed;
       }
     } catch (error: any) {
+      if (error.message?.includes('balance is too low')) {
+        console.error("Anthropic Error: Insufficient balance. Please check your billing.");
+      }
       console.warn(`${provider} failed:`, error.message);
       lastError = error;
       // Continue to the next provider in the loop
@@ -442,10 +452,11 @@ const parseJsonFallback = (text: string, provider: string, options: AIProviderOp
 async function* streamAI(prompt: string) {
   try {
     if (process.env.ANTHROPIC_API_KEY) {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const stream = anthropic.messages.stream({
         max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
-        model: "claude-3-opus-20240229",
+        model: "claude-3-5-sonnet-20241022",
       });
 
       for await (const chunk of stream) {
@@ -457,12 +468,12 @@ async function* streamAI(prompt: string) {
     }
 
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-    const result: any = await genAI.models.generateContent({
-      model: "gemini-1.5-flash",
+    const response = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const text = response.text || "";
     yield text;
   } catch (error: any) {
     console.warn("Streaming AI Error, falling back to OpenAI:", error.message);
@@ -566,9 +577,9 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
     
     // Add default providers from env if not in config
     if (!config.openai) config.openai = { enabled: !!process.env.OPENAI_API_KEY, apiKey: process.env.OPENAI_API_KEY || '', proxyUrl: '', models: ['gpt-4o-mini', 'gpt-4o'] };
-    if (!config.anthropic) config.anthropic = { enabled: !!process.env.ANTHROPIC_API_KEY, apiKey: process.env.ANTHROPIC_API_KEY || '', proxyUrl: '', models: ['claude-3-5-sonnet-20241022'] };
-    if (!config.gemini) config.gemini = { enabled: !!process.env.GEMINI_API_KEY, apiKey: process.env.GEMINI_API_KEY || '', proxyUrl: '', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] };
-    if (!config.grok) config.grok = { enabled: !!process.env.XAI_API_KEY, apiKey: process.env.XAI_API_KEY || '', proxyUrl: 'https://api.x.ai/v1', models: ['grok-4.20-reasoning', 'grok-beta'] };
+    if (!config.anthropic) config.anthropic = { enabled: !!process.env.ANTHROPIC_API_KEY, apiKey: process.env.ANTHROPIC_API_KEY || '', proxyUrl: '', models: ['claude-3-5-sonnet-latest'] };
+    if (!config.gemini) config.gemini = { enabled: !!process.env.GEMINI_API_KEY, apiKey: process.env.GEMINI_API_KEY || '', proxyUrl: '', models: ['gemini-2.0-flash-exp', 'gemini-1.5-pro'] };
+    if (!config.grok) config.grok = { enabled: !!process.env.XAI_API_KEY, apiKey: process.env.XAI_API_KEY || '', proxyUrl: 'https://api.x.ai/v1', models: ['grok-2-1212', 'grok-beta'] };
     
     // Mask API keys for security before sending to client
     const maskedConfig = { ...config };
@@ -625,8 +636,8 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
       else if (provider === 'gemini') {
         const genAI = new GoogleGenAI({ apiKey });
         // Minimal call to test key
-        const result = await genAI.models.generateContent({
-          model: "gemini-1.5-flash",
+        const result: any = await genAI.models.generateContent({
+          model: "gemini-3-flash-preview",
           contents: [{ role: "user", parts: [{ text: "Hi" }] }],
         });
         return res.json({ success: true });
@@ -928,7 +939,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
       try {
         const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
         const result: any = await genAI.models.generateContent({
-          model: "gemini-2.5-flash-image",
+          model: "gemini-3.1-flash-image-preview",
           contents: [{ role: "user", parts: [{ text: prompt }] }]
         });
         
@@ -1020,6 +1031,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
 
         // Helper to call Anthropic
         const callAnthropic = async () => {
+          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
           const response = await anthropic.messages.create({
             model: "claude-3-5-sonnet-20241022",
             max_tokens: 500,
@@ -1088,6 +1100,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
   server.get("/api/ai/batch-results/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const batchApi = (anthropic as any).beta?.messages?.batches || (anthropic as any).messages?.batches;
       
       if (!batchApi) {
@@ -1237,6 +1250,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
       metaKeywords: body.metaKeywords ?? '',
       faqs: body.faqs ?? '[]',
       author: body.author ?? 'Admin',
+      author_id: body.author_id ?? body.authorId ?? null,
       status: body.status === 'published' ? 'published' : 'draft',
       type: body.type === 'page' ? 'page' : 'post',
       date: body.date ?? today(),
@@ -1262,6 +1276,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
         a.meta_keywords AS metaKeywords,
         a.faqs,
         a.author,
+        a.author_id AS author_id,
         a.status,
         a.type,
         a.date,
@@ -1360,6 +1375,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
           a.meta_keywords AS metaKeywords,
           a.faqs,
           a.author,
+          a.author_id AS author_id,
           a.status,
           a.type,
           a.date,
@@ -1420,12 +1436,13 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
           meta_keywords,
           faqs,
           author,
+          author_id,
           status,
           type,
           date,
           published_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
         `,
         [
@@ -1441,6 +1458,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
           data.metaKeywords,
           data.faqs,
           data.author,
+          data.author_id,
           data.status,
           data.type,
           data.date,
@@ -1486,6 +1504,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
           meta_keywords = ?,
           faqs = ?,
           author = ?,
+          author_id = ?,
           status = ?,
           type = ?,
           date = ?,
@@ -1506,6 +1525,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
           data.metaKeywords,
           data.faqs,
           data.author,
+          data.author_id,
           data.status,
           data.type,
           data.date,
@@ -1762,6 +1782,76 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
     }
   });
 
+  // Authors routes
+  server.get("/api/authors", async (req, res) => {
+    try {
+      const rows = await query(`
+        SELECT 
+          id, 
+          name, 
+          description, 
+          position, 
+          avatar_url AS avatarUrl, 
+          created_at AS createdAt, 
+          updated_at AS updatedAt 
+        FROM authors 
+        ORDER BY name ASC
+      `);
+      res.json(rows);
+    } catch (error: any) {
+      console.error("Error fetching authors:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.post("/api/authors", async (req, res) => {
+    try {
+      const { name, description, position, avatarUrl } = req.body;
+      if (!name) return res.status(400).json({ error: 'Name is required' });
+
+      await exec(
+        `INSERT INTO authors (name, description, position, avatar_url) VALUES (?, ?, ?, ?)`,
+        [name, description || null, position || null, avatarUrl || null]
+      );
+      
+      const rows = await query(`SELECT id, name, description, position, avatar_url AS avatarUrl, created_at AS createdAt, updated_at AS updatedAt FROM authors ORDER BY id DESC LIMIT 1`);
+      res.status(201).json(rows[0]);
+    } catch (error: any) {
+      console.error("Error creating author:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.put("/api/authors/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, position, avatarUrl } = req.body;
+      if (!name) return res.status(400).json({ error: 'Name is required' });
+
+      await exec(
+        `UPDATE authors SET name = ?, description = ?, position = ?, avatar_url = ?, updated_at = datetime('now') WHERE id = ?`,
+        [name, description || null, position || null, avatarUrl || null, id]
+      );
+      
+      const rows = await query(`SELECT id, name, description, position, avatar_url AS avatarUrl, created_at AS createdAt, updated_at AS updatedAt FROM authors WHERE id = ?`, [id]);
+      res.json(rows[0]);
+    } catch (error: any) {
+      console.error("Error updating author:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  server.delete("/api/authors/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await exec(`DELETE FROM authors WHERE id = ?`, [id]);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting author:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Sitemap route
   server.get("/sitemap.xml", async (req, res) => {
     try {
@@ -1795,7 +1885,7 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
         if (isPublished && article.slug) {
           const updatedAt = article.updated_at ? new Date(article.updated_at) : new Date();
           xml += '  <url>\n';
-          xml += `    <loc>${baseUrl}/articles/${article.slug}</loc>\n`;
+          xml += `    <loc>${baseUrl}/${article.slug}</loc>\n`;
           xml += `    <lastmod>${updatedAt.toISOString()}</lastmod>\n`;
           xml += '    <changefreq>weekly</changefreq>\n';
           xml += '    <priority>0.7</priority>\n';

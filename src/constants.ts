@@ -9,6 +9,7 @@ export interface Article {
   categorySlug?: string;
   date: string;
   author: string;
+  author_id?: number | string | null;
   image: string;
   slug: string;
   metaTitle?: string;

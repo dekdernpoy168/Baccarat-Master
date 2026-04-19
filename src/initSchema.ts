@@ -10,6 +10,18 @@ export async function initSchema() {
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  
+  await exec(`
+    CREATE TABLE IF NOT EXISTS authors (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT NOT NULL,
+      description   TEXT,
+      position      TEXT,
+      avatar_url    TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 
   await exec(`CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);`);
 
@@ -61,6 +73,12 @@ export async function initSchema() {
     } catch (e) {
       // Ignore error if column already exists
     }
+  }
+
+  try {
+    await exec(`ALTER TABLE articles ADD COLUMN author_id INTEGER;`, [], true);
+  } catch (e) {
+    // Ignore if exists
   }
 
   // Try to add missing columns to categories

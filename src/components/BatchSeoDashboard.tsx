@@ -102,7 +102,7 @@ export const BatchSeoDashboard: React.FC = () => {
       if (!response.ok) {
         let errorMsg = 'Failed to start batch processing';
         try {
-          const errorData = await response.json();
+          const errorData = await response.json() as any;
           errorMsg = errorData.error || errorMsg;
         } catch (e) {
           errorMsg = `Server error: ${response.statusText}`;
