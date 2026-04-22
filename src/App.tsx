@@ -73,7 +73,7 @@ interface User {
   photoURL: string | null;
 }
 import { auth, googleProvider } from './firebase';
-import { Article, ARTICLES, Category } from './constants';
+import { Article, Category } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
 
@@ -540,7 +540,7 @@ const TermsPage = () => (
 
 // --- Pages ---
 
-const AboutPage = () => {
+const AboutPage = ({ authors }: { authors: any[] }) => {
   return (
     <div className="pt-20 pb-24">
       <SEO 
@@ -638,27 +638,33 @@ const AboutPage = () => {
             <p className="text-gray-400">เบื้องหลังความสำเร็จของ Baccarat Master Guide คือทีมงานผู้เชี่ยวชาญที่มีประสบการณ์</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: "Master K", role: "Founder & Lead Strategist", bio: "ผู้เชี่ยวชาญด้านการอ่านเค้าไพ่และเทคนิคการเดินเงินที่มีประสบการณ์กว่า 10 ปี" },
-              { name: "Sarah J.", role: "Content Editor", bio: "บรรณาธิการผู้ดูแลเนื้อหาและตรวจสอบความถูกต้องของข้อมูลทั้งหมดในเว็บไซต์" },
-              { name: "Alex T.", role: "Data Analyst", bio: "นักวิเคราะห์ข้อมูลที่ช่วยพัฒนาสูตรและระบบการคำนวณต่างๆ ให้มีความแม่นยำสูงสุด" }
-            ].map((member) => (
-              <motion.div
-                key={member.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                className="bg-gray-900/50 border border-gold/10 p-8 rounded-3xl text-center hover:border-gold/30 transition-colors group"
-              >
-                <div className="w-24 h-24 bg-gold/10 rounded-full mx-auto mb-6 flex items-center justify-center border border-gold/20 group-hover:scale-110 transition-transform">
-                  <Heart className="text-gold w-10 h-10" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{member.name}</h3>
-                <div className="text-gold text-sm font-bold uppercase mb-4">{member.role}</div>
-                <p className="text-gray-400 text-sm leading-relaxed">{member.bio}</p>
-              </motion.div>
-            ))}
+            {authors.length > 0 ? (
+              authors.slice(0, 3).map((member) => (
+                <motion.div
+                  key={member.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.1 }}
+                  className="bg-gray-900/50 border border-gold/10 p-8 rounded-3xl text-center hover:border-gold/30 transition-colors group"
+                >
+                  <div className="w-24 h-24 bg-gold/10 rounded-full mx-auto mb-6 flex items-center justify-center border border-gold/20 group-hover:scale-110 transition-transform overflow-hidden">
+                    {member.image ? (
+                      <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Heart className="text-gold w-10 h-10" />
+                    )}
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">{member.name}</h3>
+                  <div className="text-gold text-sm font-bold uppercase mb-4">{member.position}</div>
+                  <p className="text-gray-400 text-sm leading-relaxed">{member.description}</p>
+                </motion.div>
+              ))
+            ) : (
+              <div className="col-span-full text-center text-gray-500 italic">
+                กำลังโหลดข้อมูลทีมงาน...
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -1442,8 +1448,8 @@ const ArticleDetailPage = ({ articles, authors, user, loading }: { articles: Art
         {authorData && (
           <div className="mt-16 p-8 bg-gray-900/50 border border-gold/20 rounded-3xl flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left transition-all hover:border-gold/40">
             <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-gold/50 flex-shrink-0 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
-              {authorData.avatarUrl ? (
-                <img src={authorData.avatarUrl} alt={authorData.name} className="w-full h-full object-cover" />
+              {authorData.image ? (
+                <img src={authorData.image} alt={authorData.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gray-800 flex items-center justify-center text-gold">
                   <UserIcon size={48} />
@@ -4347,13 +4353,12 @@ export default function App() {
       if (articlesList.length > 0) {
         setArticles(articlesList as Article[]);
       } else {
-        console.log('No articles in database, using static fallback');
-        setArticles(ARTICLES);
+        console.log('No articles in database');
+        setArticles([]);
       }
     } catch (error) {
       console.error("API Error (Articles):", error);
-      // Fallback to static articles on error
-      setArticles(ARTICLES || []);
+      setArticles([]);
     } finally {
       setArticlesLoading(false);
     }
@@ -4492,7 +4497,7 @@ export default function App() {
             <Route path="/articles" element={<ArticlesPage articles={articles} categories={categories} user={user} loading={articlesLoading} />} />
             <Route path="/category/:categorySlug" element={<ArticlesPage articles={articles} categories={categories} user={user} loading={articlesLoading} />} />
             <Route path="/formula" element={<FormulaPage />} />
-            <Route path="/about" element={<AboutPage />} />
+            <Route path="/about" element={<AboutPage authors={authors} />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/login" element={<LoginPage user={user} setUser={setUser} />} />

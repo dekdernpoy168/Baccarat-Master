@@ -374,54 +374,85 @@ export default {
         return json(row);
       }
 
-      // GET /authors — List all authors
+      // GET /authors — List all authors (REAL D1)
       if (normalizedPath === '/authors' && method === 'GET') {
         try {
-          const result = await env.DB.prepare(`
-            SELECT id, name, position, description, image, created_at, updated_at
-            FROM authors
-            ORDER BY created_at DESC
-          `).all();
-
-          const authors = result.results || [];
-          
-          // If database is empty, return a default one so the UI doesn't look broken
-          if (authors.length === 0) {
-            return json([
-              {
-                "id": "default-author",
-                "name": "Prach Pichaya",
-                "position": "Editor",
-                "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
-              }
-            ]);
-          }
-
-          return json(authors);
+          const results = await db.select().from(schema.authors).orderBy(desc(schema.authors.createdAt)).all();
+          return json(results);
         } catch (e: any) {
-          // Fallback to mock data if table doesn't exist yet
-          return json([
-            {
-              "id": "default-author",
-              "name": "Prach Pichaya",
-              "position": "Editor",
-              "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
-            }
-          ]);
+          return error(`Failed to fetch authors: ${e.message}`, 500);
         }
       }
 
       // GET /authors/:id — Get single author
-      const authorIdMatch = normalizedPath.match(/^\/authors\/([a-zA-Z0-9_-]+)$/);
+      const authorIdMatch = normalizedPath.match(/^\/authors\/(\d+)$/);
       if (authorIdMatch && method === 'GET') {
-        const id = authorIdMatch[1];
-        // For now, return the default author if ID matches or if no other author exists
-        return json({
-          "id": "default-author",
-          "name": "Prach Pichaya",
-          "position": "Editor",
-          "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
-        });
+        try {
+          const id = parseInt(authorIdMatch[1], 10);
+          const row = await db.query.authors.findFirst({
+            where: eq(schema.authors.id, id),
+          });
+          if (!row) return error('Author not found', 404);
+          return json(row);
+        } catch (e: any) {
+          return error(`Failed to fetch author: ${e.message}`, 500);
+        }
+      }
+
+      // POST /authors — Create author
+      if (normalizedPath === '/authors' && method === 'POST') {
+        try {
+          const body = await request.json() as any;
+          const now = new Date().toISOString();
+          const result = await db.insert(schema.authors).values({
+            name: body.name,
+            position: body.position || '',
+            description: body.description || '',
+            image: body.image || null,
+            createdAt: now,
+            updatedAt: now,
+          }).returning();
+          
+          await broadcast(env, { type: 'AUTHOR_CREATED', author: result[0] });
+          return json(result[0], 201);
+        } catch (e: any) {
+          return error(`Failed to create author: ${e.message}`, 500);
+        }
+      }
+
+      // PUT /authors/:id — Update author
+      if (authorIdMatch && method === 'PUT') {
+        try {
+          const id = parseInt(authorIdMatch[1], 10);
+          const body = await request.json() as any;
+          const now = new Date().toISOString();
+          
+          await db.update(schema.authors).set({
+            name: body.name,
+            position: body.position,
+            description: body.description,
+            image: body.image,
+            updatedAt: now,
+          }).where(eq(schema.authors.id, id));
+
+          const updated = await db.query.authors.findFirst({ where: eq(schema.authors.id, id) });
+          await broadcast(env, { type: 'AUTHOR_UPDATED', author: updated });
+          return json(updated);
+        } catch (e: any) {
+          return error(`Failed to update author: ${e.message}`, 500);
+        }
+      }
+
+      // DELETE /authors/:id — Delete author
+      if (authorIdMatch && method === 'DELETE') {
+        try {
+          const id = parseInt(authorIdMatch[1], 10);
+          await db.delete(schema.authors).where(eq(schema.authors.id, id));
+          await broadcast(env, { type: 'AUTHOR_DELETED', id });
+          return json({ success: true, message: 'Author deleted' });
+        } catch (e: any) {
+          return error(`Failed to delete author: ${e.message}`, 500);
+        }
       }
 
       // POST /articles — Create article
