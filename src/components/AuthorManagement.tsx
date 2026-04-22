@@ -91,7 +91,7 @@ export default function AuthorManagement() {
         {!isEditing && (
           <button 
             onClick={() => {
-              setCurrentAuthor({ name: '', description: '', position: '', avatarUrl: '' });
+              setCurrentAuthor({ name: '', description: '', position: '', image: '' });
               setIsEditing(true);
             }}
             className="flex items-center bg-baccarat-red hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors"
@@ -161,8 +161,8 @@ export default function AuthorManagement() {
                 <label className="block text-sm font-medium text-gray-400 mb-2">URL รูปโปรไฟล์ผู้เขียน</label>
                 <input 
                   type="url" 
-                  value={currentAuthor?.avatarUrl || ''}
-                  onChange={e => setCurrentAuthor({...currentAuthor, avatarUrl: e.target.value})}
+                  value={currentAuthor?.image || ''}
+                  onChange={e => setCurrentAuthor({...currentAuthor, image: e.target.value})}
                   placeholder="https://..."
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 px-4 text-white focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold"
                 />
@@ -204,8 +204,8 @@ export default function AuthorManagement() {
                 <div key={author.id} className="bg-gray-800 rounded-lg p-5 border border-gray-700 flex flex-col h-full">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
-                      {author.avatarUrl ? (
-                        <img src={author.avatarUrl} alt={author.name} className="w-full h-full object-cover" />
+                      {author.image ? (
+                        <img src={author.image} alt={author.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400">
                           <User size={24} />

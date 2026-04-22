@@ -404,11 +404,15 @@ export default {
         try {
           const body = await request.json() as any;
           const now = new Date().toISOString();
+          
+          // Map potential old field names to 'image'
+          const image = body.image ?? body.avatar_url ?? body.avatarUrl ?? null;
+          
           const result = await db.insert(schema.authors).values({
             name: body.name,
             position: body.position || '',
             description: body.description || '',
-            image: body.image || null,
+            image: image,
             createdAt: now,
             updatedAt: now,
           }).returning();
@@ -427,13 +431,22 @@ export default {
           const body = await request.json() as any;
           const now = new Date().toISOString();
           
-          await db.update(schema.authors).set({
-            name: body.name,
-            position: body.position,
-            description: body.description,
-            image: body.image,
-            updatedAt: now,
-          }).where(eq(schema.authors.id, id));
+          // Map potential old field names to 'image'
+          const image = body.image ?? body.avatar_url ?? body.avatarUrl ?? null;
+          
+          // Using direct D1 prepare to ensure exact parameter binding as requested
+          await env.DB.prepare(`
+            UPDATE authors 
+            SET name = ?, position = ?, description = ?, image = ?, updated_at = ?
+            WHERE id = ?
+          `).bind(
+            body.name, 
+            body.position || '', 
+            body.description || '', 
+            image, 
+            now, 
+            id
+          ).run();
 
           const updated = await db.query.authors.findFirst({ where: eq(schema.authors.id, id) });
           await broadcast(env, { type: 'AUTHOR_UPDATED', author: updated });

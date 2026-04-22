@@ -17,7 +17,7 @@ export async function initSchema() {
       name          TEXT NOT NULL,
       description   TEXT,
       position      TEXT,
-      avatar_url    TEXT,
+      image         TEXT,
       created_at    TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
     );

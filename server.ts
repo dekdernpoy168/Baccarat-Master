@@ -807,7 +807,7 @@ async function startServer() {
             name, 
             description, 
             position, 
-            avatar_url AS avatarUrl, 
+            image, 
             created_at AS createdAt, 
             updated_at AS updatedAt 
           FROM authors 
@@ -842,11 +842,11 @@ async function startServer() {
       if (!name) return res.status(400).json({ error: 'Name is required' });
 
       await exec(
-        `INSERT INTO authors (name, description, position, avatar_url) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO authors (name, description, position, image) VALUES (?, ?, ?, ?)`,
         [name, description || null, position || null, avatarUrl || null]
       );
       
-      const rows = await query(`SELECT id, name, description, position, avatar_url AS avatarUrl, created_at AS createdAt, updated_at AS updatedAt FROM authors ORDER BY id DESC LIMIT 1`);
+      const rows = await query(`SELECT id, name, description, position, image, created_at AS createdAt, updated_at AS updatedAt FROM authors ORDER BY id DESC LIMIT 1`);
       res.status(201).json(rows[0]);
     } catch (error: any) {
       console.error("Error creating author:", error);
@@ -861,11 +861,11 @@ async function startServer() {
       if (!name) return res.status(400).json({ error: 'Name is required' });
 
       await exec(
-        `UPDATE authors SET name = ?, description = ?, position = ?, avatar_url = ?, updated_at = datetime('now') WHERE id = ?`,
+        `UPDATE authors SET name = ?, description = ?, position = ?, image = ?, updated_at = datetime('now') WHERE id = ?`,
         [name, description || null, position || null, avatarUrl || null, id]
       );
       
-      const rows = await query(`SELECT id, name, description, position, avatar_url AS avatarUrl, created_at AS createdAt, updated_at AS updatedAt FROM authors WHERE id = ?`, [id]);
+      const rows = await query(`SELECT id, name, description, position, image, created_at AS createdAt, updated_at AS updatedAt FROM authors WHERE id = ?`, [id]);
       res.json(rows[0]);
     } catch (error: any) {
       console.error("Error updating author:", error);
