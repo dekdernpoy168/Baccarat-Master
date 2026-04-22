@@ -814,22 +814,10 @@ async function startServer() {
           ORDER BY name ASC
         `);
       } catch (dbErr) {
-        console.warn("Authors DB query failed, using mock data:", dbErr);
+        console.warn("Authors DB query failed:", dbErr);
       }
       
-      // Fallback/Mock authors if none found OR DB error happened
-      if (!rows || rows.length === 0) {
-        rows = [
-          {
-            "id": "default-author",
-            "name": "Prach Pichaya",
-            "position": "Editor",
-            "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
-          }
-        ];
-      }
-      
-      res.json(rows);
+      res.json(rows || []);
     } catch (error: any) {
       console.error("Error fetching authors:", error);
       res.status(500).json({ error: error.message });
@@ -857,16 +845,19 @@ async function startServer() {
   server.put("/api/authors/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      const numericId = parseInt(id, 10);
+      const queryId = isNaN(numericId) ? id : numericId;
+      
       const { name, description, position, avatarUrl } = req.body;
       if (!name) return res.status(400).json({ error: 'Name is required' });
 
       await exec(
         `UPDATE authors SET name = ?, description = ?, position = ?, image = ?, updated_at = datetime('now') WHERE id = ?`,
-        [name, description || null, position || null, avatarUrl || null, id]
+        [name, description || null, position || null, avatarUrl || null, queryId]
       );
       
-      const rows = await query(`SELECT id, name, description, position, image, created_at AS createdAt, updated_at AS updatedAt FROM authors WHERE id = ?`, [id]);
-      res.json(rows[0]);
+      const rows = await query(`SELECT id, name, description, position, image, created_at AS createdAt, updated_at AS updatedAt FROM authors WHERE id = ?`, [queryId]);
+      res.json(rows[0] || {});
     } catch (error: any) {
       console.error("Error updating author:", error);
       res.status(500).json({ error: error.message });
@@ -876,7 +867,15 @@ async function startServer() {
   server.delete("/api/authors/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      await exec(`DELETE FROM authors WHERE id = ?`, [id]);
+      const numericId = parseInt(id, 10);
+      
+      // If it's a NaN (from a mock string id), we can still try to delete by original ID, or just ignore
+      if (isNaN(numericId)) {
+        await exec(`DELETE FROM authors WHERE id = ?`, [id]);
+      } else {
+        await exec(`DELETE FROM authors WHERE id = ?`, [numericId]);
+      }
+      
       res.json({ 
         success: true, 
         message: 'Author deleted',

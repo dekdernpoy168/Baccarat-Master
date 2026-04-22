@@ -1181,26 +1181,11 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
           authorList = (data as any).authors;
         }
         
-        if (authorList.length === 0) {
-          authorList = [
-            {
-              id: "default-author",
-              name: "Prach Pichaya",
-              position: "Editor"
-            }
-          ];
-        }
         setAuthors(authorList);
       })
       .catch(err => {
         console.error("Error fetching authors:", err);
-        setAuthors([
-          {
-            id: "default-author",
-            name: "Prach Pichaya",
-            position: "Editor"
-          }
-        ]);
+        setAuthors([]);
       });
   }, []);
 
