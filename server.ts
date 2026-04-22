@@ -15,6 +15,7 @@ import { db } from './src/db/index.js';
 import { users } from './src/db/schema.js';
 import { initSchema } from './src/initSchema.js';
 import usersApi from './src/api/users.js';
+import { aiService } from './src/services/aiService.js';
 import { GoogleGenAI, Type } from "@google/genai";
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -547,84 +548,104 @@ server.post("/api/ai/run-cf", async (req, res) => {
   }
 });
 
- server.post("/api/ai/generate-meta-data", async (req, res) => {
+  server.post("/api/ai/generate-meta-data", async (req, res) => {
     try {
       const { title } = req.body;
       if (!title) {
         return res.status(400).json({ success: false, error: "Title is required" });
       }
 
-      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย รับรายชื่อหัวข้อบทความต่อไปนี้ แล้วตอบกลับเป็น JSON ที่ระบุเท่านั้น \`{ "meta_title": "...", "meta_description": "...", "tags": ["..."], "excerpt_ai": "..." }\` เน้น Keyword บาคาร่า และความเชื่อมั่น ห้ามมีคำฟุ่มเฟือย ความยาว Meta Description ต้องไม่เกิน 160 ตัวอักษร
-ชื่อบทความ: "${title}"
-โครงสร้าง JSON ตามที่กำหนด (ต้องตอบแค่นี้เท่านั้น ห้ามมีคำอธิบาย):
-{
-  "meta_title": "...",
-  "meta_description": "...",
-  "tags": ["...", "..."],
-  "excerpt_ai": "สรุปสั้นๆ สำหรับบทความนี้"
-}`;
+      const status = await aiService.getStatus();
+      if (!status.ready) {
+        return res.status(503).json({ 
+          success: false, 
+          provider: status.provider,
+          message: "AI service is not configured",
+          error: status.message
+        });
+      }
 
-      const aiResponse = await callAI(prompt, {
-        json: true,
-        returnProvider: true,
-        preferredProvider: 'openai'
-      });
-
-      // Extract result from callAI
-      const data = aiResponse.data || aiResponse;
-      const provider = aiResponse.provider || 'unknown';
+      const data = await aiService.generateMetaData(title);
 
       res.json({
         success: true,
-        provider,
+        provider: status.provider,
         data: {
-          meta_title: data.meta_title || title,
-          meta_description: data.meta_description || "",
-          tags: data.tags || [],
-          excerpt_ai: data.excerpt_ai || ""
-        },
-        metaTitle: data.meta_title || title,
-        metaDescription: data.meta_description || "",
-        keywords: data.tags || []
+          meta_title: data.meta_title,
+          meta_description: data.meta_description,
+          tags: data.tags,
+          excerpt_ai: data.excerpt_ai
+        }
       });
     } catch (error: any) {
       console.error("Meta Gen Error:", error);
-      res.status(500).json({ success: false, error: error.message || "AI Service Unavailable" });
+      res.status(500).json({ 
+        success: false, 
+        provider: process.env.AI_PROVIDER || 'unknown',
+        message: "AI generation failed",
+        error: error.message 
+      });
     }
   });
+
   server.get("/api/ai/status", async (req, res) => {
     try {
-      const config = await getAiProvidersConfig();
-      const providers = [];
-      if (config.openai?.enabled && config.openai?.apiKey) providers.push('OpenAI');
-      if (config.anthropic?.enabled && config.anthropic?.apiKey) providers.push('Anthropic');
-      if (config.gemini?.enabled && config.gemini?.apiKey) providers.push('Gemini');
-      if (config.grok?.enabled && config.grok?.apiKey) providers.push('Grok');
-      if (config.deepseek?.enabled && config.deepseek?.apiKey) providers.push('DeepSeek');
-      
-      res.json({
-        ready: providers.length > 0,
-        providers,
-        primary: providers[0] || null,
-        message: providers.length > 0 ? `AI Ready (${providers.join(', ')})` : 'AI Not Configured'
-      });
+      const status = await aiService.getStatus();
+      res.json(status);
     } catch (error: any) {
-      res.json({ ready: false, providers: [], message: error.message });
+      res.status(500).json({ 
+        success: false, 
+        provider: process.env.AI_PROVIDER || 'unknown',
+        configured: false,
+        ready: false,
+        message: error.message 
+      });
     }
   });
 
   server.post("/api/ai/generate-tags", async (req, res) => {
     try {
       const { title } = req.body;
-      if (!title) return res.status(400).json({ error: "Title required" });
+      if (!title) return res.status(400).json({ success: false, error: "Title required" });
       
-      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย จงสร้าง 5-8 แท็ก (Tags) ที่เกี่ยวข้องและเป็นที่นิยมสำหรับหัวข้อ: "${title}" โดยเน้นคำที่คนค้นหาเกี่ยวกับบาคาร่า และเนื้อหาที่เกี่ยวข้อง
-ตอบกลับเป็น JSON หนึ่งบรรทัดเท่านั้น: { "tags": ["tag1", "tag2", ...] }`;
-
-      const result = await callAI(prompt, { json: true, preferredProvider: 'openai' });
-      res.json(result);
+      const status = await aiService.getStatus();
+      const tags = await aiService.generateTags(title);
+      
+      res.json({
+        success: true,
+        provider: status.provider,
+        tags
+      });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ 
+        success: false, 
+        provider: process.env.AI_PROVIDER || 'unknown',
+        message: "Failed to generate tags",
+        error: error.message 
+      });
+    }
+  });
+
+  server.post("/api/ai/generate-excerpt", async (req, res) => {
+    try {
+      const { title } = req.body;
+      if (!title) return res.status(400).json({ success: false, error: "Title required" });
+      
+      const status = await aiService.getStatus();
+      const options = await aiService.generateExcerpt(title);
+      
+      res.json({
+        success: true,
+        provider: status.provider,
+        options
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        provider: process.env.AI_PROVIDER || 'unknown',
+        message: "Failed to generate excerpt",
+        error: error.message 
+      });
     }
   });
 
@@ -1904,45 +1925,40 @@ server.post("/api/ai/run-cf", async (req, res) => {
   // Authors routes
   server.get("/api/authors", async (req, res) => {
     try {
-      let rows = await query(`
-        SELECT 
-          id, 
-          name, 
-          description, 
-          position, 
-          avatar_url AS avatarUrl, 
-          created_at AS createdAt, 
-          updated_at AS updatedAt 
-        FROM authors 
-        ORDER BY name ASC
-      `);
+      let rows: any[] = [];
+      try {
+        rows = await query(`
+          SELECT 
+            id, 
+            name, 
+            description, 
+            position, 
+            avatar_url AS avatarUrl, 
+            created_at AS createdAt, 
+            updated_at AS updatedAt 
+          FROM authors 
+          ORDER BY name ASC
+        `);
+      } catch (dbErr) {
+        console.warn("Authors DB query failed, using mock data:", dbErr);
+      }
       
-      // Fallback/Mock authors if none found
+      // Fallback/Mock authors if none found OR DB error happened
       if (!rows || rows.length === 0) {
-        rows = [{
-          id: 1,
-          name: "Admin Baccarat Master",
-          description: "ผู้เชี่ยวชาญด้านบาคาร่าและเกมคาสิโนออนไลน์",
-          position: "Chief Editor",
-          avatarUrl: "https://pic.huisache.com/uploads/1740000000000-admin-avatar.webp",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }];
+        rows = [
+          {
+            "id": "default-author",
+            "name": "ธนกฤต วัฒนชัย",
+            "position": "บรรณาธิการ",
+            "description": "ดูแล ตรวจสอบ และพัฒนาเนื้อหาเว็บไซต์ให้ถูกต้อง ชัดเจน อ่านง่าย และมีคุณภาพ"
+          }
+        ];
       }
       
       res.json(rows);
     } catch (error: any) {
       console.error("Error fetching authors:", error);
-      // Even on DB error, provide mock to prevent UI crash
-      res.json([{
-        id: 0,
-        name: "Admin (Fallback)",
-        description: "System Administrator",
-        position: "Admin",
-        avatarUrl: "",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }]);
+      res.status(500).json({ error: error.message });
     }
   });
 
