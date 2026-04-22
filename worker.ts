@@ -128,8 +128,8 @@ export default {
     // CORS
     if (method === 'OPTIONS') return handleCORS();
 
-    // GET /ws — WebSocket Connection
-    if (path === '/ws') {
+    // GET /ws or /socket.io — WebSocket Connection
+    if (path === '/ws' || path.startsWith('/socket.io')) {
       if (!env.WEBSOCKET_MANAGER) {
         return error('WebSocket Manager not configured', 500);
       }
@@ -386,6 +386,19 @@ export default {
         ]);
       }
 
+      // GET /authors/:id — Get single author
+      const authorIdMatch = normalizedPath.match(/^\/authors\/([a-zA-Z0-9_-]+)$/);
+      if (authorIdMatch && method === 'GET') {
+        const id = authorIdMatch[1];
+        // For now, return the default author if ID matches or if no other author exists
+        return json({
+          "id": "default-author",
+          "name": "Prach Pichaya",
+          "position": "Editor",
+          "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
+        });
+      }
+
       // POST /articles — Create article
       if (normalizedPath === '/articles' && method === 'POST') {
         const body = await request.json() as any;
@@ -591,6 +604,23 @@ export default {
           ],
           response_format: { type: 'json_object' }
         });
+        return json(result);
+      }
+
+      // POST /api/ai/generate-faq
+      if (normalizedPath === '/ai/generate-faq' && method === 'POST') {
+        const { title, content } = await request.json() as any;
+        const result: any = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+          messages: [
+            { role: 'system', content: 'You are a content assistant. Generate 3 frequently asked questions (FAQs) with answers based on the provided title and content. Return only a JSON array of objects with "question" and "answer" keys.' },
+            { role: 'user', content: `Title: ${title}\nContent: ${content}` }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        
+        // Ensure we return the correct structure the frontend expects
+        if (result.options) return json(result.options);
+        if (result.faqs) return json(result.faqs);
         return json(result);
       }
 
