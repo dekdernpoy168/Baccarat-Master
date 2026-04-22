@@ -227,6 +227,7 @@ export default {
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT UNIQUE, role TEXT NOT NULL DEFAULT 'user')`),
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, slug TEXT NOT NULL UNIQUE, updated_at TEXT)`),
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, content TEXT NOT NULL, status TEXT DEFAULT 'draft', updated_at TEXT)`),
+            env.DB.prepare(`CREATE TABLE IF NOT EXISTS authors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, position TEXT, description TEXT, image TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`),
             env.DB.prepare(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT)`)
           ]);
           return new Response('Success: Database tables initialized or already exist!', { status: 200 });
@@ -375,15 +376,39 @@ export default {
 
       // GET /authors — List all authors
       if (normalizedPath === '/authors' && method === 'GET') {
-        // Fallback data (since authors table does not exist in schema)
-        return json([
-          {
-            "id": "default-author",
-            "name": "Prach Pichaya",
-            "position": "Editor",
-            "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
+        try {
+          const result = await env.DB.prepare(`
+            SELECT id, name, position, description, image, created_at, updated_at
+            FROM authors
+            ORDER BY created_at DESC
+          `).all();
+
+          const authors = result.results || [];
+          
+          // If database is empty, return a default one so the UI doesn't look broken
+          if (authors.length === 0) {
+            return json([
+              {
+                "id": "default-author",
+                "name": "Prach Pichaya",
+                "position": "Editor",
+                "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
+              }
+            ]);
           }
-        ]);
+
+          return json(authors);
+        } catch (e: any) {
+          // Fallback to mock data if table doesn't exist yet
+          return json([
+            {
+              "id": "default-author",
+              "name": "Prach Pichaya",
+              "position": "Editor",
+              "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
+            }
+          ]);
+        }
       }
 
       // GET /authors/:id — Get single author
