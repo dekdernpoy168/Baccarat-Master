@@ -191,6 +191,31 @@ export default {
 
     try {
       // =============================================
+      // GENERIC REST API (with Secret Auth)
+      // =============================================
+      
+      // Pattern: /api/rest/:table
+      const restMatch = normalizedPath.match(/^\/rest\/([a-zA-Z0-9_]+)$/);
+      if (restMatch && method === 'GET') {
+        const tableName = restMatch[1];
+        const authHeader = request.headers.get('Authorization');
+        
+        // Check if Secret is set and matches
+        if (!env.SECRET || authHeader !== `Bearer ${env.SECRET}`) {
+          return error('Unauthorized: Invalid or missing Secret token', 401);
+        }
+
+        try {
+          // Perform dynamic query safely using sql literal for table name
+          // Note: Table name is validated by regex above
+          const rawResults = await db.run(sql.raw(`SELECT * FROM ${tableName}`));
+          return json(rawResults.results);
+        } catch (e: any) {
+          return error(`Table '${tableName}' query failed: ${e.message}`, 404);
+        }
+      }
+
+      // =============================================
       // TEST D1 ENDPOINTS (User Requested)
       // =============================================
       
