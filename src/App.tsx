@@ -165,6 +165,8 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
 };
 
 // --- Helpers ---
+const slugify = (text: string) => text.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+
 const isPublished = (article: Article) => {
   if (article.status === 'draft') return false;
   if (!article.publishedAt) return true;
@@ -1219,13 +1221,18 @@ const ArticlesPage = ({ articles, categories, user, loading }: { articles: Artic
   const tagFilter = searchParams.get('tag');
 
   const filteredArticles = publishedArticles.filter(a => {
-    const categoryMatch = categorySlug ? a.categorySlug === categorySlug : true;
+    const categoryMatch = categorySlug 
+      ? (a.categorySlug === categorySlug || 
+         slugify(a.category || '') === categorySlug || 
+         a.category === (categories.find(c => c.slug === categorySlug)?.name)) 
+      : true;
     const tagMatch = tagFilter ? (a.tags && a.tags.split(',').map(t => t.trim()).includes(tagFilter)) : true;
     return categoryMatch && tagMatch;
   });
 
   // Get the display-friendly category name for the title
-  const displayCategory = categorySlug && filteredArticles.length > 0 ? filteredArticles[0].category : categorySlug;
+  const categoryObj = categories.find(c => c.slug === categorySlug);
+  const displayCategory = categoryObj ? categoryObj.name : categorySlug;
 
   const [visibleCount, setVisibleCount] = useState(9);
   
