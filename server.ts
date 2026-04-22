@@ -592,6 +592,42 @@ server.post("/api/ai/run-cf", async (req, res) => {
       res.status(500).json({ success: false, error: error.message || "AI Service Unavailable" });
     }
   });
+  server.get("/api/ai/status", async (req, res) => {
+    try {
+      const config = await getAiProvidersConfig();
+      const providers = [];
+      if (config.openai?.enabled && config.openai?.apiKey) providers.push('OpenAI');
+      if (config.anthropic?.enabled && config.anthropic?.apiKey) providers.push('Anthropic');
+      if (config.gemini?.enabled && config.gemini?.apiKey) providers.push('Gemini');
+      if (config.grok?.enabled && config.grok?.apiKey) providers.push('Grok');
+      if (config.deepseek?.enabled && config.deepseek?.apiKey) providers.push('DeepSeek');
+      
+      res.json({
+        ready: providers.length > 0,
+        providers,
+        primary: providers[0] || null,
+        message: providers.length > 0 ? `AI Ready (${providers.join(', ')})` : 'AI Not Configured'
+      });
+    } catch (error: any) {
+      res.json({ ready: false, providers: [], message: error.message });
+    }
+  });
+
+  server.post("/api/ai/generate-tags", async (req, res) => {
+    try {
+      const { title } = req.body;
+      if (!title) return res.status(400).json({ error: "Title required" });
+      
+      const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย จงสร้าง 5-8 แท็ก (Tags) ที่เกี่ยวข้องและเป็นที่นิยมสำหรับหัวข้อ: "${title}" โดยเน้นคำที่คนค้นหาเกี่ยวกับบาคาร่า และเนื้อหาที่เกี่ยวข้อง
+ตอบกลับเป็น JSON หนึ่งบรรทัดเท่านั้น: { "tags": ["tag1", "tag2", ...] }`;
+
+      const result = await callAI(prompt, { json: true, preferredProvider: 'openai' });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   server.get("/api/ai/providers", async (req, res) => {
     const config = await getAiProvidersConfig();
     

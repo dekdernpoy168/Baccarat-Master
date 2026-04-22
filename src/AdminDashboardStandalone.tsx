@@ -154,6 +154,44 @@ const isPublished = (article: Article) => {
   return pubDate <= new Date();
 };
 
+const safeJsonFetch = async (url: string, options?: RequestInit) => {
+  try {
+    const res = await fetch(url, options);
+    if (!res.ok) return { success: false, error: `HTTP ${res.status}` };
+    const data = await res.json();
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+};
+
+const normalizeAiMetaResponse = (res: any) => {
+  // Check success/data structure
+  const base = res.data || res;
+  return {
+    metaTitle: base.meta_title || base.metaTitle || '',
+    metaDescription: base.meta_description || base.metaDescription || '',
+    tags: Array.isArray(base.tags) ? base.tags.join(', ') : (base.tags || ''),
+    excerpt: base.excerpt_ai || base.excerpt || base.meta_description || ''
+  };
+};
+
+const normalizeTagsResponse = (res: any) => {
+  const base = res.data || res;
+  if (Array.isArray(base.tags)) return base.tags.join(', ');
+  if (typeof base.tags === 'string') return base.tags;
+  if (Array.isArray(base)) return base.join(', ');
+  return '';
+};
+
+const normalizeExcerptResponse = (res: any) => {
+  const base = res.data || res;
+  if (base.options) return { options: base.options };
+  if (base.excerpt) return { excerpt: base.excerpt };
+  if (typeof base === 'string') return { excerpt: base };
+  return { excerpt: '' };
+};
+
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
@@ -945,6 +983,32 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [aiProviderStatus, setAiProviderStatus] = useState<{message: string, isFallback: boolean} | null>(null);
 
   const [isGeneratingFaq, setIsGeneratingFaq] = useState(false);
+  const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{ready: boolean, providers: string[], message: string, primary: string | null}>({
+    ready: false,
+    providers: [],
+    message: 'กำลังตรวจสอบสถานะ AI...',
+    primary: null
+  });
+
+  const checkAiStatus = async () => {
+    try {
+      const result = await safeJsonFetch('/api/ai/status');
+      if (result.success && result.data) {
+        setAiStatus(result.data as any);
+      } else {
+        throw new Error(result.error || 'Failed to fetch status');
+      }
+    } catch (err) {
+      console.error(err);
+      setAiStatus({
+        ready: false,
+        providers: [],
+        message: 'AI ไม่พร้อมใช้งาน (Offline)',
+        primary: null
+      });
+    }
+  };
 
   const autoFillSEO = async () => {
     if (!currentArticle.title?.trim()) {
@@ -957,38 +1021,68 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       const title = currentArticle.title.trim();
       const defaultMetaTitle = title.length > 60 ? title.substring(0, 60) : title;
       
-      const response = await fetch(`${window.location.origin}/api/ai/generate-meta-data`, {
+      const res = await safeJsonFetch(`${window.location.origin}/api/ai/generate-meta-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title })
       });
-      if (!response.ok) throw new Error('Failed to generate meta data');
-      const responseData: any = await response.json();
+
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to generate meta data');
+      }
+
+      const responseData = res.data as any;
+      const seoData = normalizeAiMetaResponse(responseData);
+      const usedProvider = responseData.provider || aiStatus.primary || 'AI';
       
-      const seoData = responseData.data || {};
-      const usedProvider = responseData.provider || 'unknown';
-      
-      let message = `✅ สถานะปัจจุบัน: ใช้งาน ${usedProvider}`;
+      let message = `✅ ระบบพร้อม: ${usedProvider}`;
       let isFallback = false;
-      if (usedProvider !== 'deepseek') {
-        message = `⚠️ ระบบสำรองทำงาน: ใช้งาน ${usedProvider} แทน (ตรวจสอบสถานะ DeepSeek)`;
+      if (usedProvider.toLowerCase().includes('fallback') || (aiStatus.primary && usedProvider !== aiStatus.primary)) {
+        message = `⚠️ ระบบสำรอง: ${usedProvider}`;
         isFallback = true;
       }
       setAiProviderStatus({ message, isFallback });
 
       setCurrentArticle(prev => ({
         ...prev,
-        metaTitle: seoData.meta_title || defaultMetaTitle,
-        metaDescription: seoData.meta_description || seoData.metaDescription || prev.metaDescription,
-        tags: Array.isArray(seoData.tags) ? seoData.tags.join(', ') : (seoData.tags || prev.tags),
-        excerpt: seoData.excerpt_ai || seoData.excerpt || prev.excerpt
+        metaTitle: seoData.metaTitle || defaultMetaTitle,
+        metaDescription: seoData.metaDescription || prev.metaDescription,
+        tags: seoData.tags || prev.tags,
+        excerpt: seoData.excerpt || prev.excerpt
       }));
     } catch (err) {
       console.error(err);
-      alert('เกิดข้อผิดพลาดในการดึงข้อมูล SEO');
-      setAiProviderStatus({ message: '❌ เกิดข้อผิดพลาดในการเชื่อมต่อ AI', isFallback: true });
+      alert('AI ใช้งานไม่ได้ชั่วคราว กรุณากรอก SEO เอง');
+      setAiProviderStatus({ message: '❌ AI ขัดข้อง', isFallback: true });
     } finally {
       setIsAutoFilling(false);
+    }
+  };
+
+  const generateTagsFromTitle = async () => {
+    if (!currentArticle.title?.trim()) {
+      alert('กรุณาใส่หัวข้อบทความก่อน');
+      return;
+    }
+    setIsGeneratingTags(true);
+    try {
+      const res = await safeJsonFetch('/api/ai/generate-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: currentArticle.title })
+      });
+      
+      if (!res.success) throw new Error(res.error);
+      
+      const tags = normalizeTagsResponse(res.data);
+      if (tags) {
+        setCurrentArticle(prev => ({ ...prev, tags }));
+      }
+    } catch (err) {
+       console.error(err);
+       alert('ไม่สามารถสร้างแท็กได้ในขณะนี้');
+    } finally {
+      setIsGeneratingTags(false);
     }
   };
 
@@ -1038,25 +1132,6 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [showSlugSelection, setShowSlugSelection] = useState(false);
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
   const [authors, setAuthors] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetch('/api/authors')
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        if (Array.isArray(data)) {
-          setAuthors(data as any[]);
-        } else if (data && typeof data === 'object' && Array.isArray((data as any).authors)) {
-          setAuthors((data as any).authors);
-        } else {
-          setAuthors([]);
-        }
-      })
-      .catch(err => {
-        console.error("Error fetching authors:", err);
-        setAuthors([]);
-      });
-  }, []);
-
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
   const [filterType, setFilterType] = useState<'post' | 'page'>('post');
 
@@ -1070,27 +1145,17 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       ]);
       
       if (articlesRes.ok) {
-        const docs = await articlesRes.json();
-        if (Array.isArray(docs)) {
-          setArticles(docs as Article[]);
-        } else if (docs && typeof docs === 'object' && Array.isArray((docs as any).articles)) {
-          setArticles((docs as any).articles);
-        } else {
-          setArticles([]);
-        }
+        const docs = await articlesRes.json() as any;
+        const docsList = Array.isArray(docs) ? docs : (docs?.articles || []);
+        setArticles(docsList);
       } else {
         setError("ไม่สามารถดึงข้อมูลบทความได้");
       }
 
       if (categoriesRes.ok) {
-        const catsData = await categoriesRes.json();
-        if (Array.isArray(catsData)) {
-          setCategories(catsData as Category[]);
-        } else if (catsData && typeof catsData === 'object' && Array.isArray((catsData as any).categories)) {
-          setCategories((catsData as any).categories);
-        } else {
-          setCategories([]);
-        }
+        const catsData = await categoriesRes.json() as any;
+        const catsList = Array.isArray(catsData) ? catsData : (catsData?.categories || []);
+        setCategories(catsList);
       }
     } catch (err: any) {
       console.error("Fetch Error:", err);
@@ -1101,21 +1166,42 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   };
 
   useEffect(() => {
-    if (propsArticles) setArticles(propsArticles);
-  }, [propsArticles]);
-
-  useEffect(() => {
-    if (propsCategories) setCategories(propsCategories);
-  }, [propsCategories]);
-
-  useEffect(() => {
-    if (typeof propsLoading !== 'undefined') {
-      setLoading(propsLoading);
-    }
-  }, [propsLoading]);
-
-  useEffect(() => {
+    checkAiStatus();
     loadData();
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/authors')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        let authorList = [];
+        if (Array.isArray(data)) {
+          authorList = data;
+        } else if (data && typeof data === 'object' && Array.isArray((data as any).authors)) {
+          authorList = (data as any).authors;
+        }
+        
+        if (authorList.length === 0) {
+          authorList = [
+            {
+              id: "default-author",
+              name: "ธนกฤต วัฒนชัย",
+              position: "บรรณาธิการ"
+            }
+          ];
+        }
+        setAuthors(authorList);
+      })
+      .catch(err => {
+        console.error("Error fetching authors:", err);
+        setAuthors([
+          {
+            id: "default-author",
+            name: "ธนกฤต วัฒนชัย",
+            position: "บรรณาธิการ"
+          }
+        ]);
+      });
   }, []);
 
   const filteredArticles = (articles || []).filter(a => {
@@ -1298,21 +1384,27 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     }
     setIsGeneratingExcerpt(true);
     try {
-      const response = await fetch('/api/ai/generate-excerpt', {
+      const res = await safeJsonFetch('/api/ai/generate-excerpt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: currentArticle.title })
       });
-      const data: any = await response.json();
-      if (data.options) {
-        setExcerptOptions(data.options);
+      
+      if (!res.success) throw new Error(res.error);
+      
+      const result = normalizeExcerptResponse(res.data);
+      
+      if (result.options && result.options.length > 0) {
+        setExcerptOptions(result.options);
         setShowExcerptSelection(true);
+      } else if (result.excerpt) {
+        setCurrentArticle(prev => ({ ...prev, excerpt: result.excerpt }));
       } else {
-         alert('เกิดข้อผิดพลาดในการสร้างคำโปรย: กลับมาเป็นค่าว่าง');
+        alert('AI ไม่สามารถสร้างคำโปรยได้ในขณะนี้');
       }
     } catch (err) {
       console.error(err);
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อสร้างคำโปรย');
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ AI เพื่อสร้างคำโปรย');
     } finally {
       setIsGeneratingExcerpt(false);
     }
@@ -2003,7 +2095,18 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
             <div className="w-full md:w-auto">
               <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">Admin <span className="text-gold">Dashboard</span></h1>
-              <p className="text-gray-400 text-sm md:text-base">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-gray-400 text-sm md:text-base">จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์</p>
+                <div className={cn(
+                  "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all",
+                  aiStatus.ready 
+                    ? "bg-green-500/10 text-green-500 border-green-500/30" 
+                    : "bg-red-500/10 text-red-500 border-red-500/30"
+                )}>
+                  <div className={cn("w-1.5 h-1.5 rounded-full", aiStatus.ready ? "bg-green-500 animate-pulse" : "bg-red-500")}></div>
+                  {aiStatus.message}
+                </div>
+              </div>
             </div>
             
             {/* Health Check Status Panels */}
@@ -2074,7 +2177,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
               <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                 <button 
                   onClick={brainstormTopics}
-                  disabled={isBrainstorming}
+                  disabled={isBrainstorming || !aiStatus.ready}
                   className="flex-1 sm:flex-none bg-gold/10 text-gold px-4 py-2 md:px-6 md:py-3 rounded-full font-bold hover:bg-gold/20 border border-gold/30 transition-all flex items-center justify-center text-sm md:text-base disabled:opacity-50"
                 >
                   {isBrainstorming ? (
@@ -2216,7 +2319,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   <button 
                     type="button"
                     onClick={autoFillSEO}
-                    disabled={isAutoFilling || !currentArticle.title?.trim()}
+                    disabled={isAutoFilling || !currentArticle.title?.trim() || !aiStatus.ready}
                     className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all flex items-center gap-1 disabled:opacity-50"
                   >
                     {isAutoFilling ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Sparkles size={10} />}
@@ -2233,7 +2336,18 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><Tag size={16} className="mr-2" /> Tags (คั่นด้วยคอมมา)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-gold text-sm font-bold flex items-center"><Tag size={16} className="mr-2" /> Tags (คั่นด้วยคอมมา)</label>
+                  <button 
+                    type="button"
+                    onClick={generateTagsFromTitle}
+                    disabled={isGeneratingTags || !currentArticle.title?.trim() || !aiStatus.ready}
+                    className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {isGeneratingTags ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Wand2 size={10} />}
+                    Auto Tags
+                  </button>
+                </div>
                 <input 
                   type="text" 
                   value={currentArticle.tags || ''} 
@@ -2248,7 +2362,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   <button 
                     type="button"
                     onClick={generateSlugFromTitle}
-                    disabled={isGeneratingSlug || !currentArticle.title?.trim()}
+                    disabled={isGeneratingSlug || !currentArticle.title?.trim() || !aiStatus.ready}
                     className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all disabled:opacity-50 flex items-center gap-1"
                   >
                     {isGeneratingSlug ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Zap size={10} />}
@@ -2280,7 +2394,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 <button 
                   type="button"
                   onClick={autoFillSEO}
-                  disabled={isAutoFilling || !currentArticle.title?.trim()}
+                  disabled={isAutoFilling || !currentArticle.title?.trim() || !aiStatus.ready}
                   className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all disabled:opacity-50"
                 >
                   {isAutoFilling ? <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin mr-2"></div> : <Sparkles size={14} className="mr-2" />}
@@ -2360,7 +2474,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 <button 
                   type="button"
                   onClick={generateExcerptFromTitle}
-                  disabled={isGeneratingExcerpt || !currentArticle.title?.trim()}
+                  disabled={isGeneratingExcerpt || !currentArticle.title?.trim() || !aiStatus.ready}
                   className="text-[10px] bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-2 py-1 rounded-md transition-all disabled:opacity-50 flex items-center gap-1"
                 >
                   {isGeneratingExcerpt ? <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin"></div> : <Zap size={10} />}
@@ -2452,7 +2566,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     <button 
                       type="button"
                       onClick={generateArticleImage}
-                      disabled={isGeneratingArticleImage || !currentArticle.title?.trim()}
+                      disabled={isGeneratingArticleImage || !currentArticle.title?.trim() || !aiStatus.ready}
                       className="text-gold hover:text-white text-[10px] font-bold flex items-center transition-all disabled:opacity-50"
                     >
                       {isGeneratingArticleImage ? (
@@ -2508,7 +2622,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   <button 
                     type="button"
                     onClick={handleAIGenerate}
-                    disabled={isGeneratingAI || !aiPrompt.trim()}
+                    disabled={isGeneratingAI || !aiPrompt.trim() || !aiStatus.ready}
                     className="bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center transition-all disabled:opacity-50"
                   >
                     {isGeneratingAI ? (
@@ -2564,12 +2678,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
               <div className="flex items-center justify-between">
                 <h3 className="text-gold font-bold flex items-center"><Plus size={18} className="mr-2" /> คำถามที่พบบ่อย (FAQs)</h3>
                 <div className="flex gap-2">
-                   <button 
-                    type="button"
-                    disabled={isGeneratingFaq}
-                    onClick={generateFaqFromContent}
-                    className="text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 disabled:opacity-50"
-                  >
+                <button 
+                  type="button"
+                  disabled={isGeneratingFaq || !aiStatus.ready}
+                  onClick={generateFaqFromContent}
+                  className="text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 disabled:opacity-50"
+                >
                     {isGeneratingFaq ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />} Auto วิเคราะห์จากเนื้อหา
                   </button>
                   <button 
@@ -2797,9 +2911,9 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     </div>
                   </div>
                 )}
-                <button
+                <button 
                   onClick={() => generateLogo()}
-                  disabled={isGeneratingLogo}
+                  disabled={isGeneratingLogo || !aiStatus.ready}
                   className="gold-bg-gradient text-baccarat-black px-6 py-3 rounded-full font-bold flex items-center disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
                 >
                   {isGeneratingLogo ? (
