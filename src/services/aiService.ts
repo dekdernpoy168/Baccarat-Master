@@ -6,7 +6,8 @@ interface AiStatus {
   provider: string;
   configured: boolean;
   ready: boolean;
-  message: string;
+  fallback: string;
+  message?: string;
 }
 
 interface MetaDataResponse {
@@ -17,60 +18,44 @@ interface MetaDataResponse {
 }
 
 export class AiService {
-  private provider: string;
-  private apiKey: string;
+  private primaryProvider: string;
   private openai: OpenAI | null = null;
   private gemini: GoogleGenAI | null = null;
-  private cfOpenAI: OpenAI | null = null;
 
   constructor() {
-    this.provider = process.env.AI_PROVIDER || 'openai';
-    this.apiKey = this.getApiKey();
-    this.initClient();
+    this.primaryProvider = process.env.AI_PROVIDER === 'gemini' ? 'gemini' : 'openai';
+    this.initClients();
   }
 
-  private getApiKey(): string {
-    if (this.provider === 'openai') return process.env.OPENAI_API_KEY || '';
-    if (this.provider === 'gemini') return process.env.GEMINI_API_KEY || '';
-    if (this.provider === 'cloudflare') return process.env.CF_AI_TOKEN || '';
-    return '';
-  }
+  private initClients() {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
 
-  private initClient() {
-    if (!this.apiKey && this.provider !== 'cloudflare') return;
-    
-    if (this.provider === 'openai') {
-      this.openai = new OpenAI({ apiKey: this.apiKey });
-    } else if (this.provider === 'gemini') {
-      this.gemini = new GoogleGenAI({ apiKey: this.apiKey });
-    } else if (this.provider === 'cloudflare') {
-      const accountId = process.env.CF_ACCOUNT_ID;
-      const gatewaySlug = process.env.CF_AI_GATEWAY_SLUG || 'default';
-      const apiToken = process.env.CF_AI_TOKEN;
-      
-      if (accountId && apiToken) {
-        this.cfOpenAI = new OpenAI({
-          apiKey: apiToken,
-          baseURL: `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewaySlug}/workers-ai/v1`,
-        });
-      }
+    if (openaiKey) {
+      this.openai = new OpenAI({ apiKey: openaiKey });
+    }
+    if (geminiKey) {
+      this.gemini = new GoogleGenAI({ apiKey: geminiKey });
     }
   }
 
-  async getStatus(): Promise<AiStatus> {
-    const configured = !!this.apiKey;
-    const ready = configured && (!!this.openai || !!this.gemini || !!this.cfOpenAI);
-    
+  async getAiStatus(): Promise<AiStatus> {
+    const openaiReady = !!this.openai;
+    const geminiReady = !!this.gemini;
+    const ready = this.primaryProvider === 'openai' ? openaiReady : geminiReady;
+    const fallbackReady = this.primaryProvider === 'openai' ? geminiReady : openaiReady;
+    const fallbackProvider = this.primaryProvider === 'openai' ? 'gemini' : 'openai';
+
     return {
-      success: ready,
-      provider: this.provider,
-      configured,
-      ready,
-      message: ready ? "AI พร้อมใช้งาน" : `${this.provider.toUpperCase()}_API_KEY or Cloudflare config is missing`
+      success: ready || fallbackReady,
+      provider: this.primaryProvider,
+      configured: openaiReady || geminiReady,
+      ready: ready,
+      fallback: fallbackProvider
     };
   }
 
-  async generateMetaData(title: string): Promise<MetaDataResponse> {
+  async generateMetaData(title: string): Promise<{ success: boolean; provider: string; data: MetaDataResponse }> {
     const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย จงสร้างข้อมูล Meta สำหรับบทความ: "${title}"
 โดยตอบกลับเป็น JSON หนึ่งบรรทัดเท่านั้น ห้ามมีคำอธิบายอื่น:
 {
@@ -80,66 +65,81 @@ export class AiService {
   "excerpt_ai": "คำโปรยสั้นๆ สรุปเนื้อหา"
 }`;
 
-    const text = await this.callAI(prompt, true);
-    return this.parseJson<MetaDataResponse>(text);
+    const { text, provider } = await this.callAIWithFallback(prompt, true);
+    return { success: true, provider, data: this.parseJson<MetaDataResponse>(text) };
   }
 
-  async generateTags(title: string): Promise<string[]> {
+  async generateTags(title: string): Promise<{ success: boolean; provider: string; tags: string[] }> {
     const prompt = `จงสร้าง 5-8 แท็ก (Tags) ที่เกี่ยวข้องและเป็นที่นิยมสำหรับหัวข้อ: "${title}"
 ตอบกลับเฉพาะเป็น JSON array ของ string เท่านั้น: ["tag1", "tag2", ...]`;
     
-    const text = await this.callAI(prompt, true);
+    const { text, provider } = await this.callAIWithFallback(prompt, true);
     const result = this.parseJson<any>(text);
-    return Array.isArray(result) ? result : (result.tags || []);
+    const tags = Array.isArray(result) ? result : (result.tags || []);
+    return { success: true, provider, tags };
   }
 
-  async generateExcerpt(title: string): Promise<string[]> {
+  async generateExcerpt(title: string): Promise<{ success: boolean; provider: string; options: string[] }> {
     const prompt = `จงสร้าง "คำโปรย" (Excerpt) ที่น่าสนใจ 3 แบบสำหรับบทความหัวข้อ: "${title}"
 โดยแต่ละแบบยาวประมาณ 1-2 ประโยค
 ตอบกลับเป็น JSON array ของ string เท่านั้น: ["แบบที่ 1", "แบบที่ 2", "แบบที่ 3"]`;
 
-    const text = await this.callAI(prompt, true);
+    const { text, provider } = await this.callAIWithFallback(prompt, true);
     const result = this.parseJson<any>(text);
-    return Array.isArray(result) ? result : (result.options || result.excerpts || []);
+    const options = Array.isArray(result) ? result : (result.options || result.excerpts || []);
+    return { success: true, provider, options };
   }
 
-  private async callAI(prompt: string, isJson: boolean = false): Promise<string> {
-    try {
-      if (this.provider === 'openai' && this.openai) {
-        const response = await this.openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }],
-          response_format: isJson ? { type: "json_object" } : { type: "text" },
-        });
-        return response.choices[0].message.content || '';
-      } 
+  async generateSlug(title: string): Promise<{ success: boolean; provider: string; options: string[] }> {
+    const prompt = `จงสร้าง URL Slug ภาษาอังกฤษที่เหมาะสมสำหรับหัวข้อบทความ: "${title}" 
+ส่งกลับมา 4 ตัวเลือกที่แตกต่างกัน โดยเน้น SEO และความหมายกระชับ
+ตอบกลับเป็น JSON array ของ string เท่านั้น: ["slug-1", "slug-2", "slug-3", "slug-4"]`;
 
-      if (this.provider === 'cloudflare' && this.cfOpenAI) {
-        const response = await this.cfOpenAI.chat.completions.create({
-          model: "@cf/meta/llama-3-8b-instruct",
-          messages: [{ role: "user", content: prompt }],
-        });
-        return response.choices[0].message.content || '';
-      }
-      
-      if (this.provider === 'gemini' && this.gemini) {
-        const response = await this.gemini.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [{ parts: [{ text: prompt }] }],
-        });
-        return response.text || '';
-      }
+    const { text, provider } = await this.callAIWithFallback(prompt, true);
+    const result = this.parseJson<any>(text);
+    const options = Array.isArray(result) ? result : (result.options || result.slugs || []);
+    return { success: true, provider, options };
+  }
 
-      throw new Error("AI Provider is not configured or ready");
-    } catch (error: any) {
-      console.error(`AI Service Error (${this.provider}):`, error);
-      throw new Error(`AI generation failed: ${error.message}`);
+  private async callAIWithFallback(prompt: string, isJson: boolean = false): Promise<{ text: string; provider: string }> {
+    const providers = this.primaryProvider === 'openai' ? ['openai', 'gemini'] : ['gemini', 'openai'];
+    const errors: string[] = [];
+
+    for (const provider of providers) {
+      try {
+        if (provider === 'openai' && this.openai) {
+          const response = await this.openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: prompt }],
+            response_format: isJson ? { type: "json_object" } : { type: "text" },
+          });
+          const content = response.choices[0].message.content || '';
+          return { text: content, provider: 'openai' };
+        }
+
+        if (provider === 'gemini' && this.gemini) {
+          const response = await this.gemini.models.generateContent({
+            model: "gemini-3-flash-latest",
+            contents: [{ parts: [{ text: prompt }] }],
+          });
+          const content = response.text || '';
+          return { text: content, provider: 'gemini' };
+        }
+      } catch (error: any) {
+        errors.push(`${provider}: ${error.message}`);
+        console.warn(`AI Provider ${provider} failed, trying next... Error:`, error.message);
+      }
     }
+
+    throw {
+      success: false,
+      message: "AI ใช้งานไม่ได้ชั่วคราว กรุณากรอกข้อมูลเอง",
+      errors
+    };
   }
 
   private parseJson<T>(text: string): T {
     try {
-      // Clean up potential markdown formatting
       const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
       return JSON.parse(cleaned) as T;
     } catch (e) {
