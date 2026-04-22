@@ -30,6 +30,7 @@ export const articles = sqliteTable('articles', {
   metaKeywords: text('meta_keywords'),
   faqs: text('faqs'),
   author: text('author').notNull().default('Admin'),
+  authorId: integer('author_id'),
   type: text('type').notNull().default('post'),
   status: text('status').notNull().default('draft'),
   date: text('date').notNull(),

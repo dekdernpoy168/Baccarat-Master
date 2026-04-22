@@ -1891,13 +1891,23 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         return new Date(currentArticle.publishedAt).toISOString();
       };
 
+      const extractedAuthorId = dataWithoutId.author_id || (dataWithoutId as any).authorId;
+      let selectedAuthorName = auth.currentUser?.displayName || 'Admin';
+      if (extractedAuthorId) {
+        const foundAuthor = authors.find(a => String(a.id) === String(extractedAuthorId));
+        if (foundAuthor) {
+          selectedAuthorName = foundAuthor.name;
+        }
+      }
+
       const articleData = {
         ...dataWithoutId,
         slug: dataWithoutId.slug || dataWithoutId.title?.replace(/\s+/g, '-').toLowerCase() || '',
         status,
         type: currentArticle.type || filterType,
         date: format(new Date(), 'yyyy-MM-dd'),
-        author: auth.currentUser?.displayName || 'Admin',
+        author: selectedAuthorName,
+        author_id: extractedAuthorId,
         publishedAt: getPublishedAt(),
         tags: currentArticle.tags || '',
       };
@@ -2530,8 +2540,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 <label className="text-gold text-sm font-bold flex items-center"><User size={16} className="mr-2" /> ผู้เขียน (Author)</label>
                 <div className="flex flex-col space-y-2">
                   <select 
-                    value={currentArticle.author_id || ''} 
-                    onChange={e => setCurrentArticle({...currentArticle, author_id: e.target.value ? parseInt(e.target.value, 10) : undefined})}
+                    value={currentArticle.author_id || (currentArticle as any).authorId || ''} 
+                    onChange={e => setCurrentArticle({...currentArticle, author_id: e.target.value ? parseInt(e.target.value, 10) : undefined, authorId: e.target.value ? parseInt(e.target.value, 10) : undefined} as any)}
                     className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none cursor-pointer"
                   >
                     <option value="">Select Author... (Default: Admin)</option>
