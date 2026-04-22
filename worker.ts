@@ -17,6 +17,7 @@ export interface Env {
   AI: any;
   MY_QUEUE: any;
   ASSETS?: Fetcher; // Supported when using Cloudflare Pages
+  SECRET: string;
 }
 
 // --- My Durable Object (Tutorial Example) ---
@@ -243,6 +244,14 @@ export default {
         const stub = env.MY_DURABLE_OBJECT.get(id);
         const greeting = await stub.sayHello();
         return new Response(greeting);
+      }
+
+      // /api/secret-check: Check if the Secret binding is working
+      if (normalizedPath === '/secret-check' && method === 'GET') {
+        return json({ 
+          hasSecret: !!env.SECRET,
+          secretValue: env.SECRET ? `${env.SECRET.substring(0, 3)}***` : 'missing'
+        });
       }
 
       // /api/images-test: Placeholder for Images API (Basic check)
