@@ -24,6 +24,14 @@ export interface Article {
   faqs?: string; // JSON string of { question: string, answer: string }[]
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const ARTICLES: Article[] = [
   {
     id: '1',

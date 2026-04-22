@@ -73,7 +73,7 @@ interface User {
   photoURL: string | null;
 }
 import { auth, googleProvider } from './firebase';
-import { Article, ARTICLES } from './constants';
+import { Article, ARTICLES, Category } from './constants';
 import { cn } from './lib/utils';
 import { AuthProvider } from './auth';
 
@@ -246,7 +246,7 @@ const Navbar = ({ user }: { user: User | null }) => {
   );
 };
 
-const Footer = () => (
+const Footer = ({ categories }: { categories: Category[] }) => (
   <footer className="bg-baccarat-black border-t border-gold/20 pt-16 pb-8">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
@@ -290,9 +290,21 @@ const Footer = () => (
         <div>
           <h3 className="text-gold font-bold mb-6 uppercase tracking-wider">หมวดหมู่</h3>
           <ul className="space-y-4 text-gray-400 text-sm">
-            <li><Link to="/category/basic-guide" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> วิธีเล่นเบื้องต้น</Link></li>
-            <li><Link to="/category/free-baccarat-formula" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> สูตรบาคาร่า</Link></li>
-            <li><Link to="/category/pro-level-tricks" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> ทริคระดับเซียน</Link></li>
+            {categories.length > 0 ? (
+              categories.slice(0, 6).map(cat => (
+                <li key={cat.id}>
+                  <Link to={`/category/${cat.slug}`} className="hover:text-gold transition-colors flex items-center uppercase">
+                    <ChevronRight size={14} className="mr-1 text-gold/50" /> {cat.name}
+                  </Link>
+                </li>
+              ))
+            ) : (
+              <>
+                <li><Link to="/category/basic-guide" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> วิธีเล่นเบื้องต้น</Link></li>
+                <li><Link to="/category/free-baccarat-formula" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> สูตรบาคาร่า</Link></li>
+                <li><Link to="/category/pro-level-tricks" className="hover:text-gold transition-colors flex items-center"><ChevronRight size={14} className="mr-1 text-gold/50" /> ทริคระดับเซียน</Link></li>
+              </>
+            )}
           </ul>
         </div>
 
@@ -1189,7 +1201,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
   );
 };
 
-const ArticlesPage = ({ articles, user, loading }: { articles: Article[], user: User | null, loading: boolean }) => {
+const ArticlesPage = ({ articles, categories, user, loading }: { articles: Article[], categories: Category[], user: User | null, loading: boolean }) => {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center">
@@ -1256,6 +1268,35 @@ const ArticlesPage = ({ articles, user, loading }: { articles: Article[], user: 
         </button>
       </div>
       
+      {/* Category Filter Bar */}
+      <div className="mb-12 flex flex-wrap justify-center gap-3">
+        <Link 
+          to="/articles" 
+          className={cn(
+            "px-6 py-2 rounded-full border text-sm font-bold transition-all",
+            !categorySlug 
+              ? "bg-gold text-baccarat-black border-gold shadow-lg shadow-gold/20" 
+              : "bg-white/5 text-gray-400 border-white/10 hover:border-gold/50 hover:text-white"
+          )}
+        >
+          ทั้งหมด
+        </Link>
+        {categories.map(cat => (
+          <Link 
+            key={cat.id} 
+            to={`/category/${cat.slug}`} 
+            className={cn(
+              "px-6 py-2 rounded-full border text-sm font-bold transition-all",
+              categorySlug === cat.slug 
+                ? "bg-gold text-baccarat-black border-gold shadow-lg shadow-gold/20" 
+                : "bg-white/5 text-gray-400 border-white/10 hover:border-gold/50 hover:text-white"
+            )}
+          >
+            {cat.name}
+          </Link>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {displayedArticles.length > 0 ? (
           displayedArticles.map((article) => (
@@ -4264,7 +4305,7 @@ const FormulaPage = () => {
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(true);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [authors, setAuthors] = useState<any[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -4300,9 +4341,8 @@ export default function App() {
     try {
       const response = await fetch('/api/categories');
       if (!response.ok) throw new Error('Failed to fetch categories');
-      const catsData: any = await response.json();
-      const cats = catsData.map((cat: any) => cat.name);
-      setCategories(cats);
+      const catsData: Category[] = await response.json();
+      setCategories(catsData);
     } catch (error) {
       console.error("API Error (Categories):", error);
     }
@@ -4410,8 +4450,8 @@ export default function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<HomePage articles={articles} user={user} />} />
-            <Route path="/articles" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
-            <Route path="/category/:categorySlug" element={<ArticlesPage articles={articles} user={user} loading={articlesLoading} />} />
+            <Route path="/articles" element={<ArticlesPage articles={articles} categories={categories} user={user} loading={articlesLoading} />} />
+            <Route path="/category/:categorySlug" element={<ArticlesPage articles={articles} categories={categories} user={user} loading={articlesLoading} />} />
             <Route path="/formula" element={<FormulaPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -4463,7 +4503,7 @@ export default function App() {
             <Route path="/:slug" element={<ArticleDetailPage articles={articles} authors={authors} user={user} loading={articlesLoading} />} />
           </Routes>
         </main>
-        <Footer />
+        <Footer categories={categories} />
       </div>
     </Router>
   );

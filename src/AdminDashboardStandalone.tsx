@@ -57,7 +57,7 @@ import {
   signOut
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { ARTICLES as STATIC_ARTICLES, Article } from './constants';
+import { ARTICLES as STATIC_ARTICLES, Article, Category } from './constants';
 import { cn } from './lib/utils';
 import * as XLSX from 'xlsx';
 
@@ -723,9 +723,9 @@ const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onCl
 };
 
 
-const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, setArticles: propsSetArticles, setCategories: propsSetCategories, loading: propsLoading, fetchArticles: propsFetchArticles }: { articles?: Article[], categories?: string[], setArticles?: (articles: Article[]) => void, setCategories?: (categories: string[]) => void, loading?: boolean, fetchArticles?: () => void }) => {
+const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, setArticles: propsSetArticles, setCategories: propsSetCategories, loading: propsLoading, fetchArticles: propsFetchArticles }: { articles?: Article[], categories?: Category[], setArticles?: (articles: Article[]) => void, setCategories?: (categories: Category[]) => void, loading?: boolean, fetchArticles?: () => void }) => {
   const [articles, setArticles] = useState<Article[]>(propsArticles || []);
-  const [categories, setCategories] = useState<string[]>(propsCategories || []);
+  const [categories, setCategories] = useState<Category[]>(propsCategories || []);
   const [isEditing, setIsEditing] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -872,9 +872,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       }
 
       if (categoriesRes.ok) {
-        const catsData: any = await categoriesRes.json();
-        const cats = catsData.map((cat: any) => cat.name);
-        setCategories(cats);
+        const catsData: Category[] = await categoriesRes.json();
+        setCategories(catsData);
       }
     } catch (err: any) {
       console.error("Fetch Error:", err);
@@ -1630,7 +1629,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       }
 
       // Also ensure category exists in categories collection
-      if (articleData.category && !categories.includes(articleData.category)) {
+      if (articleData.category && !categories.some(c => c.name === articleData.category)) {
         const catRes = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1741,8 +1740,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
 
             <div className="space-y-3">
               {categories.map(cat => (
-                <div key={cat} className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
-                  {editingCategory?.old === cat ? (
+                <div key={cat.id} className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
+                  {editingCategory?.old === cat.name ? (
                     <div className="flex-grow flex gap-2 mr-4">
                       <input 
                         type="text" 
@@ -1754,18 +1753,18 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                       <button onClick={() => setEditingCategory(null)} className="text-red-500 hover:text-red-400"><X size={20} /></button>
                     </div>
                   ) : (
-                    <span className="text-white font-medium">{cat}</span>
+                    <span className="text-white font-medium">{cat.name}</span>
                   )}
                   
                   <div className="flex items-center space-x-4">
                     <button 
-                      onClick={() => setEditingCategory({old: cat, new: cat})}
+                      onClick={() => setEditingCategory({old: cat.name, new: cat.name})}
                       className="text-gray-400 hover:text-gold transition-colors"
                     >
                       <Edit size={18} />
                     </button>
                     <button 
-                      onClick={() => handleDeleteCategory(cat)}
+                      onClick={() => handleDeleteCategory(cat.name)}
                       className="text-gray-400 hover:text-red-500 transition-colors"
                     >
                       <Trash2 size={18} />
@@ -2164,14 +2163,16 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 <label className="text-gold text-sm font-bold flex items-center"><Target size={16} className="mr-2" /> หมวดหมู่</label>
                 <div className="flex flex-col space-y-2">
                   <select 
-                    value={categories.includes(currentArticle.category || '') ? currentArticle.category : 'custom'} 
+                    value={categories.some(c => c.name === currentArticle.category) ? currentArticle.category : 'custom'} 
                     onChange={e => {
                       if (e.target.value === 'custom') {
                         const newCat = window.prompt("กรุณาใส่ชื่อหมวดหมู่ใหม่:");
                         if (newCat && newCat.trim()) {
                           setCurrentArticle({...currentArticle, category: newCat.trim()});
-                          if (!categories.includes(newCat.trim())) {
-                            setCategories([...categories, newCat.trim()]);
+                          if (!categories.some(c => c.name === newCat.trim())) {
+                            // Temporary update to state for UI responsiveness
+                            const tempCat: Category = { id: Date.now(), name: newCat.trim(), slug: '' };
+                            setCategories([...categories, tempCat]);
                           }
                         } else {
                           // Revert if cancelled
@@ -2185,9 +2186,9 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   >
                     <option value="">เลือกหมวดหมู่</option>
                     {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
-                    {currentArticle.category && !categories.includes(currentArticle.category) && (
+                    {currentArticle.category && !categories.some(c => c.name === currentArticle.category) && (
                       <option value={currentArticle.category}>{currentArticle.category}</option>
                     )}
                     <option value="custom">+ เพิ่มหมวดหมู่ใหม่ / ระบุเอง</option>
