@@ -682,10 +682,36 @@ const SelectionModal = ({
   );
 };
 
-const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onClose: () => void, onSelect: (url: string) => void }) => {
-  const [assets, setAssets] = useState<{url: string, key: string}[]>([]);
+const formatThaiDate = (dateString: string | Date | number | undefined) => {
+  if (!dateString) return 'ไม่ทราบวันที่';
+  const date = new Date(dateString);
+  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+};
+
+const groupAssetsByDate = (assets: any[]) => {
+  const groups: { date: string, items: any[] }[] = [];
+  let currentGroup: { date: string, items: any[] } | null = null;
+
+  assets.forEach(asset => {
+    const dateLabel = formatThaiDate(asset.lastModified || asset.uploaded);
+    if (!currentGroup || currentGroup.date !== dateLabel) {
+      currentGroup = { date: dateLabel, items: [] };
+      groups.push(currentGroup);
+    }
+    currentGroup.items.push(asset);
+  });
+  return groups;
+};
+
+const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onClose: () => void, onSelect: (url: string, alt: string) => void }) => {
+  const [assets, setAssets] = useState<{url: string, key: string, uploaded?: string, lastModified?: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  
+  // Workflow states
+  const [selectedAsset, setSelectedAsset] = useState<{url: string, key: string} | null>(null);
+  const [altText, setAltText] = useState("");
 
   const loadAssets = () => {
     setLoading(true);
@@ -704,12 +730,14 @@ const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onCl
   useEffect(() => {
     if (isOpen) {
       loadAssets();
+      setSelectedAsset(null);
+      setAltText("");
     }
   }, [isOpen]);
 
   const handleDelete = async (e: React.MouseEvent, key: string) => {
     e.stopPropagation();
-    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรูปภาพนี้? การกระทำนี้ไม่สามารถย้อนกลับได้")) return;
+    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรูปภาพนี้?")) return;
     
     setIsDeleting(key);
     try {
@@ -718,9 +746,6 @@ const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onCl
       });
       if (response.ok) {
         setAssets(prev => prev.filter(a => a.key !== key));
-      } else {
-        const errorData: any = await response.json();
-        alert("ลบไม่สำเร็จ: " + (errorData.error || "Unknown error"));
       }
     } catch (err) {
       alert("เกิดข้อผิดพลาดในการลบ");
@@ -731,89 +756,158 @@ const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onCl
 
   if (!isOpen) return null;
 
+  const assetGroups = groupAssetsByDate(assets);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-zinc-900 border border-gold/20 w-full max-w-5xl rounded-[2rem] overflow-hidden shadow-2xl max-h-[85vh] flex flex-col"
+        className="bg-zinc-900 border border-gold/20 w-full max-w-5xl rounded-[2.5rem] overflow-hidden shadow-2xl max-h-[85vh] flex flex-col"
       >
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-zinc-900/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20">
-              <ImageIcon className="text-gold" size={20} />
+        {!selectedAsset ? (
+          <>
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-zinc-900/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20">
+                  <ImageIcon className="text-gold" size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">คลังรูปภาพ R2</h2>
+                  <p className="text-xs text-gray-500">เลือกรูปภาพเพื่อจัดการรายละเอียดก่อนแทรก</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-all">
+                <X size={24} />
+              </button>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">คลังรูปภาพ R2</h2>
-              <p className="text-xs text-gray-500">จัดการและเลือกรูปภาพจาก Cloudflare R2</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-all">
-            <X size={24} />
-          </button>
-        </div>
 
-        <div className="p-6 overflow-y-auto flex-grow bg-black/20">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <RefreshCw className="text-gold animate-spin mb-4" size={32} />
-              <p className="text-gray-400">กำลังโหลดรูปภาพจาก R2...</p>
+            <div className="p-6 overflow-y-auto flex-grow bg-black/20">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <RefreshCw className="text-gold animate-spin mb-4" size={32} />
+                  <p className="text-gray-400">กำลังโหลดรูปภาพจาก R2...</p>
+                </div>
+              ) : assets.length > 0 ? (
+                <div className="space-y-8">
+                  {assetGroups.map(group => (
+                    <div key={group.date}>
+                      <h3 className="text-gold font-bold text-sm mb-4 flex items-center gap-2">
+                        <Calendar size={14} className="opacity-50" /> {group.date}
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {group.items.map((asset, i) => (
+                          <div 
+                            key={i} 
+                            className="group relative aspect-square bg-zinc-800 rounded-2xl overflow-hidden border border-white/5 hover:border-gold transition-all cursor-pointer shadow-lg"
+                            onClick={() => setSelectedAsset(asset)}
+                          >
+                            <img 
+                              src={asset.url} 
+                              alt={asset.key} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 bg-black/60 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <p className="text-[10px] text-white truncate">{asset.key.split('/').pop()}</p>
+                            </div>
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <button 
+                                onClick={(e) => handleDelete(e, asset.key)}
+                                disabled={isDeleting === asset.key}
+                                className="bg-red-500/80 hover:bg-red-500 text-white p-1.5 rounded-lg transition-all backdrop-blur-sm disabled:opacity-50"
+                              >
+                                {isDeleting === asset.key ? <RefreshCw size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                    <ImageIcon size={32} className="text-gray-600" />
+                  </div>
+                  <h3 className="text-white font-bold mb-2">ยังไม่มีรูปภาพในคลัง</h3>
+                </div>
+              )}
             </div>
-          ) : assets.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {assets.map((asset, i) => (
-                <div 
-                  key={i} 
-                  className="group relative aspect-square bg-zinc-800 rounded-2xl overflow-hidden border border-white/5 hover:border-gold transition-all cursor-pointer shadow-lg"
-                  onClick={() => onSelect(asset.url)}
+            
+            <div className="p-4 border-t border-white/5 bg-zinc-900/50 flex justify-between items-center px-8">
+              <p className="text-xs text-gray-500">ทั้งหมด {assets.length} ไฟล์</p>
+              <button 
+                onClick={loadAssets} 
+                className="text-gold text-xs font-bold hover:underline flex items-center gap-1"
+              >
+                <RefreshCw size={14} /> รีเฟรชรายการ
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col h-full bg-zinc-900">
+             <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <button 
+                  onClick={() => setSelectedAsset(null)}
+                  className="flex items-center gap-2 text-gray-400 hover:text-white transition-all text-sm font-bold"
                 >
-                  <img 
-                    src={asset.url} 
-                    alt={asset.key} 
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  <ChevronRight className="rotate-180" size={18} /> กลับไปที่คลังภาพ
+                </button>
+                <h2 className="text-lg font-bold text-white">ตั้งค่ารายละเอียดภาพ</h2>
+                <div className="w-10" />
+             </div>
+             
+             <div className="flex-grow p-8 flex flex-col md:flex-row gap-8 overflow-y-auto">
+                <div className="w-full md:w-1/2 aspect-video md:aspect-square bg-black rounded-3xl overflow-hidden border border-white/10 flex items-center justify-center shadow-2xl">
+                   <img 
+                    src={selectedAsset.url} 
+                    alt="Preview" 
+                    className="max-w-full max-h-full object-contain"
                     referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                    <p className="text-[10px] text-white font-medium truncate mb-2">{asset.key.split('/').pop()}</p>
-                    <div className="flex gap-2">
-                       <button 
-                        onClick={(e) => handleDelete(e, asset.key)}
-                        disabled={isDeleting === asset.key}
-                        className="bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-lg transition-all backdrop-blur-sm disabled:opacity-50"
-                        title="ลบรูปภาพ"
+                   />
+                </div>
+                <div className="w-full md:w-1/2 space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">URL รูปภาพ</label>
+                      <div className="bg-black/40 border border-white/10 p-3 rounded-xl text-xs text-gray-400 truncate">
+                        {selectedAsset.url}
+                      </div>
+                   </div>
+                   
+                   <div className="space-y-4">
+                      <label className="text-gold text-xs font-bold uppercase tracking-widest block">Alt Text (ความสำคัญสูงสำหรับ SEO)</label>
+                      <textarea 
+                        autoFocus
+                        value={altText}
+                        onChange={(e) => setAltText(e.target.value)}
+                        placeholder="อธิบายภาพสำหรับ SEO และการเข้าถึง... (เช่น: ตารางเดินเงินบาคาร่า)"
+                        className="w-full bg-black border border-white/10 focus:border-gold p-4 rounded-2xl text-white text-sm outline-none h-32 transition-all"
+                      />
+                      <p className="text-gray-500 text-[10px] leading-relaxed">
+                        * Alt text ช่วยให้ Search Engine เข้าใจเนื้อหาภาพ และช่วยระบบอ่านหน้าจอสำหรับผู้พิการ
+                      </p>
+                   </div>
+                   
+                   <div className="flex gap-4 pt-4">
+                      <button 
+                        onClick={() => setSelectedAsset(null)}
+                        className="flex-1 px-6 py-4 rounded-2xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all"
                       >
-                        {isDeleting === asset.key ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        ยกเลิก
                       </button>
                       <button 
-                        className="flex-grow bg-gold text-black text-[10px] font-bold py-2 rounded-lg transition-all hover:bg-white"
+                        onClick={() => onSelect(selectedAsset.url, altText)}
+                        className="flex-[2] gold-bg-gradient text-baccarat-black px-6 py-4 rounded-2xl font-black shadow-xl shadow-gold/20 hover:scale-[1.02] transition-all"
                       >
-                        เลือกรูปนี้
+                        แทรกรูปพร้อม Alt Text
                       </button>
-                    </div>
-                  </div>
+                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                <ImageIcon size={32} className="text-gray-600" />
-              </div>
-              <h3 className="text-white font-bold mb-2">ยังไม่มีรูปภาพในคลัง</h3>
-              <p className="text-gray-500 text-sm max-w-xs">คุณสามารถอัปโหลดรูปภาพใหม่ผ่านคอมพิวเตอร์ของคุณในส่วนแก้ไขความครอบคลุม</p>
-            </div>
-          )}
-        </div>
-        
-        <div className="p-4 border-t border-white/5 bg-zinc-900/50 flex justify-between items-center px-8">
-          <p className="text-xs text-gray-500">ทั้งหมด {assets.length} ไฟล์</p>
-          <button 
-            onClick={loadAssets} 
-            className="text-gold text-xs font-bold hover:underline flex items-center gap-1"
-          >
-            <RefreshCw size={14} /> รีเฟรชรายการ
-          </button>
-        </div>
+             </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );
@@ -2454,11 +2548,13 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <AssetPickerModal 
               isOpen={showAssetPicker}
               onClose={() => setShowAssetPicker(false)}
-              onSelect={(url) => {
+              onSelect={(url, alt) => {
                 const quill = quillRef.current?.getEditor();
                 if (quill) {
                     const range = quill.getSelection();
-                    quill.insertEmbed(range?.index || 0, 'image', url);
+                    const index = range ? range.index : 0;
+                    // Inserting as HTML to ensure alt text is preserved
+                    quill.clipboard.dangerouslyPasteHTML(index, `<img src="${url}" alt="${alt || ''}" />`);
                 }
                 setShowAssetPicker(false);
               }}
