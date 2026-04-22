@@ -460,10 +460,19 @@ export default {
       if (authorIdMatch && method === 'DELETE') {
         try {
           const id = parseInt(authorIdMatch[1], 10);
+          console.log(`Deleting author with ID: ${id}`);
+          
           await db.delete(schema.authors).where(eq(schema.authors.id, id));
+          
           await broadcast(env, { type: 'AUTHOR_DELETED', id });
-          return json({ success: true, message: 'Author deleted' });
+          
+          return json({ 
+            success: true, 
+            message: 'Author deleted',
+            id: id.toString()
+          });
         } catch (e: any) {
+          console.error(`Error deleting author: ${e.message}`);
           return error(`Failed to delete author: ${e.message}`, 500);
         }
       }

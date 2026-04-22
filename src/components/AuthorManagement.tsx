@@ -61,19 +61,28 @@ export default function AuthorManagement() {
   };
 
   const handleDelete = async (id: number) => {
+    // window.confirm is already being used, which is fine as simple confirmation
     if (!window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบผู้เขียนนี้?')) return;
     
     try {
-      const response = await fetch(`/api/authors/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/authors/${id}`, { 
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
       if (response.ok) {
         showNotification('ลบผู้เขียนสำเร็จ', 'success');
-        fetchAuthors();
+        await fetchAuthors(); // Refetch after success
       } else {
-        showNotification('เกิดข้อผิดพลาดในการลบ', 'error');
+        const errorData = await response.json() as { error?: string, message?: string };
+        const errorMsg = errorData.error || errorData.message || 'เกิดข้อผิดพลาดในการลบ';
+        showNotification(errorMsg, 'error');
       }
     } catch (error) {
       console.error('Error deleting author:', error);
-      showNotification('เกิดข้อผิดพลาดในการลบ', 'error');
+      showNotification('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
     }
   };
 

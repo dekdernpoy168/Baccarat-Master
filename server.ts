@@ -877,7 +877,11 @@ async function startServer() {
     try {
       const { id } = req.params;
       await exec(`DELETE FROM authors WHERE id = ?`, [id]);
-      res.json({ success: true });
+      res.json({ 
+        success: true, 
+        message: 'Author deleted',
+        id: id
+      });
     } catch (error: any) {
       console.error("Error deleting author:", error);
       res.status(500).json({ error: error.message });
