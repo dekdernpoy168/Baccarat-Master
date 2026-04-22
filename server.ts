@@ -821,8 +821,8 @@ async function startServer() {
       if (!rows || rows.length === 0) {
         rows = [
           {
-            "id": "ธนกฤต-วัฒนชัย",
-            "name": "ธนกฤต วัฒนชัย",
+            "id": "default-author",
+            "name": "ปราชญ์ พิชญะ",
             "position": "บรรณาธิการ",
             "description": "ดูแล ตรวจสอบ และพัฒนาเนื้อหาเว็บไซต์ให้ถูกต้อง ชัดเจน อ่านง่าย และมีคุณภาพ"
           }

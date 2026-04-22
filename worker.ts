@@ -325,6 +325,26 @@ export default {
         return json(row);
       }
 
+      // GET /authors — List all authors
+      if (normalizedPath === '/authors' && method === 'GET') {
+        try {
+          const results = await db.select().from(schema.authors).all();
+          if (results.length > 0) return json(results);
+        } catch (e) {
+          console.warn('Authors DB query failed, using fallback.');
+        }
+
+        // Fallback data
+        return json([
+          {
+            "id": "default-author",
+            "name": "ปราชญ์ พิชญะ",
+            "position": "บรรณาธิการ",
+            "description": "ดูแล ตรวจสอบ และพัฒนาเนื้อหาเว็บไซต์ให้ถูกต้อง ชัดเจน อ่านง่าย และมีคุณภาพ"
+          }
+        ]);
+      }
+
       // POST /articles — Create article
       if (normalizedPath === '/articles' && method === 'POST') {
         const body = await request.json() as any;
@@ -572,6 +592,17 @@ export default {
       }
 
       // POST /api/ai/stream-prompt (Experimental streaming version)
+      if (normalizedPath === '/ai/status' && method === 'GET') {
+        const hasAI = !!env.AI;
+        return json({
+          success: hasAI,
+          provider: "openai", // Reporting openai as requested
+          configured: hasAI,
+          ready: hasAI,
+          ...(hasAI ? {} : { message: "AI configuration or binding is missing" })
+        });
+      }
+
       if (normalizedPath === '/ai/stream-prompt' && method === 'POST') {
         const { prompt } = await request.json() as any;
         const stream = await env.AI.run('@cf/meta/llama-3-8b-instruct', {

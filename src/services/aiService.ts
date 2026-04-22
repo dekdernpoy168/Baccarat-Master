@@ -42,17 +42,29 @@ export class AiService {
   async getAiStatus(): Promise<AiStatus> {
     const openaiReady = !!this.openai;
     const geminiReady = !!this.gemini;
-    const ready = this.primaryProvider === 'openai' ? openaiReady : geminiReady;
-    const fallbackReady = this.primaryProvider === 'openai' ? geminiReady : openaiReady;
-    const fallbackProvider = this.primaryProvider === 'openai' ? 'gemini' : 'openai';
-
-    return {
-      success: ready || fallbackReady,
-      provider: this.primaryProvider,
-      configured: openaiReady || geminiReady,
-      ready: ready,
-      fallback: fallbackProvider
-    };
+    
+    // Check if the primary provider (default is openai) is ready
+    const isPrimaryReady = this.primaryProvider === 'openai' ? openaiReady : geminiReady;
+    
+    if (isPrimaryReady) {
+      return {
+        success: true,
+        provider: this.primaryProvider,
+        configured: true,
+        ready: true,
+        fallback: this.primaryProvider === 'openai' ? 'gemini' : 'openai'
+      };
+    } else {
+      const missingKey = this.primaryProvider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY';
+      return {
+        success: false,
+        provider: this.primaryProvider,
+        configured: false,
+        ready: false,
+        fallback: this.primaryProvider === 'openai' ? 'gemini' : 'openai',
+        message: `${missingKey} is missing`
+      };
+    }
   }
 
   async generateMetaData(title: string): Promise<{ success: boolean; provider: string; data: MetaDataResponse }> {
