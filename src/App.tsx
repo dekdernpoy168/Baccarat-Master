@@ -115,15 +115,24 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
     : location.pathname;
   const currentUrl = canonicalUrl || `${baseUrl}${cleanPathname}`;
   
-  const faqSchema = schema?.faqs ? {
+  let parsedFaqs = [];
+  if (schema?.faqs) {
+    try {
+      parsedFaqs = typeof schema.faqs === 'string' ? JSON.parse(schema.faqs) : schema.faqs;
+    } catch (e) {
+      console.error("Error parsing FAQs for schema:", e);
+    }
+  }
+
+  const faqSchema = (Array.isArray(parsedFaqs) && parsedFaqs.length > 0) ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": JSON.parse(schema.faqs).map((faq: any) => ({
+    "mainEntity": parsedFaqs.map((faq: any) => ({
       "@type": "Question",
-      "name": faq.question,
+      "name": faq?.question || faq?.q || '',
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": faq.answer
+        "text": faq?.answer || faq?.a || ''
       }
     }))
   } : null;
@@ -168,10 +177,15 @@ const SEO = ({ title, description, keywords, canonicalUrl, type = "website", ima
 const slugify = (text: string) => text.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
 
 const isPublished = (article: Article) => {
+  if (!article) return false;
   if (article.status === 'draft') return false;
   if (!article.publishedAt) return true;
-  const pubDate = new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt);
-  return pubDate <= new Date();
+  try {
+    const pubDate = new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt);
+    return !isNaN(pubDate.getTime()) && pubDate <= new Date();
+  } catch (e) {
+    return true; // Fallback to showing if date is invalid
+  }
 };
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
@@ -1143,7 +1157,7 @@ const HomePage = ({ articles, user }: { articles: Article[], user: User | null }
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
-          {publishedArticles.slice(0, 4).map((article) => (
+          {(publishedArticles || []).slice(0, 4).map((article) => (
             <ArticleCard key={article.id} article={article} />
           ))}
         </div>
@@ -1214,24 +1228,24 @@ const ArticlesPage = ({ articles, categories, user, loading }: { articles: Artic
   }
 
   const isAdmin = user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
-  const publishedArticles = articles.filter(a => (isAdmin || isPublished(a)) && (a.type === 'post' || !a.type));
+  const publishedArticles = (articles || []).filter(a => a && (isAdmin || isPublished(a)) && (a.type === 'post' || !a.type));
   const location = useLocation();
   const { categorySlug } = useParams<{ categorySlug?: string }>();
   const searchParams = new URLSearchParams(location.search);
   const tagFilter = searchParams.get('tag');
 
-  const filteredArticles = publishedArticles.filter(a => {
+  const filteredArticles = (publishedArticles || []).filter(a => {
     const categoryMatch = categorySlug 
       ? (a.categorySlug === categorySlug || 
          slugify(a.category || '') === categorySlug || 
-         a.category === (categories.find(c => c.slug === categorySlug)?.name)) 
+         a.category === ((categories || []).find(c => c.slug === categorySlug)?.name)) 
       : true;
     const tagMatch = tagFilter ? (a.tags && a.tags.split(',').map(t => t.trim()).includes(tagFilter)) : true;
     return categoryMatch && tagMatch;
   });
 
   // Get the display-friendly category name for the title
-  const categoryObj = categories.find(c => c.slug === categorySlug);
+  const categoryObj = (categories || []).find(c => c.slug === categorySlug);
   const displayCategory = categoryObj ? categoryObj.name : categorySlug;
 
   const [visibleCount, setVisibleCount] = useState(9);
@@ -1288,7 +1302,7 @@ const ArticlesPage = ({ articles, categories, user, loading }: { articles: Artic
         >
           ทั้งหมด
         </Link>
-        {categories.map(cat => (
+        {(categories || []).map(cat => (
           <Link 
             key={cat.id} 
             to={`/category/${cat.slug}`} 
@@ -1348,11 +1362,11 @@ const ArticleDetailPage = ({ articles, authors, user, loading }: { articles: Art
     );
   }
 
-  const article = articles.find(a => a.slug === slug);
+  const article = (articles || []).find(a => a && a.slug === slug);
 
   if (!article || (!isAdmin && !isPublished(article))) return <div className="text-center py-20 text-white">ไม่พบเนื้อหาที่ต้องการ หรือบทความยังไม่ถึงเวลาเผยแพร่</div>;
 
-  const authorData = authors.find(auth => auth.id === article.author_id);
+  const authorData = (authors || []).find(auth => auth && auth.id === article.author_id);
   const authorName = authorData?.name || article.author || 'Admin';
 
   const schema = {
@@ -2795,7 +2809,7 @@ const internalAdminDashboard = ({ articles, categories, setArticles, setCategori
             </div>
 
             <div className="space-y-3">
-              {categories.map((cat, index) => (
+              {(categories || []).map((cat, index) => (
                 <div key={cat + index} className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
                   {editingCategory?.old === cat ? (
                     <div className="flex-grow flex gap-2 mr-4">
@@ -4326,10 +4340,12 @@ export default function App() {
       const response = await fetch('/api/articles');
       if (!response.ok) throw new Error('Failed to fetch articles');
       const docs: any = await response.json();
-      console.log(`Fetched ${docs.length} articles from API`);
       
-      if (docs.length > 0) {
-        setArticles(docs as Article[]);
+      const articlesList = Array.isArray(docs) ? docs : (docs?.articles && Array.isArray(docs.articles) ? docs.articles : []);
+      console.log(`Fetched ${articlesList.length} articles from API`);
+      
+      if (articlesList.length > 0) {
+        setArticles(articlesList as Article[]);
       } else {
         console.log('No articles in database, using static fallback');
         setArticles(ARTICLES);
@@ -4337,7 +4353,7 @@ export default function App() {
     } catch (error) {
       console.error("API Error (Articles):", error);
       // Fallback to static articles on error
-      setArticles(ARTICLES);
+      setArticles(ARTICLES || []);
     } finally {
       setArticlesLoading(false);
     }
@@ -4348,24 +4364,40 @@ export default function App() {
     try {
       const response = await fetch('/api/categories');
       if (!response.ok) throw new Error('Failed to fetch categories');
-      const catsData: Category[] = await response.json();
-      setCategories(catsData);
+      const data: any = await response.json();
+      if (Array.isArray(data)) {
+        setCategories(data as Category[]);
+      } else if (data?.categories && Array.isArray(data.categories)) {
+        setCategories(data.categories);
+      } else {
+        console.warn('Fetched categories is not an array:', data);
+        setCategories([]);
+      }
     } catch (error) {
       console.error("API Error (Categories):", error);
+      setCategories([]);
     }
   }, []);
 
   // Fetch Authors
-    const fetchAuthors = useCallback(async () => {
-      try {
-        const response = await fetch('/api/authors');
-        if (!response.ok) throw new Error('Failed to fetch authors');
-        const data = await response.json();
+  const fetchAuthors = useCallback(async () => {
+    try {
+      const response = await fetch('/api/authors');
+      if (!response.ok) throw new Error('Failed to fetch authors');
+      const data: any = await response.json();
+      if (Array.isArray(data)) {
         setAuthors(data as any[]);
-      } catch (error) {
-        console.error("API Error (Authors):", error);
+      } else if (data?.authors && Array.isArray(data.authors)) {
+        setAuthors(data.authors);
+      } else {
+        console.warn('Fetched authors is not an array:', data);
+        setAuthors([]);
       }
-    }, []);
+    } catch (error) {
+      console.error("API Error (Authors):", error);
+      setAuthors([]);
+    }
+  }, []);
 
   useEffect(() => {
     if (notification) {

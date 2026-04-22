@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
 import multer from "multer";
-import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { exec, query } from './src/db.js';
 import { db } from './src/db/index.js';
 import { users } from './src/db/schema.js';
@@ -1300,29 +1300,38 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
     res.json({ connectedClients: clients });
   });
 
-  // --- Image Upload (Cloudflare R2) ---
-  server.get("/api/assets", async (req, res) => {
+  // --- Image Management (Cloudflare R2) ---
+  const R2_BUCKET = process.env.R2_BUCKET_NAME || "baccarat-master-assets";
+  const R2_PUBLIC_DOMAIN = "https://pic.huisache.com";
+
+  // List all images
+  server.get("/api/r2/images", async (req, res) => {
     try {
-      const bucketName = process.env.R2_BUCKET_NAME || "baccarat-master-assets";
-      const command = new ListObjectsV2Command({ Bucket: bucketName });
+      const command = new ListObjectsV2Command({ 
+        Bucket: R2_BUCKET,
+        // MaxKeys: 1000 // You can limit if needed
+      });
       const response = await r2Client.send(command);
-      const publicUrlBase = process.env.R2_PUBLIC_DEV_URL || `https://${bucketName}.r2.dev`;
       
       const images = (response.Contents || [])
-        .filter(item => item.Key && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.Key))
+        .filter(item => item.Key && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(item.Key))
+        .sort((a, b) => ((b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0)))
         .map(item => ({
           key: item.Key,
-          url: `${publicUrlBase}/${item.Key}`
+          url: `${R2_PUBLIC_DOMAIN}/${item.Key}`,
+          size: item.Size,
+          lastModified: item.LastModified
         }));
+      
       res.json(images);
     } catch (error: any) {
-      console.error("Error listing assets:", error);
-      // Return empty array instead of 500 error to avoid breaking the UI
-      res.json([]);
+      console.error("Error listing R2 assets:", error);
+      res.status(500).json({ error: error.message || "Failed to list images" });
     }
   });
 
-  server.post("/api/upload", upload.single("image"), async (req, res) => {
+  // Upload image
+  server.post("/api/r2/upload", upload.single("image"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No image file provided" });
@@ -1330,28 +1339,80 @@ server.post("/api/ai/generate-meta-data", async (req, res) => {
 
       const file = req.file;
       const fileExtension = path.extname(file.originalname);
-      const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
-      const bucketName = process.env.R2_BUCKET_NAME || "baccarat-master-assets";
+      // Clean and safe filename
+      const safeName = file.originalname.replace(/[^a-z0-9.]/gi, '-').toLowerCase();
+      const fileName = `uploads/${Date.now()}-${safeName}`;
 
       const command = new PutObjectCommand({
-        Bucket: bucketName,
+        Bucket: R2_BUCKET,
         Key: fileName,
         Body: file.buffer,
-        ContentType: file.mimetype,
+        ContentType: file.mimetype || 'image/jpeg',
       });
 
       await r2Client.send(command);
+      const imageUrl = `${R2_PUBLIC_DOMAIN}/${fileName}`;
 
-      // Return the public URL for the uploaded image
-      // If R2_PUBLIC_DEV_URL is set (e.g., https://pub-xxx.r2.dev), use it.
-      // Otherwise, fallback to a relative path or a custom domain if configured.
-      const publicUrlBase = process.env.R2_PUBLIC_DEV_URL || `https://${bucketName}.r2.dev`;
-      const imageUrl = `${publicUrlBase}/${fileName}`;
-
-      res.json({ url: imageUrl, success: true });
+      res.json({ url: imageUrl, key: fileName, success: true });
     } catch (error: any) {
-      console.error("Error uploading image to R2:", error);
+      console.error("Error uploading to R2:", error);
       res.status(500).json({ error: error.message || "Failed to upload image" });
+    }
+  });
+
+  // Delete image
+  server.delete("/api/r2/delete/:key(*)", async (req, res) => {
+    try {
+      const key = req.params.key;
+      if (!key) {
+        return res.status(400).json({ error: "Key is required" });
+      }
+
+      const command = new DeleteObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: key
+      });
+
+      await r2Client.send(command);
+      res.json({ success: true, message: "Deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting from R2:", error);
+      res.status(500).json({ error: error.message || "Failed to delete image" });
+    }
+  });
+
+  // Legacy endpoints for compatibility (optional, but good to keep or redirect)
+  server.get("/api/assets", async (req, res) => {
+    // Redirect or proxy to new endpoint
+    try {
+      const command = new ListObjectsV2Command({ Bucket: R2_BUCKET });
+      const response = await r2Client.send(command);
+      const images = (response.Contents || [])
+        .filter(item => item.Key && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.Key))
+        .map(item => ({
+          key: item.Key,
+          url: `${R2_PUBLIC_DOMAIN}/${item.Key}`
+        }));
+      res.json(images);
+    } catch (e) {
+      res.json([]);
+    }
+  });
+
+  server.post("/api/upload", upload.single("image"), async (req, res) => {
+    // Proxy to new logic
+    try {
+      if (!req.file) return res.status(400).json({ error: "No image" });
+      const fileName = `legacy/${Date.now()}-${req.file.originalname}`;
+      await r2Client.send(new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: fileName,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      }));
+      res.json({ url: `${R2_PUBLIC_DOMAIN}/${fileName}`, success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

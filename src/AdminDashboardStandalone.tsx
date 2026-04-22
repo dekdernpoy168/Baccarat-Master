@@ -683,41 +683,138 @@ const SelectionModal = ({
 };
 
 const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onClose: () => void, onSelect: (url: string) => void }) => {
-  const [assets, setAssets] = useState<{url: string}[]>([]);
+  const [assets, setAssets] = useState<{url: string, key: string}[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  const loadAssets = () => {
+    setLoading(true);
+    fetch('/api/r2/images')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { 
+        setAssets(Array.isArray(data) ? data : []); 
+        setLoading(false); 
+      })
+      .catch(() => {
+        setAssets([]);
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
     if (isOpen) {
-      setLoading(true);
-      fetch('/api/assets')
-        .then(r => r.json())
-        .then(data => { 
-          // Ensure data is an array
-          setAssets(Array.isArray(data) ? data : []); 
-          setLoading(false); 
-        })
-        .catch(() => {
-          setAssets([]);
-          setLoading(false);
-        });
+      loadAssets();
     }
   }, [isOpen]);
+
+  const handleDelete = async (e: React.MouseEvent, key: string) => {
+    e.stopPropagation();
+    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรูปภาพนี้? การกระทำนี้ไม่สามารถย้อนกลับได้")) return;
+    
+    setIsDeleting(key);
+    try {
+      const response = await fetch(`/api/r2/delete/${encodeURIComponent(key)}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setAssets(prev => prev.filter(a => a.key !== key));
+      } else {
+        const errorData: any = await response.json();
+        alert("ลบไม่สำเร็จ: " + (errorData.error || "Unknown error"));
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการลบ");
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-gold/20 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl max-h-[80vh] flex flex-col">
-        <div className="p-6 border-b border-gold/10 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">เลือกรูปภาพจาก R2</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={24} /></button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-zinc-900 border border-gold/20 w-full max-w-5xl rounded-[2rem] overflow-hidden shadow-2xl max-h-[85vh] flex flex-col"
+      >
+        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-zinc-900/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center border border-gold/20">
+              <ImageIcon className="text-gold" size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">คลังรูปภาพ R2</h2>
+              <p className="text-xs text-gray-500">จัดการและเลือกรูปภาพจาก Cloudflare R2</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-all">
+            <X size={24} />
+          </button>
         </div>
-        <div className="p-6 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4">
-          {loading ? <p className="text-white">กำลังโหลด...</p> : assets.map((asset, i) => (
-             <img key={i} src={asset.url} alt={`Asset ${i}`} onClick={() => onSelect(asset.url)} className="cursor-pointer border border-white/10 hover:border-gold rounded-lg" />
-          ))}
+
+        <div className="p-6 overflow-y-auto flex-grow bg-black/20">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <RefreshCw className="text-gold animate-spin mb-4" size={32} />
+              <p className="text-gray-400">กำลังโหลดรูปภาพจาก R2...</p>
+            </div>
+          ) : assets.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {assets.map((asset, i) => (
+                <div 
+                  key={i} 
+                  className="group relative aspect-square bg-zinc-800 rounded-2xl overflow-hidden border border-white/5 hover:border-gold transition-all cursor-pointer shadow-lg"
+                  onClick={() => onSelect(asset.url)}
+                >
+                  <img 
+                    src={asset.url} 
+                    alt={asset.key} 
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                    <p className="text-[10px] text-white font-medium truncate mb-2">{asset.key.split('/').pop()}</p>
+                    <div className="flex gap-2">
+                       <button 
+                        onClick={(e) => handleDelete(e, asset.key)}
+                        disabled={isDeleting === asset.key}
+                        className="bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-lg transition-all backdrop-blur-sm disabled:opacity-50"
+                        title="ลบรูปภาพ"
+                      >
+                        {isDeleting === asset.key ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      </button>
+                      <button 
+                        className="flex-grow bg-gold text-black text-[10px] font-bold py-2 rounded-lg transition-all hover:bg-white"
+                      >
+                        เลือกรูปนี้
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                <ImageIcon size={32} className="text-gray-600" />
+              </div>
+              <h3 className="text-white font-bold mb-2">ยังไม่มีรูปภาพในคลัง</h3>
+              <p className="text-gray-500 text-sm max-w-xs">คุณสามารถอัปโหลดรูปภาพใหม่ผ่านคอมพิวเตอร์ของคุณในส่วนแก้ไขความครอบคลุม</p>
+            </div>
+          )}
         </div>
-      </div>
+        
+        <div className="p-4 border-t border-white/5 bg-zinc-900/50 flex justify-between items-center px-8">
+          <p className="text-xs text-gray-500">ทั้งหมด {assets.length} ไฟล์</p>
+          <button 
+            onClick={loadAssets} 
+            className="text-gold text-xs font-bold hover:underline flex items-center gap-1"
+          >
+            <RefreshCw size={14} /> รีเฟรชรายการ
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 };
@@ -815,7 +912,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     formData.append("image", file);
 
     try {
-      const response = await fetch("/api/upload", {
+      const response = await fetch("/api/r2/upload", {
         method: "POST",
         body: formData,
       });
@@ -849,7 +946,21 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [authors, setAuthors] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/authors').then(res => res.json()).then(data => setAuthors(data as any[])).catch(console.error);
+    fetch('/api/authors')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAuthors(data as any[]);
+        } else if (data && typeof data === 'object' && Array.isArray((data as any).authors)) {
+          setAuthors((data as any).authors);
+        } else {
+          setAuthors([]);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching authors:", err);
+        setAuthors([]);
+      });
   }, []);
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
@@ -866,14 +977,26 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       
       if (articlesRes.ok) {
         const docs = await articlesRes.json();
-        setArticles(docs as Article[]);
+        if (Array.isArray(docs)) {
+          setArticles(docs as Article[]);
+        } else if (docs && typeof docs === 'object' && Array.isArray((docs as any).articles)) {
+          setArticles((docs as any).articles);
+        } else {
+          setArticles([]);
+        }
       } else {
         setError("ไม่สามารถดึงข้อมูลบทความได้");
       }
 
       if (categoriesRes.ok) {
-        const catsData: Category[] = await categoriesRes.json();
-        setCategories(catsData);
+        const catsData = await categoriesRes.json();
+        if (Array.isArray(catsData)) {
+          setCategories(catsData as Category[]);
+        } else if (catsData && typeof catsData === 'object' && Array.isArray((catsData as any).categories)) {
+          setCategories((catsData as any).categories);
+        } else {
+          setCategories([]);
+        }
       }
     } catch (err: any) {
       console.error("Fetch Error:", err);
@@ -901,7 +1024,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
     loadData();
   }, []);
 
-  const filteredArticles = articles.filter(a => {
+  const filteredArticles = (articles || []).filter(a => {
     // Filter by type (default to 'post' if missing)
     const itemType = a.type || 'post';
     if (itemType !== filterType) return false;
@@ -1739,7 +1862,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             </div>
 
             <div className="space-y-3">
-              {categories.map(cat => (
+              {(categories || []).map(cat => (
                 <div key={cat.id} className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-xl">
                   {editingCategory?.old === cat.name ? (
                     <div className="flex-grow flex gap-2 mr-4">
@@ -1780,7 +1903,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 border-4 border-red-500">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <SEO title="Admin Dashboard" description="จัดการบทความและเนื้อหาทั้งหมดของเว็บไซต์" />
           {/* Dashboard Header UI and Health Check */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
@@ -2204,7 +2327,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none cursor-pointer"
                   >
                     <option value="">เลือกผู้เขียน... (ค่าเริ่มต้น: Admin)</option>
-                    {authors.map(author => (
+                    {(authors || []).map(author => (
                       <option key={author.id} value={author.id}>{author.name}</option>
                     ))}
                   </select>

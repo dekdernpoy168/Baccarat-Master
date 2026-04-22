@@ -248,6 +248,49 @@ export default {
       }
 
       // =============================================
+      // R2 IMAGE MANAGEMENT API
+      // =============================================
+      const R2_PUBLIC_DOMAIN = "https://pic.huisache.com";
+
+      // GET /api/r2/images
+      if (normalizedPath === '/r2/images' && method === 'GET') {
+          const objects = await env.BUCKET.list();
+          const images = (objects.objects || [])
+            .filter(o => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(o.key))
+            .map(o => ({
+              key: o.key,
+              url: `${R2_PUBLIC_DOMAIN}/${o.key}`,
+              size: o.size,
+              lastModified: o.uploaded
+            }));
+          return json(images);
+      }
+
+      // POST /api/r2/upload
+      if (normalizedPath === '/r2/upload' && method === 'POST') {
+          const formData = await request.formData();
+          const file = formData.get('image');
+          if (!file || !(file instanceof File)) return error('No image provided');
+          
+          const safeName = file.name.replace(/[^a-z0-9.]/gi, '-').toLowerCase();
+          const key = `uploads/${Date.now()}-${safeName}`;
+          
+          await env.BUCKET.put(key, await file.arrayBuffer(), {
+              httpMetadata: { contentType: file.type }
+          });
+          
+          return json({ url: `${R2_PUBLIC_DOMAIN}/${key}`, key, success: true });
+      }
+
+      // DELETE /api/r2/delete/:key
+      const r2DeleteMatch = normalizedPath.match(/^\/r2\/delete\/(.+)$/);
+      if (r2DeleteMatch && method === 'DELETE') {
+          const key = decodeURIComponent(r2DeleteMatch[1]);
+          await env.BUCKET.delete(key);
+          return json({ success: true, message: 'Deleted from R2' });
+      }
+
+      // =============================================
       // HEALTH CHECK / API FALLBACK
       // =============================================
       if ((normalizedPath === '/health' || (normalizedPath === '/' && isApiRequest)) && method === 'GET') {
