@@ -230,7 +230,7 @@ const BrainstormModal = ({ isOpen, onClose, topics, onSelect }: { isOpen: boolea
           </div>
           <div>
             <h2 className="text-2xl font-black text-white uppercase tracking-tighter">AI Topic <span className="text-gold">Brainstormer</span></h2>
-            <p className="text-gray-400 text-sm">หัวข้อบทความที่ AI แนะนำเพื่อเพิ่มยอดผู้เข้าชม</p>
+            <p className="text-gray-400 text-sm">Suggested article topics from AI to boost traffic.</p>
           </div>
         </div>
 
@@ -255,7 +255,7 @@ const BrainstormModal = ({ isOpen, onClose, topics, onSelect }: { isOpen: boolea
             onClick={onClose}
             className="px-8 py-3 rounded-full font-bold text-gray-400 hover:text-white transition-colors"
           >
-            ปิดหน้าต่าง
+            Close
           </button>
         </div>
       </motion.div>
@@ -342,7 +342,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOp
       }
     } catch (err) {
       console.error('Keywords Everywhere Error:', err);
-      alert('ไม่สามารถดึงข้อมูล Keywords ได้ในขณะนี้');
+      alert('Cannot fetch keywords at this time.');
     } finally {
       setIsFetchingKeywords(false);
     }
@@ -350,7 +350,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOp
 
   const generateSecondaryKeywords = async () => {
     if (!primaryKeyword.trim()) {
-      alert('กรุณาใส่คีย์เวิร์ดหลักก่อน');
+      alert('Please enter primary keyword first.');
       return;
     }
     setIsGeneratingSecondaryKeywords(true);
@@ -369,7 +369,7 @@ const PromptBuilderModal = ({ isOpen, onClose, onExecute, initialTopic }: { isOp
       }
     } catch (err) {
       console.error('AI Keyword Generation Error:', err);
-      alert('ไม่สามารถสร้างคีย์เวิร์ดได้ในขณะนี้');
+      alert('Cannot generate keywords at this time.');
     } finally {
       setIsGeneratingSecondaryKeywords(false);
     }
@@ -1149,7 +1149,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         const docsList = Array.isArray(docs) ? docs : (docs?.articles || []);
         setArticles(docsList);
       } else {
-        setError("ไม่สามารถดึงข้อมูลบทความได้");
+        setError("Unable to fetch articles.");
       }
 
       if (categoriesRes.ok) {
@@ -1185,8 +1185,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
           authorList = [
             {
               id: "default-author",
-              name: "ธนกฤต วัฒนชัย",
-              position: "บรรณาธิการ"
+              name: "Prach Pichaya",
+              position: "Editor"
             }
           ];
         }
@@ -1197,8 +1197,8 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         setAuthors([
           {
             id: "default-author",
-            name: "ธนกฤต วัฒนชัย",
-            position: "บรรณาธิการ"
+            name: "Prach Pichaya",
+            position: "Editor"
           }
         ]);
       });
@@ -1218,11 +1218,11 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
 
   const generateSlugFromTitle = async () => {
     if (!currentArticle.title?.trim()) {
-      alert('กรุณาใส่หัวข้อบทความก่อน');
+      alert('Please enter article title first.');
       return;
     }
 
-    // สร้าง Slug แบบท้องถิ่น (Deterministic) ตามกฎ: ตัวพิมพ์เล็ก, ลบอักขระพิเศษ, เปลี่ยนช่องว่างเป็นขีดกลาง
+    // Local Slug (Deterministic): lowercase, remove special characters, replace spaces with hyphens
     const localSlug = currentArticle.title
       .trim()
       .toLowerCase()
@@ -1244,10 +1244,10 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
         s.trim().toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       );
       
-       // รวม Logic สร้าง Slug (2 ไทย, 2 อังกฤษ)
+       // Mix of Thai/English slug options
       const baseSlug = localSlug; 
       
-      // ดึงตัวเลือกจาก AI ถ้ามี (เพื่อเอามาเป็นทางเลือกภาษาอังกฤษ)
+      // AI options as English alternatives
       const aiEnglishOptions = aiOptions ? aiOptions.filter(s => /^[a-zA-Z0-9-]+$/.test(s)) : [];
       
       const engSlug1 = aiEnglishOptions[0] || baseSlug.replace(/[^a-z0-9-]/g, '') || 'article-1';
@@ -1259,12 +1259,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       setShowSlugSelection(true);
     } catch (err) {
       console.error(err);
-      // หาก AI พลาด ให้ใช้เฉพาะ Slug ท้องถิ่น
+      // Fallback to local slug if AI fails
       if (localSlug) {
         setSlugOptions([localSlug]);
         setShowSlugSelection(true);
       } else {
-        alert('เกิดข้อผิดพลาดในการสร้าง Slug');
+        alert('Error generating slug.');
       }
     } finally {
       setIsGeneratingSlug(false);
@@ -1273,7 +1273,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
 
   const generateArticleImage = async () => {
     if (!currentArticle.title?.trim()) {
-      alert('กรุณาใส่หัวข้อบทความก่อน');
+      alert('Please enter article title first.');
       return;
     }
     setIsGeneratingArticleImage(true);
@@ -1289,7 +1289,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       }
     } catch (err) {
       console.error(err);
-      alert('เกิดข้อผิดพลาดในการสร้างรูปภาพ');
+      alert('Error generating image.');
     } finally {
       setIsGeneratingArticleImage(false);
     }
@@ -1556,7 +1556,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   };
 
   const handleResetCategories = async () => {
-    if (!window.confirm('คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตหมวดหมู่ทั้งหมด? ข้อมูลเดิมจะถูกลบและแทนที่ด้วยหมวดหมู่เริ่มต้น')) return;
+    if (!window.confirm('Are you sure you want to reset all categories? Original data will be deleted and replaced with defaults.')) return;
     setLoading(true);
     try {
       const res = await fetch('/api/categories/reset', {
@@ -1564,10 +1564,10 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       });
       if (!res.ok) throw new Error('Failed to reset categories');
       loadData();
-      alert('รีเซ็ตหมวดหมู่เรียบร้อยแล้ว');
+      alert('Categories reset successfully.');
     } catch (err) {
       console.error('Reset error:', err);
-      alert('เกิดข้อผิดพลาดในการรีเซ็ตหมวดหมู่');
+      alert('Error resetting categories.');
     } finally {
       setLoading(false);
     }
@@ -1581,10 +1581,10 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
       });
       if (!res.ok) throw new Error('Failed to clean duplicate categories');
       loadData();
-      alert('ล้างหมวดหมู่ที่ซ้ำกันเรียบร้อยแล้ว');
+      alert('Duplicate categories cleaned successfully.');
     } catch (err) {
       console.error('Clean duplicates error:', err);
-      alert('เกิดข้อผิดพลาดในการล้างหมวดหมู่ที่ซ้ำกัน');
+      alert('Error cleaning duplicate categories.');
     } finally {
       setLoading(false);
     }
@@ -1608,7 +1608,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             const content = result.value;
             
             if (content.length > 1000000) {
-              setError(`เนื้อหาจากไฟล์ Word มีขนาดใหญ่เกินไป (${(content.length / 1024 / 1024).toFixed(2)} MB) กรุณาลดขนาดรูปภาพในไฟล์ Word ก่อนอัปโหลด`);
+              setError(`Content from Word file is too large (${(content.length / 1024 / 1024).toFixed(2)} MB). Please reduce image sizes in Word before uploading.`);
               setLoading(false);
               return;
             }
@@ -1621,7 +1621,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             setLoading(false);
           } catch (err) {
             console.error('Mammoth error:', err);
-            setError('ไม่สามารถอ่านไฟล์ Word ได้');
+            setError('Cannot read Word file.');
             setLoading(false);
           }
         };
@@ -1643,7 +1643,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             
             const content = fullText.replace(/\n/g, '<br>');
             if (content.length > 1000000) {
-              setError(`เนื้อหาจากไฟล์ PDF มีขนาดใหญ่เกินไป (${(content.length / 1024 / 1024).toFixed(2)} MB) กรุณาลดจำนวนหน้าหรือเนื้อหา`);
+              setError(`Content from PDF file is too large (${(content.length / 1024 / 1024).toFixed(2)} MB). Please reduce the number of pages or content.`);
               setLoading(false);
               return;
             }
@@ -2353,7 +2353,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   value={currentArticle.tags || ''} 
                   onChange={e => setCurrentArticle({...currentArticle, tags: e.target.value})}
                   className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                  placeholder="บาคาร่า, เทคนิค, สูตร"
+                  placeholder="baccarat, techniques, strategies"
                 />
               </div>
               <div className="space-y-2">
@@ -2375,7 +2375,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   value={currentArticle.slug || ''} 
                   onChange={e => setCurrentArticle({...currentArticle, slug: e.target.value})}
                   className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
-                  placeholder="เช่น how-to-play-baccarat"
+                  placeholder="e.g. how-to-play-baccarat"
                 />
               </div>
             </div>
@@ -2442,7 +2442,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <SelectionModal 
               isOpen={showSlugSelection}
               onClose={() => setShowSlugSelection(false)}
-              title="เลือก Slug (URL)"
+              title="Select Slug (URL)"
               options={slugOptions}
               onSelect={(value) => {
                 setCurrentArticle(prev => {
@@ -2460,7 +2460,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <SelectionModal 
               isOpen={showExcerptSelection}
               onClose={() => setShowExcerptSelection(false)}
-              title="เลือกคำโปรย (Excerpt)"
+              title="Select Excerpt"
               options={excerptOptions}
               onSelect={(value) => {
                 setCurrentArticle(prev => ({ ...prev, excerpt: value }));
@@ -2485,19 +2485,19 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 value={currentArticle.excerpt || ''} 
                 onChange={e => setCurrentArticle({...currentArticle, excerpt: e.target.value})}
                 className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none h-24"
-                placeholder="สรุปสั้นๆ เกี่ยวกับบทความ..."
+                placeholder="Brief summary of the article..."
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6")}>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-gold text-sm font-bold flex items-center"><Target size={16} className="mr-2" /> หมวดหมู่</label>
+                <label className="text-gold text-sm font-bold flex items-center"><Target size={16} className="mr-2" /> Category</label>
                 <div className="flex flex-col space-y-2">
                   <select 
                     value={categories.some(c => c.name === currentArticle.category) ? currentArticle.category : 'custom'} 
                     onChange={e => {
                       if (e.target.value === 'custom') {
-                        const newCat = window.prompt("กรุณาใส่ชื่อหมวดหมู่ใหม่:");
+                        const newCat = window.prompt("Please enter new category name:");
                         if (newCat && newCat.trim()) {
                           setCurrentArticle({...currentArticle, category: newCat.trim()});
                           if (!categories.some(c => c.name === newCat.trim())) {
@@ -2515,14 +2515,14 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     }}
                     className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
                   >
-                    <option value="">เลือกหมวดหมู่</option>
+                    <option value="">Select Category</option>
                     {categories.map(cat => (
                       <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
                     {currentArticle.category && !categories.some(c => c.name === currentArticle.category) && (
                       <option value={currentArticle.category}>{currentArticle.category}</option>
                     )}
-                    <option value="custom">+ เพิ่มหมวดหมู่ใหม่ / ระบุเอง</option>
+                    <option value="custom">+ Add New Category / Custom</option>
                   </select>
                 </div>
               </div>
@@ -2534,7 +2534,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     onChange={e => setCurrentArticle({...currentArticle, author_id: e.target.value ? parseInt(e.target.value, 10) : undefined})}
                     className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none cursor-pointer"
                   >
-                    <option value="">เลือกผู้เขียน... (ค่าเริ่มต้น: Admin)</option>
+                    <option value="">Select Author... (Default: Admin)</option>
                     {(authors || []).map(author => (
                       <option key={author.id} value={author.id}>{author.name}</option>
                     ))}
@@ -2554,7 +2554,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                       ) : (
                         <Upload size={12} className="mr-1" />
                       )}
-                      อัปโหลดรูป
+                      Upload Image
                       <input 
                         type="file" 
                         accept="image/*" 
@@ -2574,7 +2574,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                       ) : (
                         <Sparkles size={12} className="mr-1" />
                       )}
-                      AI สร้างรูป
+                      AI Create Image
                     </button>
                   </div>
                 </div>
@@ -2587,14 +2587,14 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> วันที่เผยแพร่ (Scheduling)</label>
+                <label className="text-gold text-sm font-bold flex items-center"><Calendar size={16} className="mr-2" /> Publishing Date (Scheduling)</label>
                 <input 
                   type="datetime-local" 
                   value={currentArticle.publishedAt ? format(new Date(currentArticle.publishedAt.seconds ? currentArticle.publishedAt.seconds * 1000 : currentArticle.publishedAt), "yyyy-MM-dd'T'HH:mm") : ''} 
                   onChange={e => setCurrentArticle({...currentArticle, publishedAt: e.target.value})}
                   className="w-full bg-black border border-gold/20 rounded-xl px-4 py-3 text-white focus:border-gold outline-none"
                 />
-                <p className="text-[10px] text-gray-500">ปล่อยว่างไว้เพื่อเผยแพร่ทันที หรือเลือกเวลาในอนาคตเพื่อตั้งเวลาล่วงหน้า</p>
+                <p className="text-[10px] text-gray-500">Leave blank to publish immediately, or choose a future time to schedule.</p>
               </div>
             </div>
 
@@ -2615,7 +2615,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                       type="text" 
                       value={aiPrompt}
                       onChange={e => setAiPrompt(e.target.value)}
-                      placeholder="บอก AI ว่าอยากให้เขียนอะไร..."
+                      placeholder="Ask AI what you want to write..."
                       className="bg-black border border-gold/20 rounded-full px-4 py-1.5 text-xs text-white focus:border-gold outline-none w-48 md:w-64 transition-all"
                     />
                   </div>
@@ -2630,13 +2630,13 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     ) : (
                       <Wand2 size={14} className="mr-2" />
                     )}
-                    AI ช่วยเขียน
+                    AI Writer
                   </button>
                 </div>
               </div>
               <div className="text-sm text-gray-400 mb-2 flex justify-between">
-                <span>เวลาอ่านโดยประมาณ: {calculateReadTime(currentArticle.content || '')}</span>
-                <button type="button" onClick={() => setShowAssetPicker(true)} className="text-gold text-xs font-bold hover:underline">เพิ่มรูปจาก R2</button>
+                <span>Reading time approx: {calculateReadTime(currentArticle.content || '')}</span>
+                <button type="button" onClick={() => setShowAssetPicker(true)} className="text-gold text-xs font-bold hover:underline">Add image from R2</button>
               </div>
               <ReactQuill 
                 ref={quillRef}
@@ -2684,7 +2684,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   onClick={generateFaqFromContent}
                   className="text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 disabled:opacity-50"
                 >
-                    {isGeneratingFaq ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />} Auto วิเคราะห์จากเนื้อหา
+                    {isGeneratingFaq ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />} Auto-analyze from content
                   </button>
                   <button 
                   type="button"
@@ -2695,7 +2695,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   }}
                   className="text-xs bg-gold/10 hover:bg-gold/20 text-gold border border-gold/30 px-3 py-1.5 rounded-full transition-all flex items-center gap-1"
                 >
-                  <Plus size={14} /> เพิ่มคำถาม
+                  <Plus size={14} /> Add Question
                 </button>
                 </div>
               </div>
@@ -2714,7 +2714,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                       <X size={16} />
                     </button>
                     <div className="space-y-1">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold">คำถาม (Question)</label>
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">Question</label>
                       <input 
                         type="text"
                         value={faq.question}
@@ -2724,11 +2724,11 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                           setCurrentArticle({...currentArticle, faqs: JSON.stringify(faqs)});
                         }}
                         className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-1 text-white text-sm"
-                        placeholder="เช่น บาคาร่าเล่นยังไง?"
+                        placeholder="e.g. How to play Baccarat?"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold">คำตอบ (Answer)</label>
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">Answer</label>
                       <textarea 
                         value={faq.answer}
                         onChange={e => {
@@ -2737,13 +2737,13 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                           setCurrentArticle({...currentArticle, faqs: JSON.stringify(faqs)});
                         }}
                         className="w-full bg-transparent border-b border-white/10 focus:border-gold outline-none py-1 text-white text-sm min-h-[60px] resize-none"
-                        placeholder="ใส่คำตอบที่นี่..."
+                        placeholder="Enter answer here..."
                       />
                     </div>
                   </div>
                 ))}
                 {JSON.parse(currentArticle.faqs || '[]').length === 0 && (
-                  <p className="text-center text-gray-500 text-xs py-4 italic">ยังไม่มีคำถามที่พบบ่อย</p>
+                  <p className="text-center text-gray-500 text-xs py-4 italic">No FAQs available.</p>
                 )}
               </div>
               <div className="pt-4 border-t border-white/5">
@@ -2754,14 +2754,14 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     const cleanedContent = currentArticle.content.replace(/<script type="application\/ld\+json">[\s\S]*?FAQPage[\s\S]*?<\/script>/gi, '');
                     if (cleanedContent !== currentArticle.content) {
                       setCurrentArticle({...currentArticle, content: cleanedContent});
-                      alert('ลบ FAQ Schema เก่าออกจากเนื้อหาเรียบร้อยแล้ว');
+                      alert('Old FAQ Schema removed from content.');
                     } else {
-                      alert('ไม่พบ FAQ Schema ในเนื้อหา');
+                      alert('No FAQ Schema found in content.');
                     }
                   }}
                   className="text-[10px] text-gray-500 hover:text-gold transition-colors flex items-center gap-1"
                 >
-                  <RefreshCw size={10} /> ล้าง FAQ Schema เก่าออกจากเนื้อหา (เพื่อแก้ปัญหาข้อมูลซ้ำ)
+                  <RefreshCw size={10} /> Clean old FAQ Schema from content (to fix duplicate data)
                 </button>
               </div>
             </div>
@@ -2795,14 +2795,14 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   onClick={() => setShowPreview(true)}
                   className="flex-1 md:flex-none px-4 py-3 rounded-full text-gold border border-gold/30 font-bold hover:bg-gold/10 transition-colors flex items-center justify-center"
                 >
-                  <Eye size={20} className="mr-2" /> <span className="hidden sm:inline">ดูตัวอย่าง</span><span className="sm:hidden">พรีวิว</span>
+                  <Eye size={20} className="mr-2" /> <span className="hidden sm:inline">Preview</span><span className="sm:hidden">Preview</span>
                 </button>
                 <button 
                   type="button"
                   onClick={() => setIsEditing(false)}
                   className="flex-1 md:flex-none px-4 py-3 rounded-full text-gray-400 border border-white/10 font-bold hover:text-white hover:bg-white/5 transition-colors flex items-center justify-center"
                 >
-                  <span className="hidden sm:inline">ยกเลิก</span><span className="sm:hidden">ปิด</span>
+                  <span className="hidden sm:inline">Cancel</span><span className="sm:hidden">Close</span>
                 </button>
               </div>
               <div className="flex w-full md:w-auto gap-4">
@@ -2812,7 +2812,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   onClick={(e) => handleSave(e, 'draft')}
                   className="flex-1 md:flex-none bg-gray-800 text-white px-4 py-3 rounded-full font-bold hover:bg-gray-700 transition-all flex items-center justify-center disabled:opacity-50"
                 >
-                  {loading ? '...' : <><FileText size={20} className="sm:mr-2" /> <span className="hidden sm:inline">บันทึกฉบับร่าง</span><span className="sm:hidden">ร่าง</span></>}
+                  {loading ? '...' : <><FileText size={20} className="sm:mr-2" /> <span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Draft</span></>}
                 </button>
                 <button 
                   disabled={loading}
@@ -2820,7 +2820,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   onClick={(e) => handleSave(e, 'published')}
                   className="flex-1 md:flex-none gold-bg-gradient text-baccarat-black px-6 py-3 rounded-full font-black md:text-lg flex items-center justify-center disabled:opacity-50 shadow-lg shadow-gold/20"
                 >
-                  {loading ? '...' : <><Save size={20} className="sm:mr-2" /> <span className="hidden sm:inline">เผยแพร่บทความ</span><span className="sm:hidden">เผยแพร่</span></>}
+                  {loading ? '...' : <><Save size={20} className="sm:mr-2" /> <span className="hidden sm:inline">Publish Article</span><span className="sm:hidden">Publish</span></>}
                 </button>
               </div>
             </div>
@@ -2850,13 +2850,13 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   <div className="p-8 md:p-16">
                     <div className="mb-8">
                       <span className="bg-baccarat-red text-white text-xs font-bold px-4 py-1.5 rounded-full border border-gold/50">
-                        {currentArticle.category || 'หมวดหมู่'}
+                        {currentArticle.category || 'Category'}
                       </span>
                       <h1 className="text-4xl md:text-5xl font-black text-white mt-6 mb-6 leading-tight">
-                        {currentArticle.title || 'หัวข้อบทความ'}
+                        {currentArticle.title || 'Article Title'}
                       </h1>
                       <div className="flex items-center text-gray-500 text-sm space-x-6">
-                        <span className="flex items-center"><Award size={16} className="mr-2" /> โดย {currentArticle.author || 'Baccarat Master'}</span>
+                        <span className="flex items-center"><Award size={16} className="mr-2" /> By {currentArticle.author || 'Baccarat Master'}</span>
                         <span className="flex items-center"><Target size={16} className="mr-2" /> {currentArticle.date || format(new Date(), 'yyyy-MM-dd')}</span>
                       </div>
                     </div>
@@ -2869,10 +2869,10 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     </div>
 
                     <div className="mt-20 p-8 bg-gray-900 border border-gold/30 rounded-3xl text-center">
-                      <h3 className="text-2xl font-bold text-white mb-4">สนใจนำเทคนิคนี้ไปใช้จริง?</h3>
-                      <p className="text-gray-400 mb-8">เราขอแนะนำเว็บไซต์ที่ได้มาตรฐานสากล มั่นคง และปลอดภัยที่สุดในขณะนี้</p>
+                      <h3 className="text-2xl font-bold text-white mb-4">Interested in applying these techniques?</h3>
+                      <p className="text-gray-400 mb-8">We recommend websites that are world-standard, stable, and most secure at the moment.</p>
                       <a href="https://inlnk.co/registerbocker168" target="_blank" rel="noopener noreferrer" className="bg-white text-baccarat-red px-12 py-5 rounded-full font-black text-xl shadow-2xl">
-                        สมัครสมาชิกตอนนี้
+                        Register Now
                       </a>
                     </div>
                   </div>
@@ -2888,9 +2888,9 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
               <div>
                 <h3 className="text-xl font-bold text-white mb-2 flex items-center">
-                  <ImageIcon size={24} className="mr-2 text-gold" /> จัดการโลโก้และรูปภาพ
+                  <ImageIcon size={24} className="mr-2 text-gold" /> Logo & Image Management
                 </h3>
-                <p className="text-gray-400 text-sm">สร้างโลโก้ระดับมืออาชีพด้วย AI สำหรับเว็บไซต์ Baccarat Master Guide</p>
+                <p className="text-gray-400 text-sm">Create professional AI-generated logos for the Baccarat Master Guide website.</p>
               </div>
               <div className="flex items-center gap-4">
                 {generatedLogo && (
@@ -2919,12 +2919,12 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                   {isGeneratingLogo ? (
                     <>
                       <div className="w-4 h-4 border-2 border-baccarat-black border-t-transparent rounded-full animate-spin mr-2"></div>
-                      กำลังสร้างโลโก้...
+                      Generating logo...
                     </>
                   ) : (
                     <>
                       <Wand2 size={20} className="mr-2" />
-                      {generatedLogo ? 'สร้างโลโก้ใหม่' : 'สร้างโลโก้ด้วย AI'}
+                      {generatedLogo ? 'Generate New Logo' : 'Create Logo with AI'}
                     </>
                   )}
                 </button>
@@ -2937,25 +2937,25 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
               onClick={() => setFilterStatus('all')}
               className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'all' ? "bg-gold text-baccarat-black border-gold" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
-              ทั้งหมด ({articles.length})
+              All ({articles.length})
             </button>
             <button 
               onClick={() => setFilterStatus('published')}
               className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'published' ? "bg-green-500 text-white border-green-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
-              เผยแพร่แล้ว ({articles.filter(a => a.status !== 'draft' && (!a.publishedAt || new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) <= new Date())).length})
+              Published ({articles.filter(a => a.status !== 'draft' && (!a.publishedAt || new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) <= new Date())).length})
             </button>
             <button 
               onClick={() => setFilterStatus('draft')}
               className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'draft' ? "bg-yellow-500 text-black border-yellow-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
-              ฉบับร่าง ({articles.filter(a => a.status === 'draft').length})
+              Drafts ({articles.filter(a => a.status === 'draft').length})
             </button>
             <button 
               onClick={() => setFilterStatus('scheduled')}
               className={cn("whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shrink-0", filterStatus === 'scheduled' ? "bg-blue-500 text-white border-blue-500" : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10")}
             >
-              ตั้งเวลา ({articles.filter(a => a.status !== 'draft' && a.publishedAt && new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) > new Date()).length})
+              Scheduled ({articles.filter(a => a.status !== 'draft' && a.publishedAt && new Date(a.publishedAt.seconds ? a.publishedAt.seconds * 1000 : a.publishedAt) > new Date()).length})
             </button>
           </div>
 
@@ -2963,11 +2963,11 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             <table className="w-full text-left min-w-[800px]">
             <thead>
               <tr className="bg-black/50 border-b border-gold/20">
-                <th className="px-6 py-4 text-gold font-bold uppercase text-xs">บทความ</th>
-                <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">หมวดหมู่</th>
-                <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">สถานะ / วันที่เผยแพร่</th>
+                <th className="px-6 py-4 text-gold font-bold uppercase text-xs">Article</th>
+                <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">Category</th>
+                <th className="hidden md:table-cell px-6 py-4 text-gold font-bold uppercase text-xs">Status / Publish Date</th>
                 <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">URL</th>
-                <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">จัดการ</th>
+                <th className="px-6 py-4 text-gold font-bold uppercase text-xs text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -3003,16 +3003,16 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                     <div className="text-xs text-gray-400">
                       {article.status === 'draft' ? (
                         <span className="text-yellow-500 flex items-center">
-                          <FileText size={12} className="mr-1" /> ฉบับร่าง
+                          <FileText size={12} className="mr-1" /> Draft
                         </span>
                       ) : article.publishedAt ? (
                         new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt) > new Date() ? (
                           <span className="text-blue-400 flex items-center">
-                            <Calendar size={12} className="mr-1" /> ตั้งเวลา: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                            <Calendar size={12} className="mr-1" /> Scheduled: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
                           </span>
                         ) : (
                           <span className="text-green-400 flex items-center">
-                            <Check size={12} className="mr-1" /> เผยแพร่แล้ว: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
+                            <Check size={12} className="mr-1" /> Published: {format(new Date(article.publishedAt.seconds ? article.publishedAt.seconds * 1000 : article.publishedAt), 'dd/MM/yyyy HH:mm')}
                           </span>
                         )
                       ) : (
@@ -3028,11 +3028,11 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                           ? `${window.location.origin}/${article.slug}`
                           : `${window.location.origin}/articles/${article.slug}`;
                         navigator.clipboard.writeText(url);
-                        alert('คัดลอก URL เรียบร้อยแล้ว');
+                        alert('URL copied to clipboard.');
                       }}
                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all text-xs"
                     >
-                      <Copy size={14} /> คัดลอก URL
+                      <Copy size={14} /> Copy URL
                     </button>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -3040,14 +3040,14 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
                       <button 
                         onClick={() => { setIsEditing(true); setCurrentArticle(article); }}
                         className="p-2 text-gold hover:bg-gold/10 rounded-lg transition-all hover:scale-110 active:scale-95"
-                        title="แก้ไข"
+                        title="Edit"
                       >
                         <Edit size={18} />
                       </button>
                       <button 
                         onClick={() => handleDelete(article.id)}
                         className="p-2 text-baccarat-red hover:bg-baccarat-red/10 rounded-lg transition-all hover:scale-110 active:scale-95"
-                        title="ลบ"
+                        title="Delete"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -3058,7 +3058,7 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
             </tbody>
           </table>
           {articles.length === 0 && (
-            <div className="py-20 text-center text-gray-500">ยังไม่มีบทความในระบบ</div>
+            <div className="py-20 text-center text-gray-500">No articles in the system.</div>
           )}
         </div>
       </div>

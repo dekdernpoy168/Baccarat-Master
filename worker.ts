@@ -193,34 +193,48 @@ export default {
       // TEST D1 ENDPOINTS (User Requested)
       // =============================================
       
-      // /api/setup: Create users table if not exists
+      // /api/setup: Initialize all tables correctly
       if (normalizedPath === '/setup' && method === 'GET') {
-        const db = drizzle(env.DB);
-        await db.run(sql`
-          CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL
-          )
-        `);
-        return new Response('Table created or already exists!');
+        try {
+          // Initialize multiple tables
+          await env.DB.batch([
+            env.DB.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT UNIQUE, role TEXT NOT NULL DEFAULT 'user')`),
+            env.DB.prepare(`CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, slug TEXT NOT NULL UNIQUE, updated_at TEXT)`),
+            env.DB.prepare(`CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, content TEXT NOT NULL, status TEXT DEFAULT 'draft', updated_at TEXT)`),
+            env.DB.prepare(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT)`)
+          ]);
+          return new Response('Success: Database tables initialized or already exist!', { status: 200 });
+        } catch (e: any) {
+          return error(`Setup failed: ${e.message}`, 500);
+        }
       }
 
-      // /api/add: Add a test user
+      // /api/add: Add a test user with error handling
       if (normalizedPath === '/add' && method === 'GET') {
-        const db = drizzle(env.DB);
-        const newUser = await db.insert(schema.users)
-          .values({ name: 'Test User' })
-          .returning()
-          .get();
-
-        return json(newUser);
+        try {
+          const results = await db.insert(schema.users)
+            .values({ 
+              name: 'Test Administrator',
+              email: `admin-${Date.now()}@example.com`,
+              role: 'admin'
+            })
+            .returning();
+          
+          if (!results[0]) throw new Error("Insert returned no data");
+          return json(results[0]);
+        } catch (e: any) {
+          return error(`Failed to add user: ${e.message}`, 500);
+        }
       }
 
-      // /api/users: Get all users
+      // /api/users: Get all users with error handling
       if (normalizedPath === '/users' && method === 'GET') {
-        const db = drizzle(env.DB);
-        const allUsers = await db.select().from(schema.users).all();
-        return json(allUsers);
+        try {
+          const allUsers = await db.select().from(schema.users).all();
+          return json(allUsers);
+        } catch (e: any) {
+          return error(`Failed to fetch users: ${e.message}`, 500);
+        }
       }
 
       // /api/do-test: Test the new Durable Object
@@ -327,20 +341,13 @@ export default {
 
       // GET /authors — List all authors
       if (normalizedPath === '/authors' && method === 'GET') {
-        try {
-          const results = await db.select().from(schema.authors).all();
-          if (results.length > 0) return json(results);
-        } catch (e) {
-          console.warn('Authors DB query failed, using fallback.');
-        }
-
-        // Fallback data
+        // Fallback data (since authors table does not exist in schema)
         return json([
           {
             "id": "default-author",
-            "name": "ปราชญ์ พิชญะ",
-            "position": "บรรณาธิการ",
-            "description": "ดูแล ตรวจสอบ และพัฒนาเนื้อหาเว็บไซต์ให้ถูกต้อง ชัดเจน อ่านง่าย และมีคุณภาพ"
+            "name": "Prach Pichaya",
+            "position": "Editor",
+            "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
           }
         ]);
       }

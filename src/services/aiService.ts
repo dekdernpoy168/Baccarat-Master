@@ -68,22 +68,22 @@ export class AiService {
   }
 
   async generateMetaData(title: string): Promise<{ success: boolean; provider: string; data: MetaDataResponse }> {
-    const prompt = `คุณคือผู้เชี่ยวชาญ SEO ภาษาไทย จงสร้างข้อมูล Meta สำหรับบทความ: "${title}"
-โดยตอบกลับเป็น JSON หนึ่งบรรทัดเท่านั้น ห้ามมีคำอธิบายอื่น:
-{
-  "meta_title": "หัวข้อที่ดึงดูดใจ (ไม่เกิน 60 ตัวอักษร)",
-  "meta_description": "คำอธิบายเพื่อเรียกยอดคลิก (ไม่เกิน 160 ตัวอักษร)",
-  "tags": ["tag1", "tag2", "tag3"],
-  "excerpt_ai": "คำโปรยสั้นๆ สรุปเนื้อหา"
-}`;
+    const prompt = `You are a Thai SEO Specialist. Generate SEO meta data for the article: "${title}"
+    Return ONLY a single-line JSON object without any additional explanation:
+    {
+      "meta_title": "Attractive title (max 60 characters)",
+      "meta_description": "Click-worthy description (max 160 characters)",
+      "tags": ["tag1", "tag2", "tag3"],
+      "excerpt_ai": "Short engaging summary/excerpt"
+    }`;
 
     const { text, provider } = await this.callAIWithFallback(prompt, true);
     return { success: true, provider, data: this.parseJson<MetaDataResponse>(text) };
   }
 
   async generateTags(title: string): Promise<{ success: boolean; provider: string; tags: string[] }> {
-    const prompt = `จงสร้าง 5-8 แท็ก (Tags) ที่เกี่ยวข้องและเป็นที่นิยมสำหรับหัวข้อ: "${title}"
-ตอบกลับเฉพาะเป็น JSON array ของ string เท่านั้น: ["tag1", "tag2", ...]`;
+    const prompt = `Generate 5-8 relevant and trending SEO tags for the topic: "${title}"
+    Respond ONLY as a JSON array of strings: ["tag1", "tag2", ...]`;
     
     const { text, provider } = await this.callAIWithFallback(prompt, true);
     const result = this.parseJson<any>(text);
@@ -92,9 +92,9 @@ export class AiService {
   }
 
   async generateExcerpt(title: string): Promise<{ success: boolean; provider: string; options: string[] }> {
-    const prompt = `จงสร้าง "คำโปรย" (Excerpt) ที่น่าสนใจ 3 แบบสำหรับบทความหัวข้อ: "${title}"
-โดยแต่ละแบบยาวประมาณ 1-2 ประโยค
-ตอบกลับเป็น JSON array ของ string เท่านั้น: ["แบบที่ 1", "แบบที่ 2", "แบบที่ 3"]`;
+    const prompt = `Generate 3 engaging "Excerpts" (Meta Descriptions) for the article topic: "${title}"
+    Each version should be 1-2 sentences long.
+    Respond ONLY as a JSON array of strings: ["option 1", "option 2", "option 3"]`;
 
     const { text, provider } = await this.callAIWithFallback(prompt, true);
     const result = this.parseJson<any>(text);
@@ -103,9 +103,9 @@ export class AiService {
   }
 
   async generateSlug(title: string): Promise<{ success: boolean; provider: string; options: string[] }> {
-    const prompt = `จงสร้าง URL Slug ภาษาอังกฤษที่เหมาะสมสำหรับหัวข้อบทความ: "${title}" 
-ส่งกลับมา 4 ตัวเลือกที่แตกต่างกัน โดยเน้น SEO และความหมายกระชับ
-ตอบกลับเป็น JSON array ของ string เท่านั้น: ["slug-1", "slug-2", "slug-3", "slug-4"]`;
+    const prompt = `Generate suitable English URL Slugs for the article title: "${title}" 
+    Provide 4 different options focused on SEO and conciseness.
+    Respond ONLY as a JSON array of strings: ["slug-1", "slug-2", "slug-3", "slug-4"]`;
 
     const { text, provider } = await this.callAIWithFallback(prompt, true);
     const result = this.parseJson<any>(text);
@@ -131,7 +131,7 @@ export class AiService {
 
         if (provider === 'gemini' && this.gemini) {
           const response = await this.gemini.models.generateContent({
-            model: "gemini-3-flash-latest",
+            model: "gemini-1.5-flash-latest",
             contents: [{ parts: [{ text: prompt }] }],
           });
           const content = response.text || '';
@@ -145,7 +145,7 @@ export class AiService {
 
     throw {
       success: false,
-      message: "AI ใช้งานไม่ได้ชั่วคราว กรุณากรอกข้อมูลเอง",
+      message: "AI temporary unavailable. Please fill in manually.",
       errors
     };
   }

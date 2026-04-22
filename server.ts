@@ -723,14 +723,14 @@ async function startServer() {
   server.post("/api/categories/reset", async (req, res) => {
     try {
       const defaults = [
-        'วิธีเล่นเบื้องต้น',
-        'สูตรบาคาร่าฟรี',
-        'เทคนิคระดับเซียน',
-        'การเดินเงิน',
-        'เค้าไพ่ยอดนิยม',
-        'รีวิวเว็บคาสิโน',
-        'ข่าวสารวงการ',
-        'บทความล่าสุด'
+        'Method of Play',
+        'Free Baccarat Formula',
+        'Expert Techniques',
+        'Money Management',
+        'Popular Roadmaps',
+        'Casino Reviews',
+        'Industry News',
+        'Latest Articles'
       ];
 
       await exec(`DELETE FROM categories`);
@@ -822,9 +822,9 @@ async function startServer() {
         rows = [
           {
             "id": "default-author",
-            "name": "ปราชญ์ พิชญะ",
-            "position": "บรรณาธิการ",
-            "description": "ดูแล ตรวจสอบ และพัฒนาเนื้อหาเว็บไซต์ให้ถูกต้อง ชัดเจน อ่านง่าย และมีคุณภาพ"
+            "name": "Prach Pichaya",
+            "position": "Editor",
+            "description": "Oversees, reviews, and develops website content to be accurate, clear, readable, and high-quality."
           }
         ];
       }
