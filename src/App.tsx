@@ -646,18 +646,22 @@ const AboutPage = ({ authors }: { authors: any[] }) => {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: 0.1 }}
-                  className="bg-gray-900/50 border border-gold/10 p-8 rounded-3xl text-center hover:border-gold/30 transition-colors group"
+                  className="bg-baccarat-black border border-gold/20 p-8 lg:p-10 rounded-3xl text-center hover:border-gold/40 transition-all group flex flex-col items-center"
                 >
-                  <div className="w-24 h-24 bg-gold/10 rounded-full mx-auto mb-6 flex items-center justify-center border border-gold/20 group-hover:scale-110 transition-transform overflow-hidden">
+                  <div className="w-32 h-32 rounded-full mx-auto mb-6 flex items-center justify-center border-2 border-gold/50 group-hover:scale-105 transition-transform overflow-hidden shadow-[0_0_15px_rgba(212,175,55,0.2)]">
                     {member.image ? (
                       <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Heart className="text-gold w-10 h-10" />
+                      <UserIcon className="text-gold w-12 h-12" />
                     )}
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2">{member.name}</h3>
-                  <div className="text-gold text-sm font-bold uppercase mb-4">{member.position}</div>
-                  <p className="text-gray-400 text-sm leading-relaxed">{member.description}</p>
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">{member.name}</h3>
+                  <div className="bg-black text-gold text-sm font-bold px-4 py-1.5 rounded-full border border-gold/30 mb-8 inline-block shadow-sm shadow-gold/5">
+                    {member.position || 'นักเขียน'}
+                  </div>
+                  <p className="text-gray-300 text-base md:text-lg leading-relaxed italic border-l-2 border-gold/40 pl-5 text-left w-full mx-auto font-medium">
+                    "{member.description || 'ไม่มีคำอธิบาย'}"
+                  </p>
                 </motion.div>
               ))
             ) : (
