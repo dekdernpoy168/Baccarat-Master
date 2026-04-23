@@ -2,23 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function AuthorManagement() {
-  const [authors, setAuthors] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AuthorManagement({ authors: propAuthors, fetchAuthors: propFetchAuthors }: { authors?: any[], fetchAuthors?: () => void }) {
+  const [localAuthors, setLocalAuthors] = useState<any[]>(propAuthors || []);
+  const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentAuthor, setCurrentAuthor] = useState<any>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
   useEffect(() => {
-    fetchAuthors();
-  }, []);
+    if (propAuthors) {
+      setLocalAuthors(propAuthors);
+    } else {
+      fetchAuthors();
+    }
+  }, [propAuthors]);
 
   const fetchAuthors = async () => {
+    if (propFetchAuthors) {
+      propFetchAuthors();
+      return;
+    }
     try {
       const response = await fetch('/api/authors');
       if (response.ok) {
         const data = await response.json();
-        setAuthors(data as any[]);
+        setLocalAuthors(data as any[]);
       }
     } catch (error) {
       console.error('Error fetching authors:', error);
@@ -202,14 +210,14 @@ export default function AuthorManagement() {
         </motion.div>
       ) : (
         <>
-          {authors.length === 0 ? (
+          {localAuthors.length === 0 ? (
             <div className="text-center py-12 border border-dashed border-gray-700 rounded-lg bg-gray-800/50">
               <User size={48} className="mx-auto text-gray-600 mb-4" />
               <p className="text-gray-400">ยังไม่มีข้อมูลผู้เขียน</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {authors.map(author => (
+              {localAuthors.map((author: any) => (
                 <div key={author.id} className="bg-gray-800 rounded-lg p-5 border border-gray-700 flex flex-col h-full">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">

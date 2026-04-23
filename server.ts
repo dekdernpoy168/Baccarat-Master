@@ -153,6 +153,10 @@ async function startServer() {
     console.log("Broadcasting categories_updated event");
     io.emit("categories_updated");
   };
+  const broadcastAuthorsUpdate = () => {
+    console.log("Broadcasting authors_updated event");
+    io.emit("authors_updated");
+  };
 
   // Initialize Cloudflare D1 tables
   const hasCloudflareConfig = process.env.CLOUDFLARE_ACCOUNT_ID && 
@@ -835,6 +839,7 @@ async function startServer() {
       );
       
       const rows = await query(`SELECT id, name, description, position, image, created_at AS createdAt, updated_at AS updatedAt FROM authors ORDER BY id DESC LIMIT 1`);
+      broadcastAuthorsUpdate();
       res.status(201).json(rows[0]);
     } catch (error: any) {
       console.error("Error creating author:", error);
@@ -857,6 +862,7 @@ async function startServer() {
       );
       
       const rows = await query(`SELECT id, name, description, position, image, created_at AS createdAt, updated_at AS updatedAt FROM authors WHERE id = ?`, [queryId]);
+      broadcastAuthorsUpdate();
       res.json(rows[0] || {});
     } catch (error: any) {
       console.error("Error updating author:", error);
@@ -875,6 +881,8 @@ async function startServer() {
       } else {
         await exec(`DELETE FROM authors WHERE id = ?`, [numericId]);
       }
+      
+      broadcastAuthorsUpdate();
       
       res.json({ 
         success: true, 

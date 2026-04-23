@@ -952,7 +952,23 @@ const AssetPickerModal = ({ isOpen, onClose, onSelect }: { isOpen: boolean, onCl
 };
 
 
-const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, setArticles: propsSetArticles, setCategories: propsSetCategories, loading: propsLoading, fetchArticles: propsFetchArticles }: { articles?: Article[], categories?: Category[], setArticles?: (articles: Article[]) => void, setCategories?: (categories: Category[]) => void, loading?: boolean, fetchArticles?: () => void }) => {
+const AdminDashboard = ({ 
+  articles: propsArticles, 
+  categories: propsCategories, 
+  authors: propsAuthors,
+  setArticles: propsSetArticles, 
+  setCategories: propsSetCategories, 
+  loading: propsLoading, 
+  fetchArticles: propsFetchArticles 
+}: { 
+  articles?: Article[], 
+  categories?: Category[], 
+  authors?: any[],
+  setArticles?: (articles: Article[]) => void, 
+  setCategories?: (categories: Category[]) => void, 
+  loading?: boolean, 
+  fetchArticles?: () => void 
+}) => {
   const [articles, setArticles] = useState<Article[]>(propsArticles || []);
   const [categories, setCategories] = useState<Category[]>(propsCategories || []);
   const [isEditing, setIsEditing] = useState(false);
@@ -1131,12 +1147,27 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   const [excerptOptions, setExcerptOptions] = useState<string[]>([]);
   const [showSlugSelection, setShowSlugSelection] = useState(false);
   const [showExcerptSelection, setShowExcerptSelection] = useState(false);
-  const [authors, setAuthors] = useState<any[]>([]);
+  const [authors, setAuthors] = useState<any[]>(propsAuthors || []);
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all');
   const [filterType, setFilterType] = useState<'post' | 'page'>('post');
 
-  // Fetch data on mount
+  // Sync props to state if provided
+  useEffect(() => {
+    if (propsArticles) setArticles(propsArticles);
+  }, [propsArticles]);
+
+  useEffect(() => {
+    if (propsCategories) setCategories(propsCategories);
+  }, [propsCategories]);
+  
+  useEffect(() => {
+    if (propsAuthors) setAuthors(propsAuthors);
+  }, [propsAuthors]);
+
+  // Fetch data on mount if not provided as props
   const loadData = async () => {
+    if (propsArticles && propsCategories) return; // Skip if handled externally
+    
     setLoading(true);
     try {
       const [articlesRes, categoriesRes] = await Promise.all([
@@ -1168,25 +1199,6 @@ const AdminDashboard = ({ articles: propsArticles, categories: propsCategories, 
   useEffect(() => {
     checkAiStatus();
     loadData();
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/authors')
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        let authorList = [];
-        if (Array.isArray(data)) {
-          authorList = data;
-        } else if (data && typeof data === 'object' && Array.isArray((data as any).authors)) {
-          authorList = (data as any).authors;
-        }
-        
-        setAuthors(authorList);
-      })
-      .catch(err => {
-        console.error("Error fetching authors:", err);
-        setAuthors([]);
-      });
   }, []);
 
   const filteredArticles = (articles || []).filter(a => {

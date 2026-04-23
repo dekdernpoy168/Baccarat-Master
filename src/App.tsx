@@ -4466,12 +4466,18 @@ export default function App() {
       fetchCategories();
       setNotification({ message: 'อัพเดตหมวดหมู่เรียบร้อยแล้ว', type: 'info' });
     });
+    
+    socket.on('authors_updated', () => {
+      console.log('Authors updated via socket - fetching new data...');
+      fetchAuthors();
+      setNotification({ message: 'อัพเดตข้อมูลผู้เขียนเรียบร้อยแล้ว', type: 'info' });
+    });
 
     return () => {
       unsubscribeAuth();
       socket.disconnect();
     };
-  }, [fetchArticles, fetchCategories]);
+  }, [fetchArticles, fetchCategories, fetchAuthors]);
 
   if (!authReady) return <div className="min-h-screen bg-baccarat-black flex items-center justify-center"><div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div></div>;
 
@@ -4509,7 +4515,7 @@ export default function App() {
               path="/admin" 
               element={
                 user?.email === ADMIN_EMAIL ? (
-                  <StandaloneAdminDashboard articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} loading={articlesLoading} fetchArticles={fetchArticles} />
+                  <StandaloneAdminDashboard authors={authors} articles={articles} categories={categories} setArticles={setArticles} setCategories={setCategories} loading={articlesLoading} fetchArticles={fetchArticles} />
                 ) : (
                   <Navigate to="/login" />
                 )
@@ -4540,7 +4546,7 @@ export default function App() {
               element={
                 user?.email === ADMIN_EMAIL ? (
                   <div className="max-w-7xl mx-auto px-4 py-12">
-                     <AuthorManagement />
+                     <AuthorManagement authors={authors} fetchAuthors={fetchAuthors} />
                   </div>
                 ) : (
                   <Navigate to="/login" />
